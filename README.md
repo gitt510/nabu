@@ -22,7 +22,7 @@ EOF
 
 - The config file is `$XDG_CONFIG_HOME/nabu/config.toml`, falling back to `~/.config/nabu/config.toml`
 - `root` is the only key; `~` expands to the home directory
-- `nabu config` prints the resolved root and the config path
+- `nabu doctor` checks git on PATH, the config file, the root, the git identity, and the working tree; exit 1 when any check fails
 
 ## Usage
 
@@ -38,7 +38,7 @@ nabu -h / nabu note <command> -h         # usage
 - `--content` may be omitted; the body is then read from stdin
 - Flags may come before or after the positional argument
 - `--json` on any command emits the result as JSON
-- `--root <dir>` overrides `$NABU_ROOT`, which overrides the config file
+- `--root <dir>` overrides the config file for one invocation
 
 ## Behavior
 

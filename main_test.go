@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -38,12 +39,38 @@ func TestUnknownCommandExits2(t *testing.T) {
 
 func TestNoRootExits2(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Setenv("NABU_ROOT", "")
 	var out, errb bytes.Buffer
-	if code := run([]string{"config"}, strings.NewReader(""), &out, &errb); code != exitUsage {
+	if code := run([]string{"note", "ls"}, strings.NewReader(""), &out, &errb); code != exitUsage {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
 	if !strings.Contains(errb.String(), "no root declared") {
 		t.Fatalf("stderr=%q", errb.String())
+	}
+}
+
+func TestDoctorReportsMissingConfig(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	var out, errb bytes.Buffer
+	if code := run([]string{"doctor"}, strings.NewReader(""), &out, &errb); code != exitFail {
+		t.Fatalf("exit %d", code)
+	}
+	if !strings.Contains(out.String(), "fail config") {
+		t.Fatalf("stdout=%q", out.String())
+	}
+}
+
+func TestDoctorPassesOnRepo(t *testing.T) {
+	dir := t.TempDir()
+	for _, args := range [][]string{{"init", "-q"}, {"config", "user.email", "t@x"}, {"config", "user.name", "t"}} {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	var out, errb bytes.Buffer
+	if code := run([]string{"doctor", "--root", dir, "--json"}, strings.NewReader(""), &out, &errb); code != exitOK {
+		t.Fatalf("exit %d: %s%s", code, out.String(), errb.String())
+	}
+	if !strings.Contains(out.String(), `"ok": true`) {
+		t.Fatalf("stdout=%q", out.String())
 	}
 }

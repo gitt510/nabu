@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/gitt510/nabu/internal/config"
@@ -24,14 +25,14 @@ const usage = `usage: nabu <command> [args]
   note read   <path>   print a note
   note ls     [dir]    list notes under dir (root when omitted)
   note grep   <query>  find lines containing query (case-insensitive)
-  config               print the resolved root and the config file path
+  doctor               check the config file, the root, and git readiness
   help, -h             print this usage
 
 Paths are relative to the root, must stay inside it, and end in .md.
 The root is a git repository; write and append commit their change
 unless --no-commit is given. Every command accepts --json.
 
-root resolution: --root <dir> > $NABU_ROOT > root in ` + "%s" + `
+The root comes from --root <dir>, or else from root in ` + "%s" + `
 See "nabu <command> -h" for the flags of each command.
 `
 
@@ -60,8 +61,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "help", "-h", "--help":
 		fmt.Fprint(stdout, rootUsage())
 		return exitOK
-	case "config":
-		return runConfig(args[1:], stdout, stderr)
+	case "doctor":
+		return runDoctor(args[1:], stdout, stderr)
 	case "note":
 		return runNote(args[1:], stdin, stdout, stderr)
 	}
@@ -75,7 +76,7 @@ func rootUsage() string { return fmt.Sprintf(usage, config.Path()) }
 var errNoRoot = errors.New("no root declared")
 
 func setupMessage() string {
-	return fmt.Sprintf("no root declared.\n\ncreate %s like:\n\n%s\nor pass --root <dir> / set $NABU_ROOT.\n", config.Path(), config.Example)
+	return fmt.Sprintf("no root declared.\n\ncreate %s like:\n\n%s\nor pass --root <dir>.\n", config.Path(), config.Example)
 }
 
 // common holds the flags every command shares.
@@ -85,17 +86,14 @@ type common struct {
 }
 
 func (c *common) bind(fs *flag.FlagSet) {
-	fs.StringVar(&c.root, "root", "", "notes root (overrides $NABU_ROOT and the config file)")
+	fs.StringVar(&c.root, "root", "", "notes root (overrides the config file)")
 	fs.BoolVar(&c.json, "json", false, "print the result as JSON")
 }
 
-// resolveRoot applies flag > env > config.
+// resolveRoot applies flag > config.
 func (c *common) resolveRoot() (string, error) {
 	if c.root != "" {
 		return config.ExpandHome(c.root), nil
-	}
-	if env := os.Getenv("NABU_ROOT"); env != "" {
-		return config.ExpandHome(env), nil
 	}
 	cfg, err := config.Load()
 	if err != nil {
@@ -165,22 +163,97 @@ func parseInterspersed(fs *flag.FlagSet, args []string) error {
 	return fs.Parse(append([]string{"--"}, positional...))
 }
 
-func runConfig(args []string, stdout, stderr io.Writer) int {
+// check is one doctor finding. Status is ok, warn, or fail.
+type check struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Detail string `json:"detail"`
+}
+
+func runDoctor(args []string, stdout, stderr io.Writer) int {
 	var c common
-	fs := newFlagSet("config", "nabu config [--root <dir>] [--json]", stderr)
+	fs := newFlagSet("doctor", "nabu doctor [--root <dir>] [--json]", stderr)
 	c.bind(fs)
 	if ok, code := parse(fs, args, stdout, stderr); !ok {
 		return code
 	}
-	root, err := c.resolveRoot()
-	if err != nil {
-		return fail(stderr, err, exitFail)
+	checks := doctor(c.root)
+	failed := false
+	for _, ch := range checks {
+		if ch.Status == "fail" {
+			failed = true
+		}
 	}
 	if c.json {
-		return emit(stdout, map[string]string{"root": root, "config": config.Path()})
+		emit(stdout, map[string]any{"ok": !failed, "checks": checks})
+	} else {
+		for _, ch := range checks {
+			fmt.Fprintf(stdout, "%-4s %-10s %s\n", ch.Status, ch.Name, ch.Detail)
+		}
 	}
-	fmt.Fprintf(stdout, "root:   %s\nconfig: %s\n", root, config.Path())
+	if failed {
+		return exitFail
+	}
 	return exitOK
+}
+
+// doctor runs the readiness checks in dependency order and stops at the
+// first failure that makes the later checks meaningless.
+func doctor(rootFlag string) []check {
+	var out []check
+	add := func(name, status, detail string) {
+		out = append(out, check{Name: name, Status: status, Detail: detail})
+	}
+
+	if _, err := exec.LookPath("git"); err != nil {
+		add("git", "fail", "git not found on PATH")
+		return out
+	}
+	add("git", "ok", "on PATH")
+
+	root := ""
+	if rootFlag != "" {
+		root = config.ExpandHome(rootFlag)
+		add("config", "ok", "skipped: --root given")
+	} else {
+		cfg, err := config.Load()
+		switch {
+		case err != nil:
+			add("config", "fail", err.Error())
+			return out
+		case cfg.Root == "":
+			add("config", "fail", "no root declared in "+config.Path())
+			return out
+		}
+		add("config", "ok", config.Path())
+		root = cfg.Root
+	}
+
+	s, err := store.Open(root)
+	if err != nil {
+		add("root", "fail", err.Error())
+		return out
+	}
+	add("root", "ok", s.Root)
+
+	if out, err := exec.Command("git", "-C", s.Root, "var", "GIT_COMMITTER_IDENT").Output(); err != nil {
+		add("identity", "fail", "git cannot resolve user.name / user.email for the root")
+	} else {
+		ident := strings.TrimSpace(string(out))
+		if i := strings.LastIndex(ident, ">"); i >= 0 {
+			ident = ident[:i+1]
+		}
+		add("identity", "ok", ident)
+	}
+
+	if out, err := exec.Command("git", "-C", s.Root, "status", "--porcelain").Output(); err != nil {
+		add("worktree", "fail", err.Error())
+	} else if n := len(strings.Split(strings.TrimSpace(string(out)), "\n")); len(strings.TrimSpace(string(out))) > 0 {
+		add("worktree", "warn", fmt.Sprintf("%d uncommitted change(s); nabu commits only the file it writes", n))
+	} else {
+		add("worktree", "ok", "clean")
+	}
+	return out
 }
 
 func runNote(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
