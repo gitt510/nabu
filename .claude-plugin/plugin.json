@@ -1,0 +1,12 @@
+{
+  "name": "nabu",
+  "version": "0.1.0",
+  "description": "Read, write, append, list, and grep markdown notes in the user's notes repository through the nabu CLI. Use when the user asks to save a memo, jot something down, append to a note, or look something up in their notes.",
+  "author": {
+    "name": "Taichi Goto",
+    "url": "https://github.com/gitt510"
+  },
+  "repository": "https://github.com/gitt510/nabu",
+  "license": "MIT",
+  "keywords": ["notes", "markdown", "memo", "cli"]
+}
