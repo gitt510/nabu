@@ -25,6 +25,7 @@ const usage = `usage: nabu <command> [args]
   note read   <path>   print a note
   note ls     [dir]    list notes under dir (root when omitted)
   note grep   <query>  find lines containing query (case-insensitive)
+  init                 create the root declared in the config as a git repository
   doctor               check the config file, the root, and git readiness
   help, -h             print this usage
 
@@ -61,6 +62,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "help", "-h", "--help":
 		fmt.Fprint(stdout, rootUsage())
 		return exitOK
+	case "init":
+		return runInit(args[1:], stdout, stderr)
 	case "doctor":
 		return runDoctor(args[1:], stdout, stderr)
 	case "note":
@@ -161,6 +164,42 @@ func parseInterspersed(fs *flag.FlagSet, args []string) error {
 		args = rest[1:]
 	}
 	return fs.Parse(append([]string{"--"}, positional...))
+}
+
+func runInit(args []string, stdout, stderr io.Writer) int {
+	var c common
+	fs := newFlagSet("init", "nabu init [--root <dir>] [--json]\n\ncreates the directory, runs git init -b main, and seeds README.md with a first commit; every step is skipped when already done", stderr)
+	c.bind(fs)
+	if ok, code := parse(fs, args, stdout, stderr); !ok {
+		return code
+	}
+	root, err := c.resolveRoot()
+	if err != nil {
+		return fail(stderr, err, exitFail)
+	}
+	r, err := store.Init(root)
+	if err != nil {
+		return fail(stderr, err, exitFail)
+	}
+	if c.json {
+		return emit(stdout, r)
+	}
+	var did []string
+	if r.CreatedDir {
+		did = append(did, "created directory")
+	}
+	if r.InitedGit {
+		did = append(did, "git init")
+	}
+	if r.Committed {
+		did = append(did, "seeded README.md")
+	}
+	if len(did) == 0 {
+		fmt.Fprintf(stdout, "%s already initialized\n", r.Root)
+	} else {
+		fmt.Fprintf(stdout, "%s: %s\n", r.Root, strings.Join(did, ", "))
+	}
+	return exitOK
 }
 
 // check is one doctor finding. Status is ok, warn, or fail.

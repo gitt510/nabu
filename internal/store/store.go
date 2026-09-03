@@ -43,6 +43,57 @@ func Open(root string) (*Store, error) {
 	return &Store{Root: abs}, nil
 }
 
+// InitResult says what Init had to create.
+type InitResult struct {
+	Root       string `json:"root"`
+	CreatedDir bool   `json:"created_dir"`
+	InitedGit  bool   `json:"inited_git"`
+	Committed  bool   `json:"committed"`
+}
+
+// readme is the seed file of a fresh root, so the first commit has content.
+const readme = "# notes\n\nManaged by nabu.\n"
+
+// Init makes root usable: the directory exists, it is a git repository on
+// main, and it has at least one commit. Each step is skipped when already
+// done, so Init is safe to rerun.
+func Init(root string) (InitResult, error) {
+	var r InitResult
+	if root == "" {
+		return r, errors.New("no root")
+	}
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return r, err
+	}
+	r.Root = abs
+	if _, err := os.Stat(abs); errors.Is(err, fs.ErrNotExist) {
+		if err := os.MkdirAll(abs, 0o755); err != nil {
+			return r, err
+		}
+		r.CreatedDir = true
+	} else if err != nil {
+		return r, err
+	}
+	if _, err := os.Stat(filepath.Join(abs, ".git")); errors.Is(err, fs.ErrNotExist) {
+		if out, err := exec.Command("git", "-C", abs, "init", "-q", "-b", "main").CombinedOutput(); err != nil {
+			return r, fmt.Errorf("git init: %s", strings.TrimSpace(string(out)))
+		}
+		r.InitedGit = true
+	}
+	s := &Store{Root: abs}
+	if exec.Command("git", "-C", abs, "rev-parse", "--verify", "-q", "HEAD").Run() == nil {
+		return r, nil // has history already; nothing to seed
+	}
+	if _, err := os.Stat(filepath.Join(abs, "README.md")); errors.Is(err, fs.ErrNotExist) {
+		if err := os.WriteFile(filepath.Join(abs, "README.md"), []byte(readme), 0o644); err != nil {
+			return r, err
+		}
+	}
+	r.Committed, err = s.Commit("README.md", "nabu: init")
+	return r, err
+}
+
 // ErrExists is returned by Write when the note is already there.
 var ErrExists = errors.New("note exists (use --force to overwrite)")
 

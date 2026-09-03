@@ -18,10 +18,13 @@ mkdir -p ~/.config/nabu
 cat > ~/.config/nabu/config.toml <<'EOF'
 root = "~/ghq/github.com/gitt510/notes"
 EOF
+nabu init
+nabu doctor
 ```
 
 - The config file is `$XDG_CONFIG_HOME/nabu/config.toml`, falling back to `~/.config/nabu/config.toml`
 - `root` is the only key; `~` expands to the home directory
+- `nabu init` creates the declared root, runs `git init -b main`, and seeds `README.md` with a first commit; rerunning it changes nothing
 - `nabu doctor` checks git on PATH, the config file, the root, the git identity, and the working tree; exit 1 when any check fails
 
 ## Usage

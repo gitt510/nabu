@@ -140,3 +140,32 @@ func TestCommit(t *testing.T) {
 		t.Fatalf("log: %s", out)
 	}
 }
+
+func TestInitIsIdempotent(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "notes")
+	t.Setenv("GIT_AUTHOR_NAME", "t")
+	t.Setenv("GIT_AUTHOR_EMAIL", "t@x")
+	t.Setenv("GIT_COMMITTER_NAME", "t")
+	t.Setenv("GIT_COMMITTER_EMAIL", "t@x")
+	r, err := Init(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !r.CreatedDir || !r.InitedGit || !r.Committed {
+		t.Fatalf("first init: %+v", r)
+	}
+	r, err = Init(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.CreatedDir || r.InitedGit || r.Committed {
+		t.Fatalf("second init should change nothing: %+v", r)
+	}
+	if _, err := Open(root); err != nil {
+		t.Fatal(err)
+	}
+	out, _ := exec.Command("git", "-C", root, "log", "--format=%s").Output()
+	if strings.TrimSpace(string(out)) != "nabu: init" {
+		t.Fatalf("log: %s", out)
+	}
+}
