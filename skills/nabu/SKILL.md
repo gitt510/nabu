@@ -31,9 +31,10 @@ EOF
 
 ## How to work
 
-1. **Look before you write.** Run `nabu note ls --json` first and reuse an
-   existing directory and file when one fits. Create a new directory only
-   when nothing fits, and name it in lowercase kebab-case.
+1. **Read the conventions first.** `nabu note read README.md` gives the
+   layout and filename rules of this particular root; they win over any
+   default here. Then `nabu note ls --json` to see what exists, and reuse an
+   existing file when one fits.
 2. **Prefer append.** Notes grow; `append` is the default verb. Use `write`
    only for a note that does not exist yet. Never pass `--force` unless the
    user explicitly asks to replace a note.
