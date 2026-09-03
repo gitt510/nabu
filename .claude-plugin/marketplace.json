@@ -1,0 +1,16 @@
+{
+  "name": "nabu",
+  "owner": {
+    "name": "Taichi Goto",
+    "url": "https://github.com/gitt510"
+  },
+  "plugins": [
+    {
+      "name": "nabu",
+      "source": "./",
+      "description": "Agent skill for the nabu notes CLI",
+      "version": "0.1.0"
+    }
+  ],
+  "description": "Agent skill for the nabu notes CLI"
+}
