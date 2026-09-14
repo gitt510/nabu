@@ -74,3 +74,59 @@ func TestDoctorPassesOnRepo(t *testing.T) {
 		t.Fatalf("stdout=%q", out.String())
 	}
 }
+
+func TestDoctorNotesWarns(t *testing.T) {
+	dir := t.TempDir()
+	for _, args := range [][]string{{"init", "-q"}, {"config", "user.email", "t@x"}, {"config", "user.name", "t"}} {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	var out, errb bytes.Buffer
+	if code := run([]string{"note", "write", "Bad Name.md", "--root", dir, "--content", "x", "--no-commit"}, strings.NewReader(""), &out, &errb); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	out.Reset()
+	if code := run([]string{"doctor", "--notes", "--root", dir}, strings.NewReader(""), &out, &errb); code != exitOK {
+		t.Fatalf("exit %d: %s%s", code, out.String(), errb.String())
+	}
+	if !strings.Contains(out.String(), "warn notes") || !strings.Contains(out.String(), "Bad Name.md") {
+		t.Fatalf("stdout=%q", out.String())
+	}
+}
+
+func TestReplaceAndMvViaCLI(t *testing.T) {
+	dir := t.TempDir()
+	for _, args := range [][]string{{"init", "-q"}, {"config", "user.email", "t@x"}, {"config", "user.name", "t"}} {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	var out, errb bytes.Buffer
+	if code := run([]string{"note", "replace", "a.md", "--root", dir, "--content", "x"}, strings.NewReader(""), &out, &errb); code != exitFail {
+		t.Fatalf("replace of missing note: exit %d", code)
+	}
+	if code := run([]string{"note", "write", "a.md", "--root", dir, "--content", "one"}, strings.NewReader(""), &out, &errb); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if code := run([]string{"note", "replace", "a.md", "--root", dir, "--content", "two", "--json"}, strings.NewReader(""), &out, &errb); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), `"action": "replace"`) {
+		t.Fatalf("stdout=%q", out.String())
+	}
+	out.Reset()
+	if code := run([]string{"note", "mv", "a.md", "b.md", "--root", dir, "--json"}, strings.NewReader(""), &out, &errb); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), `"committed": true`) {
+		t.Fatalf("stdout=%q", out.String())
+	}
+	errb.Reset()
+	if code := run([]string{"note", "write", "b.md", "--root", dir, "--content", "three", "--force"}, strings.NewReader(""), &out, &errb); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(errb.String(), "deprecated") {
+		t.Fatalf("stderr=%q", errb.String())
+	}
+}

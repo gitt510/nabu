@@ -90,12 +90,15 @@ func Init(root string) (InitResult, error) {
 			return r, err
 		}
 	}
-	r.Committed, err = s.Commit("README.md", "nabu: init")
+	r.Committed, err = s.Commit("nabu: init", "README.md")
 	return r, err
 }
 
 // ErrExists is returned by Write when the note is already there.
-var ErrExists = errors.New("note exists (use --force to overwrite)")
+var ErrExists = errors.New("note exists (use note replace to revise it)")
+
+// ErrNotExist is returned by Replace and Move when the note is missing.
+var ErrNotExist = errors.New("no such note")
 
 // Resolve turns a note path into an absolute path, rejecting anything that
 // escapes the root or is not a markdown file.
@@ -143,6 +146,46 @@ func (s *Store) Write(p string, content []byte, force bool) (string, error) {
 		return "", err
 	}
 	return s.Rel(abs), os.WriteFile(abs, ensureNewline(content), 0o644)
+}
+
+// Replace overwrites the whole body of an existing note. It refuses to
+// create one, so a typo in the path cannot silently start a new note.
+func (s *Store) Replace(p string, content []byte) (string, error) {
+	abs, err := s.Resolve(p)
+	if err != nil {
+		return "", err
+	}
+	if _, err := os.Stat(abs); errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("%s: %w", s.Rel(abs), ErrNotExist)
+	} else if err != nil {
+		return "", err
+	}
+	return s.Rel(abs), os.WriteFile(abs, ensureNewline(content), 0o644)
+}
+
+// Move renames a note. The source must exist and the destination must not,
+// so a move never overwrites. Both paths are returned for the commit.
+func (s *Store) Move(from, to string) (string, string, error) {
+	src, err := s.Resolve(from)
+	if err != nil {
+		return "", "", err
+	}
+	dst, err := s.Resolve(to)
+	if err != nil {
+		return "", "", err
+	}
+	if _, err := os.Stat(src); errors.Is(err, fs.ErrNotExist) {
+		return "", "", fmt.Errorf("%s: %w", s.Rel(src), ErrNotExist)
+	} else if err != nil {
+		return "", "", err
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return "", "", fmt.Errorf("%s: %w", s.Rel(dst), ErrExists)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return "", "", err
+	}
+	return s.Rel(src), s.Rel(dst), os.Rename(src, dst)
 }
 
 // Append adds content to the end of a note, creating it when absent. With a
@@ -283,23 +326,73 @@ func (s *Store) Grep(query string) ([]Match, error) {
 	return out, nil
 }
 
-// Commit stages rel and commits it. It is a no-op (false) when the path has
-// no change to record.
-func (s *Store) Commit(rel, message string) (bool, error) {
-	if err := s.git("add", "--", rel); err != nil {
+// Commit stages the given paths and commits them together. It is a no-op
+// (false) when none of them has a change to record. A removed path (the
+// source of a move) is staged as a deletion.
+func (s *Store) Commit(message string, rels ...string) (bool, error) {
+	if len(rels) == 0 {
+		return false, errors.New("nothing to commit")
+	}
+	if err := s.git(append([]string{"add", "-A", "--"}, rels...)...); err != nil {
 		return false, err
 	}
-	out, err := exec.Command("git", "-C", s.Root, "status", "--porcelain", "--", rel).Output()
+	out, err := exec.Command("git", append([]string{"-C", s.Root, "status", "--porcelain", "--"}, rels...)...).Output()
 	if err != nil {
 		return false, fmt.Errorf("git status: %w", err)
 	}
 	if len(bytes.TrimSpace(out)) == 0 {
 		return false, nil
 	}
-	if err := s.git("commit", "-q", "-m", message, "--", rel); err != nil {
+	if err := s.git(append([]string{"commit", "-q", "-m", message, "--"}, rels...)...); err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+// Finding is one convention warning from Lint.
+type Finding struct {
+	Path   string `json:"path"`
+	Rule   string `json:"rule"`
+	Detail string `json:"detail"`
+}
+
+// Lint walks every note and reports the ones that break the naming
+// conventions: a filename that is not lowercase kebab-case, or a body with
+// no "# " title. It changes nothing; repairs go through Move and Replace.
+func (s *Store) Lint() ([]Finding, error) {
+	entries, err := s.List("")
+	if err != nil {
+		return nil, err
+	}
+	var out []Finding
+	for _, e := range entries {
+		if e.Path == "README.md" {
+			continue
+		}
+		if !kebabPath(e.Path) {
+			out = append(out, Finding{Path: e.Path, Rule: "filename", Detail: "not lowercase kebab-case (a-z, 0-9, -)"})
+		}
+		if e.Title == "" {
+			out = append(out, Finding{Path: e.Path, Rule: "title", Detail: "no \"# \" heading"})
+		}
+	}
+	return out, nil
+}
+
+// kebabPath reports whether every segment of a slash path is lowercase
+// kebab-case and the file ends in .md.
+func kebabPath(p string) bool {
+	for _, seg := range strings.Split(strings.TrimSuffix(p, ".md"), "/") {
+		if seg == "" || seg[0] == '-' || seg[len(seg)-1] == '-' {
+			return false
+		}
+		for _, r := range seg {
+			if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-') {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (s *Store) git(args ...string) error {

@@ -17,7 +17,10 @@ nabu note ls [dir] --json          # what exists (path, title, modified)
 nabu note grep <query> --json      # where something is written
 nabu note read <path>              # a note's content
 nabu note append <path> --heading "## YYYY-MM-DD" --content "<text>"
-nabu note write <path> --content "<text>"   # new note only; refuses to overwrite
+nabu note write <path> --content "<text>"    # new note only; refuses to overwrite
+nabu note replace <path> --content "<text>"  # existing note only; whole-body revise
+nabu note mv <from> <to>                     # rename; never overwrites
+nabu doctor --notes                          # warn on non-kebab filenames / missing titles
 ```
 
 Flags may follow the positional argument. Multi-line bodies go through stdin:
@@ -35,9 +38,13 @@ EOF
    layout and filename rules of this particular root; they win over any
    default here. Then `nabu note ls --json` to see what exists, and reuse an
    existing file when one fits.
-2. **Prefer append.** Notes grow; `append` is the default verb. Use `write`
-   only for a note that does not exist yet. Never pass `--force` unless the
-   user explicitly asks to replace a note.
+2. **Pick the verb by the note's shape.** A log (journal, 1:1, goal
+   entries) grows: use `append`. A structured document (proposal, spec,
+   README) is revised: `read` it, rewrite the whole body, and `replace`.
+   Reordering or rewriting sections the user asked for needs no extra
+   permission; dropping content they did not mention does. Use `write`
+   only for a note that does not exist yet. `write --force` is deprecated;
+   do not use it.
 3. **Date the entry.** When appending, pass `--heading "## YYYY-MM-DD"` with
    today's date so the note reads as a log. Consecutive appends on the same
    day land under one heading.
@@ -45,6 +52,9 @@ EOF
    facts; tidy into bullets or short paragraphs. Do not add commentary.
 5. **Report the path.** After a write, tell the user the relative path nabu
    printed (`--json` gives `path`, `action`, `bytes`, `committed`).
+6. **Repair conventions with `mv`.** When `doctor --notes` or the README
+   flags a filename, rename with `nabu note mv` and grep for references
+   first; fix a missing title with `replace`.
 
 ## Do not
 

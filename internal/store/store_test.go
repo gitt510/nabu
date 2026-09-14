@@ -127,11 +127,11 @@ func TestCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	done, err := s.Commit(rel, "nabu: write a.md")
+	done, err := s.Commit("nabu: write a.md", rel)
 	if err != nil || !done {
 		t.Fatalf("got %v, %v", done, err)
 	}
-	done, err = s.Commit(rel, "again")
+	done, err = s.Commit("again", rel)
 	if err != nil || done {
 		t.Fatalf("second commit should be a no-op: %v, %v", done, err)
 	}
@@ -167,5 +167,100 @@ func TestInitIsIdempotent(t *testing.T) {
 	out, _ := exec.Command("git", "-C", root, "log", "--format=%s").Output()
 	if strings.TrimSpace(string(out)) != "nabu: init" {
 		t.Fatalf("log: %s", out)
+	}
+}
+
+func TestReplaceRequiresExisting(t *testing.T) {
+	s := newRepo(t)
+	if _, err := s.Replace("a.md", []byte("x")); err == nil {
+		t.Fatal("expected ErrNotExist")
+	}
+	if _, err := s.Write("a.md", []byte("one"), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Replace("a.md", []byte("two")); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := s.Read("a.md")
+	if string(b) != "two\n" {
+		t.Fatalf("got %q", b)
+	}
+}
+
+func TestMoveNeverOverwrites(t *testing.T) {
+	s := newRepo(t)
+	if _, _, err := s.Move("a.md", "b.md"); err == nil {
+		t.Fatal("expected ErrNotExist for missing source")
+	}
+	if _, err := s.Write("a.md", []byte("one"), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Write("b.md", []byte("two"), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Move("a.md", "b.md"); err == nil {
+		t.Fatal("expected ErrExists for existing destination")
+	}
+	from, to, err := s.Move("a.md", "dir/c.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if from != "a.md" || to != "dir/c.md" {
+		t.Fatalf("from=%q to=%q", from, to)
+	}
+	if _, err := s.Read("a.md"); err == nil {
+		t.Fatal("source should be gone")
+	}
+	b, _ := s.Read("dir/c.md")
+	if string(b) != "one\n" {
+		t.Fatalf("got %q", b)
+	}
+}
+
+func TestCommitMove(t *testing.T) {
+	s := newRepo(t)
+	rel, _ := s.Write("a.md", []byte("one"), false)
+	if _, err := s.Commit("write", rel); err != nil {
+		t.Fatal(err)
+	}
+	from, to, err := s.Move("a.md", "b.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	done, err := s.Commit("mv", from, to)
+	if err != nil || !done {
+		t.Fatalf("done=%v err=%v", done, err)
+	}
+	out, _ := exec.Command("git", "-C", s.Root, "status", "--porcelain").Output()
+	if len(strings.TrimSpace(string(out))) != 0 {
+		t.Fatalf("worktree not clean: %s", out)
+	}
+}
+
+func TestLint(t *testing.T) {
+	s := newRepo(t)
+	for p, body := range map[string]string{
+		"work/good-note.md": "# Good\n",
+		"Bad Name.md":       "# Titled\n",
+		"work/no-title.md":  "just text\n",
+		"README.md":         "no title, but exempt\n",
+	} {
+		if _, err := s.Write(p, []byte(body), false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fs, err := s.Lint()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, f := range fs {
+		got[f.Path] += f.Rule + ";"
+	}
+	if got["work/good-note.md"] != "" || got["README.md"] != "" {
+		t.Fatalf("false positives: %v", got)
+	}
+	if got["Bad Name.md"] != "filename;" || got["work/no-title.md"] != "title;" {
+		t.Fatalf("got %v", got)
 	}
 }
