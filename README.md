@@ -38,6 +38,7 @@ nabu note write <path> --content <text>   # create a note (must not exist)
 nabu note replace <path> --content <text> # replace the body of an existing note
 nabu note append <path> --content <text>  # append to a note
 nabu note mv <from> <to>                  # rename a note (destination must not exist)
+nabu todo new <slug> [--scheduled <RFC3339>] [--ticket <url>]...  # create tasks/<slug>.md
 nabu -h / nabu note <command> -h         # usage
 ```
 
@@ -53,7 +54,8 @@ nabu -h / nabu note <command> -h         # usage
 - `mv` refuses an existing destination and commits the removal and the addition together
 - `append` creates the note when absent and separates entries with a blank line
 - `append --heading "## 2026-09-03"` writes the heading once; later appends under the same heading join the section, and consecutive list items form one list
-- `write`, `replace`, and `append` commit the changed file as `nabu: <command> <path>`; `mv` commits as `nabu: mv <from> -> <to>`; `--no-commit` leaves the change uncommitted
+- `todo new` writes `tasks/<slug>.md` (slug: lowercase kebab-case, no `/` or `.md`) and refuses an existing one. The body comes from `--content` or stdin and is not constrained. `--scheduled` (RFC3339 with offset, the planned work time) and repeatable `--ticket` (full `https` URL) become a YAML frontmatter block; with neither flag no block is written. A body that itself starts with `---` is rejected when flags are given
+- `write`, `replace`, `append`, and `todo new` commit the changed file as `nabu: <command> <path>` (`todo new` as `nabu: todo <path>`); `mv` commits as `nabu: mv <from> -> <to>`; `--no-commit` leaves the change uncommitted
 - `ls` skips `.git` and non-`.md` files; `--json` carries `path`, `title` (first `# ` heading), `modified`, `bytes`
 - `mv --json` carries `from`, `to`, `action`, `committed`
 - `grep --json` carries `path`, `line`, `text`

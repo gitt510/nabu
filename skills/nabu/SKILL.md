@@ -20,6 +20,7 @@ nabu note append <path> --heading "## YYYY-MM-DD" --content "<text>"
 nabu note write <path> --content "<text>"    # new note only; refuses to overwrite
 nabu note replace <path> --content "<text>"  # existing note only; whole-body revise
 nabu note mv <from> <to>                     # rename; never overwrites
+nabu todo new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]...  # tasks/<slug>.md
 nabu doctor --notes                          # warn on non-kebab filenames / missing titles
 ```
 
@@ -50,9 +51,16 @@ EOF
    day land under one heading.
 4. **Write what the user said, shaped for the file.** Keep their wording and
    facts; tidy into bullets or short paragraphs. Do not add commentary.
-5. **Report the path.** After a write, tell the user the relative path nabu
+5. **File a task with `todo new`.** A task is a note under `tasks/`; the
+   slug is the filename, the body (stdin) is ordinary markdown starting with
+   a `# ` title. Metadata goes through flags, never hand-written in the body:
+   `--scheduled` is the time the work is planned to happen (RFC3339 with
+   offset, not a deadline), `--ticket` is a full `https` issue URL, repeatable.
+   Later edits use `note replace`, which rewrites the whole file: keep the
+   frontmatter block in the new body.
+6. **Report the path.** After a write, tell the user the relative path nabu
    printed (`--json` gives `path`, `action`, `bytes`, `committed`).
-6. **Repair conventions with `mv`.** When `doctor --notes` or the README
+7. **Repair conventions with `mv`.** When `doctor --notes` or the README
    flags a filename, rename with `nabu note mv` and grep for references
    first; fix a missing title with `replace`.
 

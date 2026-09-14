@@ -379,6 +379,12 @@ func (s *Store) Lint() ([]Finding, error) {
 	return out, nil
 }
 
+// Slug reports whether s is a single lowercase kebab-case filename segment
+// without a directory or extension.
+func Slug(s string) bool {
+	return !strings.ContainsAny(s, "/.") && kebabPath(s+".md")
+}
+
 // kebabPath reports whether every segment of a slash path is lowercase
 // kebab-case and the file ends in .md.
 func kebabPath(p string) bool {
