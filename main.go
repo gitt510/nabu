@@ -27,13 +27,14 @@ const usage = `usage: nabu <command> [args]
   note read    <path>      print a note
   note ls      [dir]       list notes under dir (root when omitted)
   note grep    <query>     find lines containing query (case-insensitive)
+  todo new     <slug>      create tasks/<slug>.md with optional --scheduled / --ticket frontmatter
   init                     create the root declared in the config as a git repository
   doctor                   check the config file, the root, and git readiness
                            (--notes also lints filenames and titles)
   help, -h             print this usage
 
 Paths are relative to the root, must stay inside it, and end in .md.
-The root is a git repository; write, replace, append, and mv commit
+The root is a git repository; write, replace, append, mv, and todo new commit
 their change unless --no-commit is given. Every command accepts --json.
 
 The root comes from --root <dir>, or else from root in ` + "%s" + `
@@ -69,6 +70,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runInit(args[1:], stdout, stderr)
 	case "doctor":
 		return runDoctor(args[1:], stdout, stderr)
+	case "todo":
+		return runTodo(args[1:], stdin, stdout, stderr)
 	case "note":
 		return runNote(args[1:], stdin, stdout, stderr)
 	}
