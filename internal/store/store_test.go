@@ -244,6 +244,10 @@ func TestLint(t *testing.T) {
 		"Bad Name.md":       "# Titled\n",
 		"work/no-title.md":  "just text\n",
 		"README.md":         "no title, but exempt\n",
+		"tasks/legacy.md":   "# Flat\n",
+		"tasks/inbox/ok.md": "# Ok\n",
+		"tasks/wip/x.md":    "# Wrong folder\n",
+		"tasks/done/a/b.md": "# Nested\n",
 	} {
 		if _, err := s.Write(p, []byte(body), false); err != nil {
 			t.Fatal(err)
@@ -257,10 +261,28 @@ func TestLint(t *testing.T) {
 	for _, f := range fs {
 		got[f.Path] += f.Rule + ";"
 	}
-	if got["work/good-note.md"] != "" || got["README.md"] != "" {
+	if got["work/good-note.md"] != "" || got["README.md"] != "" || got["tasks/inbox/ok.md"] != "" {
 		t.Fatalf("false positives: %v", got)
 	}
 	if got["Bad Name.md"] != "filename;" || got["work/no-title.md"] != "title;" {
 		t.Fatalf("got %v", got)
+	}
+	for _, p := range []string{"tasks/legacy.md", "tasks/wip/x.md", "tasks/done/a/b.md"} {
+		if got[p] != "task;" {
+			t.Fatalf("%s: got %q, want task", p, got[p])
+		}
+	}
+}
+
+func TestFindTask(t *testing.T) {
+	s := newRepo(t)
+	if s.FindTask("x") != "" {
+		t.Fatal("found a task in an empty root")
+	}
+	if _, err := s.Write(TaskPath("done", "x"), []byte("# x"), false); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.FindTask("x"); got != "tasks/done/x.md" {
+		t.Fatalf("got %q", got)
 	}
 }

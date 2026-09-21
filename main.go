@@ -27,15 +27,16 @@ const usage = `usage: nabu <command> [args]
   note read    <path>      print a note
   note ls      [dir]       list notes under dir (root when omitted)
   note grep    <query>     find lines containing query (case-insensitive)
-  todo new     <slug>      create tasks/<slug>.md with optional --scheduled / --ticket frontmatter
+  task new     <slug>      create tasks/inbox/<slug>.md with optional --scheduled / --ticket frontmatter
+  task mv      <slug> <st> move a task to tasks/<st>/ (inbox, doing, done)
   init                     create the root declared in the config as a git repository
   doctor                   check the config file, the root, and git readiness
                            (--notes also lints filenames and titles)
   help, -h             print this usage
 
 Paths are relative to the root, must stay inside it, and end in .md.
-The root is a git repository; write, replace, append, mv, and todo new commit
-their change unless --no-commit is given. Every command accepts --json.
+The root is a git repository; write, replace, append, mv, task new, and task mv
+commit their change unless --no-commit is given. Every command accepts --json.
 
 The root comes from --root <dir>, or else from root in ` + "%s" + `
 See "nabu <command> -h" for the flags of each command.
@@ -70,8 +71,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runInit(args[1:], stdout, stderr)
 	case "doctor":
 		return runDoctor(args[1:], stdout, stderr)
-	case "todo":
-		return runTodo(args[1:], stdin, stdout, stderr)
+	case "task":
+		return runTask(args[1:], stdin, stdout, stderr)
 	case "note":
 		return runNote(args[1:], stdin, stdout, stderr)
 	}
@@ -218,9 +219,9 @@ type check struct {
 func runDoctor(args []string, stdout, stderr io.Writer) int {
 	var c common
 	var notes bool
-	fs := newFlagSet("doctor", "nabu doctor [--notes] [--root <dir>] [--json]\n\n--notes also warns about notes whose filename is not kebab-case or that have no \"# \" title", stderr)
+	fs := newFlagSet("doctor", "nabu doctor [--notes] [--root <dir>] [--json]\n\n--notes also warns about notes whose filename is not kebab-case, that have no \"# \" title, or that sit under tasks/ outside a status folder", stderr)
 	c.bind(fs)
-	fs.BoolVar(&notes, "notes", false, "lint note filenames and titles (warn only)")
+	fs.BoolVar(&notes, "notes", false, "lint note filenames, titles, and task folders (warn only)")
 	if ok, code := parse(fs, args, stdout, stderr); !ok {
 		return code
 	}
@@ -307,7 +308,7 @@ func doctor(rootFlag string, notes bool) []check {
 		case err != nil:
 			add("notes", "fail", err.Error())
 		case len(findings) == 0:
-			add("notes", "ok", "filenames are kebab-case and every note has a title")
+			add("notes", "ok", "filenames are kebab-case, every note has a title, tasks sit in status folders")
 		default:
 			for _, f := range findings {
 				add("notes", "warn", fmt.Sprintf("%s: %s (%s)", f.Path, f.Detail, f.Rule))
