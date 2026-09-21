@@ -20,8 +20,9 @@ nabu note append <path> --heading "## YYYY-MM-DD" --content "<text>"
 nabu note write <path> --content "<text>"    # new note only; refuses to overwrite
 nabu note replace <path> --content "<text>"  # existing note only; whole-body revise
 nabu note mv <from> <to>                     # rename; never overwrites
-nabu todo new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]...  # tasks/<slug>.md
-nabu doctor --notes                          # warn on non-kebab filenames / missing titles
+nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]...  # tasks/inbox/<slug>.md
+nabu task mv <slug> <inbox|doing|done>       # move a task to its status folder
+nabu doctor --notes                          # warn on non-kebab filenames / missing titles / misplaced tasks
 ```
 
 Flags may follow the positional argument. Multi-line bodies go through stdin:
@@ -51,18 +52,24 @@ EOF
    day land under one heading.
 4. **Write what the user said, shaped for the file.** Keep their wording and
    facts; tidy into bullets or short paragraphs. Do not add commentary.
-5. **File a task with `todo new`.** A task is a note under `tasks/`; the
+5. **File a task with `task new`.** A task is a note under `tasks/`; the
    slug is the filename, the body (stdin) is ordinary markdown starting with
    a `# ` title. Metadata goes through flags, never hand-written in the body:
    `--scheduled` is the time the work is planned to happen (RFC3339 with
    offset, not a deadline), `--ticket` is a full `https` issue URL, repeatable.
    Later edits use `note replace`, which rewrites the whole file: keep the
    frontmatter block in the new body.
-6. **Report the path.** After a write, tell the user the relative path nabu
+6. **Move a task with `task mv`.** The folder is the task's status:
+   `tasks/inbox/` (new), `tasks/doing/` (started), `tasks/done/` (finished).
+   Never write a status into the body or frontmatter; run
+   `nabu task mv <slug> doing` when work starts and `... done` when it ends.
+   `nabu note ls tasks/doing --json` lists what is in flight.
+7. **Report the path.** After a write, tell the user the relative path nabu
    printed (`--json` gives `path`, `action`, `bytes`, `committed`).
-7. **Repair conventions with `mv`.** When `doctor --notes` or the README
+8. **Repair conventions with `mv`.** When `doctor --notes` or the README
    flags a filename, rename with `nabu note mv` and grep for references
-   first; fix a missing title with `replace`.
+   first; fix a missing title with `replace`. A task flagged as outside a
+   status folder moves with `nabu note mv tasks/<slug>.md tasks/inbox/<slug>.md`.
 
 ## Do not
 

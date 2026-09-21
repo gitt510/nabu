@@ -357,8 +357,9 @@ type Finding struct {
 }
 
 // Lint walks every note and reports the ones that break the naming
-// conventions: a filename that is not lowercase kebab-case, or a body with
-// no "# " title. It changes nothing; repairs go through Move and Replace.
+// conventions: a filename that is not lowercase kebab-case, a body with no
+// "# " title, or a note under tasks/ outside a status folder. It changes
+// nothing; repairs go through Move and Replace.
 func (s *Store) Lint() ([]Finding, error) {
 	entries, err := s.List("")
 	if err != nil {
@@ -375,6 +376,9 @@ func (s *Store) Lint() ([]Finding, error) {
 		if e.Title == "" {
 			out = append(out, Finding{Path: e.Path, Rule: "title", Detail: "no \"# \" heading"})
 		}
+		if !taskFolderOK(e.Path) {
+			out = append(out, Finding{Path: e.Path, Rule: "task", Detail: "not in a status folder tasks/<" + strings.Join(TaskStatuses, "|") + ">/"})
+		}
 	}
 	return out, nil
 }
@@ -383,6 +387,48 @@ func (s *Store) Lint() ([]Finding, error) {
 // without a directory or extension.
 func Slug(s string) bool {
 	return !strings.ContainsAny(s, "/.") && kebabPath(s+".md")
+}
+
+// TaskStatuses are the folders under tasks/, in workflow order. A task's
+// status is its folder; nothing else records it.
+var TaskStatuses = []string{"inbox", "doing", "done"}
+
+// TaskStatus reports whether status names one of the task folders.
+func TaskStatus(status string) bool {
+	for _, st := range TaskStatuses {
+		if st == status {
+			return true
+		}
+	}
+	return false
+}
+
+// TaskPath is the note path of a task in the given status folder.
+func TaskPath(status, slug string) string {
+	return "tasks/" + status + "/" + slug + ".md"
+}
+
+// FindTask returns the path of the task with this slug, whatever its
+// status, or "" when no status folder has it.
+func (s *Store) FindTask(slug string) string {
+	for _, st := range TaskStatuses {
+		rel := TaskPath(st, slug)
+		if _, err := os.Stat(filepath.Join(s.Root, filepath.FromSlash(rel))); err == nil {
+			return rel
+		}
+	}
+	return ""
+}
+
+// taskFolderOK reports whether a note under tasks/ sits directly in a
+// status folder. Notes outside tasks/ always pass.
+func taskFolderOK(p string) bool {
+	rest, ok := strings.CutPrefix(p, "tasks/")
+	if !ok {
+		return true
+	}
+	dir, _, ok := strings.Cut(rest, "/")
+	return ok && TaskStatus(dir) && !strings.Contains(rest[len(dir)+1:], "/")
 }
 
 // kebabPath reports whether every segment of a slash path is lowercase
