@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net/url"
@@ -45,45 +44,36 @@ func runTask(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	var c common
-	var content, scheduled string
 	var tk tickets
-	var noCommit bool
-	fs := newFlagSet("task new", "nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]... [--content <text>] [--no-commit] [--json]\n\ncreates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present in any status folder is refused.\nflags become the note's frontmatter, so the body must not start with one.\n--scheduled is the time the work is planned to happen, not a deadline", stderr)
-	c.bind(fs)
-	fs.StringVar(&content, "content", "", "note body; stdin is read when omitted")
-	fs.StringVar(&scheduled, "scheduled", "", "planned work time, RFC3339 with offset (2026-09-15T18:00:00+09:00)")
+	fs := newFlagSet("task new", "nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]... [--content <text>]\n\ncreates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present in any status folder is refused.\nflags become the note's frontmatter, so the body must not start with one.\n--scheduled is the time the work is planned to happen, not a deadline")
+	root := bindRoot(fs)
+	content := fs.String("content", "", "note body; stdin is read when omitted")
+	scheduled := fs.String("scheduled", "", "planned work time, RFC3339 with offset (2026-09-15T18:00:00+09:00)")
 	fs.Var(&tk, "ticket", "related issue URL (https); repeatable")
-	fs.BoolVar(&noCommit, "no-commit", false, "leave the change uncommitted")
-	if ok, code := parse(fs, args, stdout, stderr); !ok {
+	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
 		return code
-	}
-	if fs.NArg() != 1 {
-		fs.SetOutput(stderr)
-		fs.Usage()
-		return exitUsage
 	}
 	slug := fs.Arg(0)
 	if !store.Slug(slug) {
 		return fail(stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
 	}
-	if scheduled != "" {
-		if _, err := time.Parse(time.RFC3339, scheduled); err != nil {
-			return fail(stderr, fmt.Errorf("--scheduled must be RFC3339 with an offset, e.g. 2026-09-15T18:00:00+09:00: %s", scheduled), exitUsage)
+	if *scheduled != "" {
+		if _, err := time.Parse(time.RFC3339, *scheduled); err != nil {
+			return fail(stderr, fmt.Errorf("--scheduled must be RFC3339 with an offset, e.g. 2026-09-15T18:00:00+09:00: %s", *scheduled), exitUsage)
 		}
 	}
-	fm, err := frontmatter(field{"scheduled", scheduled}, tk)
+	fm, err := frontmatter(field{"scheduled", *scheduled}, tk)
 	if err != nil {
 		return fail(stderr, err, exitUsage)
 	}
-	body, err := readBody(content, fs.Lookup("content"), stdin)
+	body, err := readBody(*content, stdin)
 	if err != nil {
 		return fail(stderr, err, exitUsage)
 	}
-	if fm != "" && strings.HasPrefix(strings.TrimLeft(string(body), "\n"), "---") {
+	if fm != "" && hasFrontmatter(body) {
 		return fail(stderr, errors.New("body already starts with frontmatter; pass metadata as flags or drop them"), exitUsage)
 	}
-	s, err := c.open()
+	s, err := openStore(*root)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
@@ -91,26 +81,18 @@ func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return fail(stderr, fmt.Errorf("%s: %w", have, store.ErrExists), exitFail)
 	}
 	doc := append([]byte(fm), body...)
-	rel, err := s.Write(store.TaskPath("inbox", slug), doc, false)
+	rel, err := s.Write(store.TaskPath("inbox", slug), doc)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	return finishWrite(s, rel, "task", len(doc), noCommit, c.json, stdout, stderr)
+	return finishWrite(s, rel, "task", len(doc), stdout, stderr)
 }
 
 func runTaskMv(args []string, stdout, stderr io.Writer) int {
-	var c common
-	var noCommit bool
-	fs := newFlagSet("task mv", "nabu task mv <slug> <"+strings.Join(store.TaskStatuses, "|")+"> [--no-commit] [--json]\n\nmoves tasks/<current>/<slug>.md to tasks/<status>/<slug>.md; the folder is the task's only status", stderr)
-	c.bind(fs)
-	fs.BoolVar(&noCommit, "no-commit", false, "leave the change uncommitted")
-	if ok, code := parse(fs, args, stdout, stderr); !ok {
+	fs := newFlagSet("task mv", "nabu task mv <slug> <"+strings.Join(store.TaskStatuses, "|")+">\n\nmoves tasks/<current>/<slug>.md to tasks/<status>/<slug>.md; the folder is the task's only status")
+	root := bindRoot(fs)
+	if ok, code := parse(fs, args, 2, 2, stdout, stderr); !ok {
 		return code
-	}
-	if fs.NArg() != 2 {
-		fs.SetOutput(stderr)
-		fs.Usage()
-		return exitUsage
 	}
 	slug, status := fs.Arg(0), fs.Arg(1)
 	if !store.Slug(slug) {
@@ -119,7 +101,7 @@ func runTaskMv(args []string, stdout, stderr io.Writer) int {
 	if !store.TaskStatus(status) {
 		return fail(stderr, fmt.Errorf("status must be one of %s: %s", strings.Join(store.TaskStatuses, ", "), status), exitUsage)
 	}
-	s, err := c.open()
+	s, err := openStore(*root)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
@@ -134,22 +116,12 @@ func runTaskMv(args []string, stdout, stderr io.Writer) int {
 	if _, _, err := s.Move(from, to); err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	committed := false
-	if !noCommit {
-		committed, err = s.Commit(fmt.Sprintf("nabu: task mv %s -> %s", from, to), from, to)
-		if err != nil {
-			return fail(stderr, err, exitFail)
-		}
-	}
-	if c.json {
-		return emit(stdout, mvResult{From: from, To: to, Action: "task mv", Committed: committed})
-	}
-	state := "committed"
-	if !committed {
-		state = "not committed"
-	}
-	fmt.Fprintf(stdout, "task mv %s -> %s (%s)\n", from, to, state)
-	return exitOK
+	return finishMv(s, from, to, "task mv", stdout, stderr)
+}
+
+// hasFrontmatter reports whether a body opens with a YAML block of its own.
+func hasFrontmatter(body []byte) bool {
+	return strings.HasPrefix(strings.TrimLeft(string(body), "\n"), "---")
 }
 
 // field is one scalar frontmatter entry; an empty value is left out.
@@ -179,5 +151,3 @@ func frontmatter(f field, tk tickets) (string, error) {
 	b.WriteString("---\n")
 	return b.String(), nil
 }
-
-var _ flag.Value = (*tickets)(nil)

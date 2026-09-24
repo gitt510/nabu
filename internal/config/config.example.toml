@@ -1,6 +1,0 @@
-# nabu reads this file from $XDG_CONFIG_HOME/nabu/config.toml
-# (~/.config/nabu/config.toml when XDG_CONFIG_HOME is unset).
-
-# root is the notes repository nabu operates on. It must be a git repository.
-# Every note path is relative to it. ~ expands to the home directory.
-root = "~/ghq/github.com/gitt510/notes"

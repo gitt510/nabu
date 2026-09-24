@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/gitt510/nabu/internal/config"
 	"github.com/gitt510/nabu/internal/store"
@@ -39,9 +40,10 @@ const usage = `usage: nabu <command> [args]
   help, -h             print this usage
 
 Paths are relative to the root, must stay inside it, and end in .md.
-The root is a git repository; write, replace, append, mv, task new, task mv, and
-canvas save commit their change unless --no-commit is given. CANVAS.md is
-ignored by git and is not a note. Every command accepts --json.
+The root is a git repository; every change is committed as it is made.
+Commands that change the root report the result as JSON; read, canvas read,
+and canvas diff print raw text; ls, grep, and doctor print text unless --json.
+CANVAS.md is ignored by git and is not a note.
 
 The root comes from --root <dir>, or else from root in ` + "%s" + `
 See "nabu <command> -h" for the flags of each command.
@@ -96,21 +98,15 @@ func setupMessage() string {
 	return fmt.Sprintf("no root declared.\n\ncreate %s like:\n\n%s\nor pass --root <dir>.\n", config.Path(), config.Example)
 }
 
-// common holds the flags every command shares.
-type common struct {
-	root string
-	json bool
-}
-
-func (c *common) bind(fs *flag.FlagSet) {
-	fs.StringVar(&c.root, "root", "", "notes root (overrides the config file)")
-	fs.BoolVar(&c.json, "json", false, "print the result as JSON")
+// bindRoot adds the --root flag every command takes.
+func bindRoot(fs *flag.FlagSet) *string {
+	return fs.String("root", "", "notes root (overrides the config file)")
 }
 
 // resolveRoot applies flag > config.
-func (c *common) resolveRoot() (string, error) {
-	if c.root != "" {
-		return config.ExpandHome(c.root), nil
+func resolveRoot(flagRoot string) (string, error) {
+	if flagRoot != "" {
+		return config.ExpandHome(flagRoot), nil
 	}
 	cfg, err := config.Load()
 	if err != nil {
@@ -122,20 +118,19 @@ func (c *common) resolveRoot() (string, error) {
 	return cfg.Root, nil
 }
 
-func (c *common) open() (*store.Store, error) {
-	root, err := c.resolveRoot()
+func openStore(flagRoot string) (*store.Store, error) {
+	root, err := resolveRoot(flagRoot)
 	if err != nil {
 		return nil, err
 	}
 	return store.Open(root)
 }
 
-// newFlagSet returns a FlagSet whose -h prints usage to stdout and exits 0,
-// and whose parse errors go to stderr with exit 2. Both are reported through
-// the returned help/err by the caller's parse.
-func newFlagSet(name, synopsis string, stderr io.Writer) *flag.FlagSet {
+// newFlagSet returns a FlagSet whose output parse decides: help goes to
+// stdout with exit 0, a wrong invocation to stderr with exit 2.
+func newFlagSet(name, synopsis string) *flag.FlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.SetOutput(io.Discard) // parse reports errors and help itself
+	fs.SetOutput(io.Discard)
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "usage: %s\n\n", synopsis)
 		fs.PrintDefaults()
@@ -143,9 +138,10 @@ func newFlagSet(name, synopsis string, stderr io.Writer) *flag.FlagSet {
 	return fs
 }
 
-// parse runs fs.Parse and maps its outcome to an exit code. ok is true when
-// the caller should continue.
-func parse(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) (ok bool, code int) {
+// parse runs fs.Parse, checks that between min and max positional args
+// remain, and maps the outcome to an exit code. ok is true when the caller
+// should continue.
+func parse(fs *flag.FlagSet, args []string, minArgs, maxArgs int, stdout, stderr io.Writer) (ok bool, code int) {
 	err := parseInterspersed(fs, args)
 	if errors.Is(err, flag.ErrHelp) {
 		fs.SetOutput(stdout)
@@ -153,8 +149,10 @@ func parse(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) (ok bool, 
 		return false, exitOK
 	}
 	if err != nil {
-		fs.SetOutput(stderr)
 		fmt.Fprintln(stderr, err)
+	}
+	if err != nil || fs.NArg() < minArgs || fs.NArg() > maxArgs {
+		fs.SetOutput(stderr)
 		fs.Usage()
 		return false, exitUsage
 	}
@@ -162,7 +160,7 @@ func parse(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) (ok bool, 
 }
 
 // parseInterspersed lets flags follow positional args ("note write a.md
-// --json"), which the flag package does not do on its own. Positionals are
+// --root x"), which the flag package does not do on its own. Positionals are
 // collected in order and restored through fs.Args after the last pass.
 func parseInterspersed(fs *flag.FlagSet, args []string) error {
 	var positional []string
@@ -181,39 +179,20 @@ func parseInterspersed(fs *flag.FlagSet, args []string) error {
 }
 
 func runInit(args []string, stdout, stderr io.Writer) int {
-	var c common
-	fs := newFlagSet("init", "nabu init [--root <dir>] [--json]\n\ncreates the directory, runs git init -b main, and seeds README.md with a first commit; every step is skipped when already done", stderr)
-	c.bind(fs)
-	if ok, code := parse(fs, args, stdout, stderr); !ok {
+	fs := newFlagSet("init", "nabu init [--root <dir>]\n\ncreates the directory, runs git init -b main, and seeds README.md and .gitignore with a first commit; every step is skipped when already done")
+	root := bindRoot(fs)
+	if ok, code := parse(fs, args, 0, 0, stdout, stderr); !ok {
 		return code
 	}
-	root, err := c.resolveRoot()
+	dir, err := resolveRoot(*root)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	r, err := store.Init(root)
+	r, err := store.Init(dir)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	if c.json {
-		return emit(stdout, r)
-	}
-	var did []string
-	if r.CreatedDir {
-		did = append(did, "created directory")
-	}
-	if r.InitedGit {
-		did = append(did, "git init")
-	}
-	if r.Committed {
-		did = append(did, "seeded README.md")
-	}
-	if len(did) == 0 {
-		fmt.Fprintf(stdout, "%s already initialized\n", r.Root)
-	} else {
-		fmt.Fprintf(stdout, "%s: %s\n", r.Root, strings.Join(did, ", "))
-	}
-	return exitOK
+	return emit(stdout, r)
 }
 
 // check is one doctor finding. Status is ok, warn, or fail.
@@ -224,22 +203,21 @@ type check struct {
 }
 
 func runDoctor(args []string, stdout, stderr io.Writer) int {
-	var c common
-	var notes bool
-	fs := newFlagSet("doctor", "nabu doctor [--notes] [--root <dir>] [--json]\n\n--notes also warns about notes whose filename is not kebab-case, that have no \"# \" title, or that sit under tasks/ outside a status folder", stderr)
-	c.bind(fs)
-	fs.BoolVar(&notes, "notes", false, "lint note filenames, titles, and task folders (warn only)")
-	if ok, code := parse(fs, args, stdout, stderr); !ok {
+	fs := newFlagSet("doctor", "nabu doctor [--notes] [--root <dir>] [--json]\n\n--notes also warns about notes whose filename is not kebab-case, that have no \"# \" title, or that sit under tasks/ outside a status folder")
+	root := bindRoot(fs)
+	asJSON := fs.Bool("json", false, "print the result as JSON")
+	notes := fs.Bool("notes", false, "lint note filenames, titles, and task folders (warn only)")
+	if ok, code := parse(fs, args, 0, 0, stdout, stderr); !ok {
 		return code
 	}
-	checks := doctor(c.root, notes)
+	checks := doctor(*root, *notes)
 	failed := false
 	for _, ch := range checks {
 		if ch.Status == "fail" {
 			failed = true
 		}
 	}
-	if c.json {
+	if *asJSON {
 		emit(stdout, map[string]any{"ok": !failed, "checks": checks})
 	} else {
 		for _, ch := range checks {
@@ -334,10 +312,8 @@ func runNote(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "-h", "--help", "help":
 		fmt.Fprint(stdout, noteUsage)
 		return exitOK
-	case "write":
-		return runWrite(args[1:], stdin, stdout, stderr)
-	case "replace":
-		return runReplace(args[1:], stdin, stdout, stderr)
+	case "write", "replace":
+		return runWrite(args[1:], args[0], stdin, stdout, stderr)
 	case "mv":
 		return runMv(args[1:], stdout, stderr)
 	case "append":
@@ -353,7 +329,7 @@ func runNote(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return exitUsage
 }
 
-// writeResult is the JSON document of write, replace, and append.
+// writeResult is the JSON document of every command that writes a note.
 type writeResult struct {
 	Path      string `json:"path"`
 	Action    string `json:"action"`
@@ -361,70 +337,37 @@ type writeResult struct {
 	Committed bool   `json:"committed"`
 }
 
-func runWrite(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	var c common
-	var content string
-	var force, noCommit bool
-	fs := newFlagSet("note write", "nabu note write <path> [--content <text>] [--no-commit] [--json]\n\ncontent is read from stdin unless --content is given; the note must not exist yet (see note replace)", stderr)
-	c.bind(fs)
-	fs.StringVar(&content, "content", "", "note body; stdin is read when omitted")
-	fs.BoolVar(&force, "force", false, "deprecated: use note replace")
-	fs.BoolVar(&noCommit, "no-commit", false, "leave the change uncommitted")
-	if ok, code := parse(fs, args, stdout, stderr); !ok {
+// runWrite is note write and note replace: the same body command, differing
+// only in whether the note must be absent or present.
+func runWrite(args []string, action string, stdin io.Reader, stdout, stderr io.Writer) int {
+	synopsis := map[string]string{
+		"write":   "nabu note write <path> [--content <text>]\n\ncontent is read from stdin unless --content is given; the note must not exist yet (see note replace)",
+		"replace": "nabu note replace <path> [--content <text>]\n\nreplaces the whole body of an existing note; content is read from stdin unless --content is given",
+	}[action]
+	fs := newFlagSet("note "+action, synopsis)
+	root := bindRoot(fs)
+	content := fs.String("content", "", "note body; stdin is read when omitted")
+	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
 		return code
 	}
-	if fs.NArg() != 1 {
-		fs.SetOutput(stderr)
-		fs.Usage()
-		return exitUsage
-	}
-	if force {
-		fmt.Fprintln(stderr, "warning: --force is deprecated and will be removed; use \"nabu note replace\" to revise an existing note")
-	}
-	body, err := readBody(content, fs.Lookup("content"), stdin)
+	body, err := readBody(*content, stdin)
 	if err != nil {
 		return fail(stderr, err, exitUsage)
 	}
-	s, err := c.open()
+	s, err := openStore(*root)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	rel, err := s.Write(fs.Arg(0), body, force)
+	var rel string
+	if action == "write" {
+		rel, err = s.Write(fs.Arg(0), body)
+	} else {
+		rel, err = s.Replace(fs.Arg(0), body)
+	}
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	return finishWrite(s, rel, "write", len(body), noCommit, c.json, stdout, stderr)
-}
-
-func runReplace(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	var c common
-	var content string
-	var noCommit bool
-	fs := newFlagSet("note replace", "nabu note replace <path> [--content <text>] [--no-commit] [--json]\n\nreplaces the whole body of an existing note; content is read from stdin unless --content is given", stderr)
-	c.bind(fs)
-	fs.StringVar(&content, "content", "", "new note body; stdin is read when omitted")
-	fs.BoolVar(&noCommit, "no-commit", false, "leave the change uncommitted")
-	if ok, code := parse(fs, args, stdout, stderr); !ok {
-		return code
-	}
-	if fs.NArg() != 1 {
-		fs.SetOutput(stderr)
-		fs.Usage()
-		return exitUsage
-	}
-	body, err := readBody(content, fs.Lookup("content"), stdin)
-	if err != nil {
-		return fail(stderr, err, exitUsage)
-	}
-	s, err := c.open()
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	rel, err := s.Replace(fs.Arg(0), body)
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	return finishWrite(s, rel, "replace", len(body), noCommit, c.json, stdout, stderr)
+	return finishWrite(s, rel, action, len(body), stdout, stderr)
 }
 
 // mvResult is the JSON document of mv.
@@ -436,20 +379,12 @@ type mvResult struct {
 }
 
 func runMv(args []string, stdout, stderr io.Writer) int {
-	var c common
-	var noCommit bool
-	fs := newFlagSet("note mv", "nabu note mv <from> <to> [--no-commit] [--json]\n\nrenames a note; the destination must not exist", stderr)
-	c.bind(fs)
-	fs.BoolVar(&noCommit, "no-commit", false, "leave the change uncommitted")
-	if ok, code := parse(fs, args, stdout, stderr); !ok {
+	fs := newFlagSet("note mv", "nabu note mv <from> <to>\n\nrenames a note; the destination must not exist")
+	root := bindRoot(fs)
+	if ok, code := parse(fs, args, 2, 2, stdout, stderr); !ok {
 		return code
 	}
-	if fs.NArg() != 2 {
-		fs.SetOutput(stderr)
-		fs.Usage()
-		return exitUsage
-	}
-	s, err := c.open()
+	s, err := openStore(*root)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
@@ -457,92 +392,60 @@ func runMv(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	committed := false
-	if !noCommit {
-		committed, err = s.Commit(fmt.Sprintf("nabu: mv %s -> %s", from, to), from, to)
-		if err != nil {
-			return fail(stderr, err, exitFail)
-		}
+	return finishMv(s, from, to, "mv", stdout, stderr)
+}
+
+func finishMv(s *store.Store, from, to, action string, stdout, stderr io.Writer) int {
+	committed, err := s.Commit(fmt.Sprintf("nabu: %s %s -> %s", action, from, to), from, to)
+	if err != nil {
+		return fail(stderr, err, exitFail)
 	}
-	if c.json {
-		return emit(stdout, mvResult{From: from, To: to, Action: "mv", Committed: committed})
-	}
-	state := "committed"
-	if !committed {
-		state = "not committed"
-	}
-	fmt.Fprintf(stdout, "mv %s -> %s (%s)\n", from, to, state)
-	return exitOK
+	return emit(stdout, mvResult{From: from, To: to, Action: action, Committed: committed})
 }
 
 func runAppend(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	var c common
-	var content, heading string
-	var noCommit bool
-	fs := newFlagSet("note append", "nabu note append <path> [--content <text>] [--heading <line>] [--no-commit] [--json]\n\ncontent is read from stdin unless --content is given", stderr)
-	c.bind(fs)
-	fs.StringVar(&content, "content", "", "text to append; stdin is read when omitted")
-	fs.StringVar(&heading, "heading", "", "markdown heading to append under (written once per run of appends, e.g. \"## 2026-09-03\")")
-	fs.BoolVar(&noCommit, "no-commit", false, "leave the change uncommitted")
-	if ok, code := parse(fs, args, stdout, stderr); !ok {
+	fs := newFlagSet("note append", "nabu note append <path> [--content <text>] [--heading <line>]\n\ncontent is read from stdin unless --content is given")
+	root := bindRoot(fs)
+	content := fs.String("content", "", "text to append; stdin is read when omitted")
+	heading := fs.String("heading", "", "markdown heading to append under (written once per run of appends, e.g. \"## 2026-09-03\")")
+	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
 		return code
 	}
-	if fs.NArg() != 1 {
-		fs.SetOutput(stderr)
-		fs.Usage()
-		return exitUsage
-	}
-	if heading != "" && !strings.HasPrefix(heading, "#") {
+	if *heading != "" && !strings.HasPrefix(*heading, "#") {
 		return fail(stderr, errors.New("--heading must start with #"), exitUsage)
 	}
-	body, err := readBody(content, fs.Lookup("content"), stdin)
+	body, err := readBody(*content, stdin)
 	if err != nil {
 		return fail(stderr, err, exitUsage)
 	}
-	s, err := c.open()
+	s, err := openStore(*root)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	rel, err := s.Append(fs.Arg(0), body, heading)
+	rel, err := s.Append(fs.Arg(0), body, *heading)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	return finishWrite(s, rel, "append", len(body), noCommit, c.json, stdout, stderr)
+	return finishWrite(s, rel, "append", len(body), stdout, stderr)
 }
 
-func finishWrite(s *store.Store, rel, action string, n int, noCommit, asJSON bool, stdout, stderr io.Writer) int {
-	committed := false
-	if !noCommit {
-		var err error
-		committed, err = s.Commit(fmt.Sprintf("nabu: %s %s", action, rel), rel)
-		if err != nil {
-			return fail(stderr, err, exitFail)
-		}
+// finishWrite commits the written note as "nabu: <action> <path>" and
+// reports it.
+func finishWrite(s *store.Store, rel, action string, n int, stdout, stderr io.Writer) int {
+	committed, err := s.Commit(fmt.Sprintf("nabu: %s %s", action, rel), rel)
+	if err != nil {
+		return fail(stderr, err, exitFail)
 	}
-	if asJSON {
-		return emit(stdout, writeResult{Path: rel, Action: action, Bytes: n, Committed: committed})
-	}
-	state := "committed"
-	if !committed {
-		state = "not committed"
-	}
-	fmt.Fprintf(stdout, "%s %s (%d bytes, %s)\n", action, rel, n, state)
-	return exitOK
+	return emit(stdout, writeResult{Path: rel, Action: action, Bytes: n, Committed: committed})
 }
 
 func runRead(args []string, stdout, stderr io.Writer) int {
-	var c common
-	fs := newFlagSet("note read", "nabu note read <path> [--json]", stderr)
-	c.bind(fs)
-	if ok, code := parse(fs, args, stdout, stderr); !ok {
+	fs := newFlagSet("note read", "nabu note read <path>")
+	root := bindRoot(fs)
+	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
 		return code
 	}
-	if fs.NArg() != 1 {
-		fs.SetOutput(stderr)
-		fs.Usage()
-		return exitUsage
-	}
-	s, err := c.open()
+	s, err := openStore(*root)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
@@ -550,26 +453,18 @@ func runRead(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	if c.json {
-		return emit(stdout, map[string]string{"path": fs.Arg(0), "content": string(b)})
-	}
 	_, _ = stdout.Write(b)
 	return exitOK
 }
 
 func runLs(args []string, stdout, stderr io.Writer) int {
-	var c common
-	fs := newFlagSet("note ls", "nabu note ls [dir] [--json]", stderr)
-	c.bind(fs)
-	if ok, code := parse(fs, args, stdout, stderr); !ok {
+	fs := newFlagSet("note ls", "nabu note ls [dir] [--json]\n\nprints path and title per note; --json adds modified and bytes")
+	root := bindRoot(fs)
+	asJSON := fs.Bool("json", false, "print the result as JSON")
+	if ok, code := parse(fs, args, 0, 1, stdout, stderr); !ok {
 		return code
 	}
-	if fs.NArg() > 1 {
-		fs.SetOutput(stderr)
-		fs.Usage()
-		return exitUsage
-	}
-	s, err := c.open()
+	s, err := openStore(*root)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
@@ -577,31 +472,28 @@ func runLs(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	if c.json {
+	if *asJSON {
 		if entries == nil {
 			entries = []store.Entry{}
 		}
 		return emit(stdout, entries)
 	}
+	tw := tabwriter.NewWriter(stdout, 0, 0, 2, ' ', 0)
 	for _, e := range entries {
-		fmt.Fprintln(stdout, e.Path)
+		fmt.Fprintf(tw, "%s\t%s\n", e.Path, e.Title)
 	}
+	_ = tw.Flush()
 	return exitOK
 }
 
 func runGrep(args []string, stdout, stderr io.Writer) int {
-	var c common
-	fs := newFlagSet("note grep", "nabu note grep <query> [--json]", stderr)
-	c.bind(fs)
-	if ok, code := parse(fs, args, stdout, stderr); !ok {
+	fs := newFlagSet("note grep", "nabu note grep <query> [--json]")
+	root := bindRoot(fs)
+	asJSON := fs.Bool("json", false, "print the result as JSON")
+	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
 		return code
 	}
-	if fs.NArg() != 1 {
-		fs.SetOutput(stderr)
-		fs.Usage()
-		return exitUsage
-	}
-	s, err := c.open()
+	s, err := openStore(*root)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
@@ -609,7 +501,7 @@ func runGrep(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	if c.json {
+	if *asJSON {
 		if matches == nil {
 			matches = []store.Match{}
 		}
@@ -621,9 +513,9 @@ func runGrep(args []string, stdout, stderr io.Writer) int {
 	return exitOK
 }
 
-// readBody returns --content when the flag was given, otherwise all of stdin.
-func readBody(content string, f *flag.Flag, stdin io.Reader) ([]byte, error) {
-	if f != nil && content != "" {
+// readBody returns --content when given, otherwise all of stdin.
+func readBody(content string, stdin io.Reader) ([]byte, error) {
+	if content != "" {
 		return []byte(content), nil
 	}
 	b, err := io.ReadAll(stdin)

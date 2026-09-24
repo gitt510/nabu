@@ -50,8 +50,7 @@ EOF
    README) is revised: `read` it, rewrite the whole body, and `replace`.
    Reordering or rewriting sections the user asked for needs no extra
    permission; dropping content they did not mention does. Use `write`
-   only for a note that does not exist yet. `write --force` is deprecated;
-   do not use it.
+   only for a note that does not exist yet.
 3. **Date the entry.** When appending, pass `--heading "## YYYY-MM-DD"` with
    today's date so the note reads as a log. Consecutive appends on the same
    day land under one heading.
@@ -70,7 +69,7 @@ EOF
    `nabu task mv <slug> doing` when work starts and `... done` when it ends.
    `nabu note ls tasks/doing --json` lists what is in flight.
 7. **Report the path.** After a write, tell the user the relative path nabu
-   printed (`--json` gives `path`, `action`, `bytes`, `committed`).
+   printed (every write prints JSON with `path`, `action`, `bytes`, `committed`).
 8. **Repair conventions with `mv`.** When `doctor --notes` or the README
    flags a filename, rename with `nabu note mv` and grep for references
    first; fix a missing title with `replace`. A task flagged as outside a

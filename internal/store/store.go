@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -137,16 +138,14 @@ func (s *Store) Rel(abs string) string {
 	return filepath.ToSlash(r)
 }
 
-// Write creates a note. It refuses to overwrite unless force is set.
-func (s *Store) Write(p string, content []byte, force bool) (string, error) {
+// Write creates a note. It refuses to overwrite.
+func (s *Store) Write(p string, content []byte) (string, error) {
 	abs, err := s.Resolve(p)
 	if err != nil {
 		return "", err
 	}
-	if !force {
-		if _, err := os.Stat(abs); err == nil {
-			return "", fmt.Errorf("%s: %w", s.Rel(abs), ErrExists)
-		}
+	if _, err := os.Stat(abs); err == nil {
+		return "", fmt.Errorf("%s: %w", s.Rel(abs), ErrExists)
 	}
 	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
 		return "", err
@@ -194,10 +193,10 @@ func (s *Store) Move(from, to string) (string, string, error) {
 	return s.Rel(src), s.Rel(dst), os.Rename(src, dst)
 }
 
-// Append adds content to the end of a note, creating it when absent. With a
-// heading, the heading line is written first unless the note already ends
-// in that section (its last heading is the same), so repeated appends under
-// one heading stay in one section.
+// Append adds content to the end of a note, creating it when absent, as
+// its own paragraph. With a heading, the heading line is written first
+// unless the note already ends in that section (its last heading is the
+// same), so repeated appends under one heading stay in one section.
 func (s *Store) Append(p string, content []byte, heading string) (string, error) {
 	abs, err := s.Resolve(p)
 	if err != nil {
@@ -210,26 +209,19 @@ func (s *Store) Append(p string, content []byte, heading string) (string, error)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return "", err
 	}
-	content = ensureNewline(content)
 	var buf bytes.Buffer
 	buf.Write(old)
 	if len(old) > 0 {
 		if !bytes.HasSuffix(old, []byte("\n")) {
 			buf.WriteByte('\n')
 		}
-		// consecutive list items stay one list; anything else is its own
-		// paragraph, separated by a blank line
-		sameHeading := heading == "" || lastHeading(old) == heading
-		joinList := sameHeading && isListItem(lastLine(old)) && isListItem(firstLine(content))
-		if !joinList {
-			buf.WriteByte('\n')
-		}
+		buf.WriteByte('\n')
 	}
 	if heading != "" && lastHeading(old) != heading {
 		buf.WriteString(heading)
 		buf.WriteString("\n\n")
 	}
-	buf.Write(content)
+	buf.Write(ensureNewline(content))
 	return s.Rel(abs), os.WriteFile(abs, buf.Bytes(), 0o644)
 }
 
@@ -407,14 +399,7 @@ func Slug(s string) bool {
 var TaskStatuses = []string{"inbox", "doing", "done"}
 
 // TaskStatus reports whether status names one of the task folders.
-func TaskStatus(status string) bool {
-	for _, st := range TaskStatuses {
-		if st == status {
-			return true
-		}
-	}
-	return false
-}
+func TaskStatus(status string) bool { return slices.Contains(TaskStatuses, status) }
 
 // TaskPath is the note path of a task in the given status folder.
 func TaskPath(status, slug string) string {
@@ -452,7 +437,7 @@ func kebabPath(p string) bool {
 			return false
 		}
 		for _, r := range seg {
-			if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-') {
+			if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '-' {
 				return false
 			}
 		}
@@ -489,34 +474,6 @@ func ensureNewline(b []byte) []byte {
 		return b
 	}
 	return append(b, '\n')
-}
-
-func lastLine(b []byte) string {
-	b = bytes.TrimRight(b, "\n")
-	if i := bytes.LastIndexByte(b, '\n'); i >= 0 {
-		b = b[i+1:]
-	}
-	return string(b)
-}
-
-func firstLine(b []byte) string {
-	if i := bytes.IndexByte(b, '\n'); i >= 0 {
-		b = b[:i]
-	}
-	return string(b)
-}
-
-// isListItem reports a markdown bullet or numbered item (checkboxes included).
-func isListItem(line string) bool {
-	t := strings.TrimLeft(line, " \t")
-	if strings.HasPrefix(t, "- ") || strings.HasPrefix(t, "* ") || strings.HasPrefix(t, "+ ") {
-		return true
-	}
-	i := 0
-	for i < len(t) && t[i] >= '0' && t[i] <= '9' {
-		i++
-	}
-	return i > 0 && i+1 < len(t) && (t[i] == '.' || t[i] == ')') && t[i+1] == ' '
 }
 
 // lastHeading is the last markdown heading line in b, or "".
