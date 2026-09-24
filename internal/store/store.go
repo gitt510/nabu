@@ -333,6 +333,13 @@ func (s *Store) Commit(message string, rels ...string) (bool, error) {
 	if len(rels) == 0 {
 		return false, errors.New("nothing to commit")
 	}
+	// A path that is neither on disk nor in the index (the source of a move
+	// that was never committed) has nothing to stage, and naming it would
+	// make git add fail on the pathspec.
+	rels = s.stageable(rels)
+	if len(rels) == 0 {
+		return false, nil
+	}
 	if err := s.git(append([]string{"add", "-A", "--"}, rels...)...); err != nil {
 		return false, err
 	}
@@ -445,6 +452,21 @@ func kebabPath(p string) bool {
 		}
 	}
 	return true
+}
+
+// stageable keeps the paths that exist on disk or are tracked in the index.
+func (s *Store) stageable(rels []string) []string {
+	var keep []string
+	for _, rel := range rels {
+		if _, err := os.Stat(filepath.Join(s.Root, rel)); err == nil {
+			keep = append(keep, rel)
+			continue
+		}
+		if exec.Command("git", "-C", s.Root, "ls-files", "--error-unmatch", "--", rel).Run() == nil {
+			keep = append(keep, rel)
+		}
+	}
+	return keep
 }
 
 func (s *Store) git(args ...string) error {

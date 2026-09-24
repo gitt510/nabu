@@ -97,6 +97,30 @@ func TestDoctorNotesWarns(t *testing.T) {
 	}
 }
 
+func TestMvOfUntrackedNoteCommits(t *testing.T) {
+	dir := t.TempDir()
+	for _, args := range [][]string{{"init", "-q"}, {"config", "user.email", "t@x"}, {"config", "user.name", "t"}} {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	// A note dropped into the root by hand is on disk but not in the index.
+	if err := os.WriteFile(filepath.Join(dir, "Bad Name.md"), []byte("# x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	if code := run([]string{"note", "mv", "Bad Name.md", "bad-name.md", "--root", dir, "--json"}, strings.NewReader(""), &out, &errb); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), `"committed": true`) {
+		t.Fatalf("stdout=%q", out.String())
+	}
+	st, err := exec.Command("git", "-C", dir, "status", "--porcelain").Output()
+	if err != nil || len(bytes.TrimSpace(st)) != 0 {
+		t.Fatalf("worktree not clean after mv: %q %v", st, err)
+	}
+}
+
 func TestReplaceAndMvViaCLI(t *testing.T) {
 	dir := t.TempDir()
 	for _, args := range [][]string{{"init", "-q"}, {"config", "user.email", "t@x"}, {"config", "user.name", "t"}} {
