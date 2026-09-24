@@ -1,6 +1,6 @@
 ---
 name: nabu
-description: Save, append to, read, list, and search the user's personal markdown notes through the `nabu` CLI. Use whenever the user wants something remembered or written down — "memo this", "note it", "save this to my notes", "add this to <file>", "what did I write about X" — including Japanese phrasings such as 「メモして」「ノートに書いて」「〜に追記して」「Notes に残して」「〜について書いてたっけ」. Never edit the notes repository directly; every read and write goes through nabu.
+description: Save, append to, read, list, and search the user's personal markdown notes through the `nabu` CLI. Use whenever the user wants something remembered or written down — "memo this", "note it", "save this to my notes", "add this to <file>", "what did I write about X" — including Japanese phrasings such as 「メモして」「ノートに書いて」「〜に追記して」「Notes に残して」「〜について書いてたっけ」. Also use it to co-write a text with the user on the canvas when it will go through rounds before it is final — "draft this", "scaffold a comment", "let's write this together", "polish my edit", 「下書きして」「たたき台を作って」「一緒に書こう」「添削して」「canvas に」. Never edit the notes repository directly; every read and write goes through nabu.
 ---
 
 # nabu
@@ -22,6 +22,11 @@ nabu note replace <path> --content "<text>"  # existing note only; whole-body re
 nabu note mv <from> <to>                     # rename; never overwrites
 nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]...  # tasks/inbox/<slug>.md
 nabu task mv <slug> <inbox|doing|done>       # move a task to its status folder
+nabu canvas open                             # start a draft in CANVAS.md (stdin); refuses when one is there
+nabu canvas diff                             # what the user changed by hand since your last open/write
+nabu canvas write                            # revise the draft (stdin)
+nabu canvas save <slug> [--ticket <https-url>]...  # writing/<slug>.md; the only canvas step that commits
+nabu canvas drop                             # empty the canvas
 nabu doctor --notes                          # warn on non-kebab filenames / missing titles / misplaced tasks
 ```
 
@@ -71,7 +76,34 @@ EOF
    first; fix a missing title with `replace`. A task flagged as outside a
    status folder moves with `nabu note mv tasks/<slug>.md tasks/inbox/<slug>.md`.
 
+## Co-writing on a canvas
+
+The canvas is a single draft file, `CANVAS.md` at the notes root, that the
+user edits by hand while you revise it through the CLI. Use it when the
+text will go through rounds before it is final: a PR comment, a proposal,
+a message to someone. 「メモして」「追記して」 is still `note`; the canvas is
+for text the user wants to shape with you.
+
+1. `nabu canvas open` with the first draft on stdin. If it refuses because
+   the canvas is not empty, ask the user whether to save or drop what is
+   there. Tell the user the path it prints and stop; they edit it in their
+   editor.
+2. When the user says they are done (or asks for a review), run
+   `nabu canvas diff` first. The diff is the user's edit; read it before
+   the full text (`nabu canvas read`). Answer questions about the draft
+   from this.
+3. Revise with `nabu canvas write` (whole body on stdin). Keep the user's
+   wording where the diff shows they changed it deliberately. Repeat 2-3.
+4. When the user says it is final, `nabu canvas save <slug> [--ticket <url>]`.
+   It lands in `writing/<slug>.md` with a `created` frontmatter. Report the
+   path. Only this step commits.
+
 ## Do not
+
+- Read or edit `CANVAS.md` with Read / Edit; that bypasses the snapshot
+  `canvas diff` relies on. Go through the canvas commands.
+- `canvas write` while the user is editing. Run `canvas diff` first so their
+  edits are read, not overwritten. Do not `canvas save` until they say so.
 
 - Read or edit files under the notes root with Read / Edit / Write / shell
   redirection. Only nabu touches the root.

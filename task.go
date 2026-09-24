@@ -67,7 +67,12 @@ func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if !store.Slug(slug) {
 		return fail(stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
 	}
-	fm, err := frontmatter(scheduled, tk)
+	if scheduled != "" {
+		if _, err := time.Parse(time.RFC3339, scheduled); err != nil {
+			return fail(stderr, fmt.Errorf("--scheduled must be RFC3339 with an offset, e.g. 2026-09-15T18:00:00+09:00: %s", scheduled), exitUsage)
+		}
+	}
+	fm, err := frontmatter(field{"scheduled", scheduled}, tk)
 	if err != nil {
 		return fail(stderr, err, exitUsage)
 	}
@@ -147,19 +152,19 @@ func runTaskMv(args []string, stdout, stderr io.Writer) int {
 	return exitOK
 }
 
-// frontmatter renders the YAML block for the given flags, or "" when none
-// were given so a plain task stays a plain note.
-func frontmatter(scheduled string, tk tickets) (string, error) {
-	if scheduled == "" && len(tk) == 0 {
+// field is one scalar frontmatter entry; an empty value is left out.
+type field struct{ key, value string }
+
+// frontmatter renders the YAML block for the given field and tickets, or ""
+// when both are empty so a plain note stays a plain note.
+func frontmatter(f field, tk tickets) (string, error) {
+	if f.value == "" && len(tk) == 0 {
 		return "", nil
 	}
 	var b strings.Builder
 	b.WriteString("---\n")
-	if scheduled != "" {
-		if _, err := time.Parse(time.RFC3339, scheduled); err != nil {
-			return "", fmt.Errorf("--scheduled must be RFC3339 with an offset, e.g. 2026-09-15T18:00:00+09:00: %s", scheduled)
-		}
-		fmt.Fprintf(&b, "scheduled: %q\n", scheduled)
+	if f.value != "" {
+		fmt.Fprintf(&b, "%s: %q\n", f.key, f.value)
 	}
 	if len(tk) > 0 {
 		b.WriteString("tickets:\n")
