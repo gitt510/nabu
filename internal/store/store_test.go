@@ -47,17 +47,14 @@ func TestResolveRejects(t *testing.T) {
 
 func TestWriteRefusesOverwrite(t *testing.T) {
 	s := newRepo(t)
-	if _, err := s.Write("a.md", []byte("one"), false); err != nil {
+	if _, err := s.Write("a.md", []byte("one")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Write("a.md", []byte("two"), false); err == nil {
+	if _, err := s.Write("a.md", []byte("two")); err == nil {
 		t.Fatal("expected ErrExists")
 	}
-	if _, err := s.Write("a.md", []byte("two"), true); err != nil {
-		t.Fatal(err)
-	}
 	b, _ := s.Read("a.md")
-	if string(b) != "two\n" {
+	if string(b) != "one\n" {
 		t.Fatalf("got %q", b)
 	}
 }
@@ -80,23 +77,9 @@ func TestAppendHeadingOnce(t *testing.T) {
 	}
 }
 
-func TestAppendJoinsListItems(t *testing.T) {
-	s := newRepo(t)
-	for _, item := range []string{"- a", "- b", "1. c", "para"} {
-		if _, err := s.Append("l.md", []byte(item), "## today"); err != nil {
-			t.Fatal(err)
-		}
-	}
-	b, _ := s.Read("l.md")
-	want := "## today\n\n- a\n- b\n1. c\n\npara\n"
-	if string(b) != want {
-		t.Fatalf("got:\n%s", b)
-	}
-}
-
 func TestListAndGrep(t *testing.T) {
 	s := newRepo(t)
-	if _, err := s.Write("career/goal.md", []byte("# Goal\n\nIaC を進める"), false); err != nil {
+	if _, err := s.Write("career/goal.md", []byte("# Goal\n\nIaC を進める")); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(s.Root, "notes.txt"), []byte("skip"), 0o644); err != nil {
@@ -123,7 +106,7 @@ func TestListAndGrep(t *testing.T) {
 
 func TestCommit(t *testing.T) {
 	s := newRepo(t)
-	rel, err := s.Write("a.md", []byte("x"), false)
+	rel, err := s.Write("a.md", []byte("x"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +158,7 @@ func TestReplaceRequiresExisting(t *testing.T) {
 	if _, err := s.Replace("a.md", []byte("x")); err == nil {
 		t.Fatal("expected ErrNotExist")
 	}
-	if _, err := s.Write("a.md", []byte("one"), false); err != nil {
+	if _, err := s.Write("a.md", []byte("one")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Replace("a.md", []byte("two")); err != nil {
@@ -192,10 +175,10 @@ func TestMoveNeverOverwrites(t *testing.T) {
 	if _, _, err := s.Move("a.md", "b.md"); err == nil {
 		t.Fatal("expected ErrNotExist for missing source")
 	}
-	if _, err := s.Write("a.md", []byte("one"), false); err != nil {
+	if _, err := s.Write("a.md", []byte("one")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Write("b.md", []byte("two"), false); err != nil {
+	if _, err := s.Write("b.md", []byte("two")); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := s.Move("a.md", "b.md"); err == nil {
@@ -219,7 +202,7 @@ func TestMoveNeverOverwrites(t *testing.T) {
 
 func TestCommitMove(t *testing.T) {
 	s := newRepo(t)
-	rel, _ := s.Write("a.md", []byte("one"), false)
+	rel, _ := s.Write("a.md", []byte("one"))
 	if _, err := s.Commit("write", rel); err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +232,7 @@ func TestLint(t *testing.T) {
 		"tasks/wip/x.md":    "# Wrong folder\n",
 		"tasks/done/a/b.md": "# Nested\n",
 	} {
-		if _, err := s.Write(p, []byte(body), false); err != nil {
+		if _, err := s.Write(p, []byte(body)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -279,7 +262,7 @@ func TestFindTask(t *testing.T) {
 	if s.FindTask("x") != "" {
 		t.Fatal("found a task in an empty root")
 	}
-	if _, err := s.Write(TaskPath("done", "x"), []byte("# x"), false); err != nil {
+	if _, err := s.Write(TaskPath("done", "x"), []byte("# x")); err != nil {
 		t.Fatal(err)
 	}
 	if got := s.FindTask("x"); got != "tasks/done/x.md" {

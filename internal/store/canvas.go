@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 )
 
 // CanvasFile is the one draft the user edits by hand while the agent
@@ -38,23 +37,10 @@ func isCanvasPath(rel string) bool {
 // CanvasPath is the absolute path of the canvas, for the user's editor.
 func (s *Store) CanvasPath() string { return filepath.Join(s.Root, CanvasFile) }
 
-// canvasBody reads the canvas; a missing file is an empty canvas.
-func (s *Store) canvasBody() ([]byte, error) {
-	b, err := os.ReadFile(s.CanvasPath())
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
-	return b, err
-}
-
-// CanvasOpen starts a draft. It refuses when the canvas already holds one,
-// and on first use makes sure the root ignores the canvas files.
+// CanvasOpen starts a draft. It refuses when the canvas already holds one.
 func (s *Store) CanvasOpen(body []byte) (int, error) {
-	if err := s.ignoreCanvas(); err != nil {
-		return 0, err
-	}
-	cur, err := s.canvasBody()
-	if err != nil {
+	cur, err := os.ReadFile(s.CanvasPath())
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return 0, err
 	}
 	if len(bytes.TrimSpace(cur)) > 0 {
@@ -83,8 +69,8 @@ func (s *Store) canvasPut(body []byte) (int, error) {
 
 // CanvasRead returns the draft as it is now, including the user's edits.
 func (s *Store) CanvasRead() ([]byte, error) {
-	b, err := s.canvasBody()
-	if err != nil {
+	b, err := os.ReadFile(s.CanvasPath())
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, err
 	}
 	if len(bytes.TrimSpace(b)) == 0 {
@@ -94,55 +80,45 @@ func (s *Store) CanvasRead() ([]byte, error) {
 }
 
 // CanvasDiff is the unified diff from the agent's last write to the file
-// as it is now: the user's edits. changed is false when the two agree.
-func (s *Store) CanvasDiff() (changed bool, patch string, err error) {
+// as it is now: the user's edits. It is empty when the two agree.
+func (s *Store) CanvasDiff() ([]byte, error) {
 	if _, err := s.CanvasRead(); err != nil {
-		return false, "", err
+		return nil, err
 	}
 	snap := filepath.Join(s.Root, canvasSnapshot)
 	if _, err := os.Stat(snap); errors.Is(err, fs.ErrNotExist) {
 		snap = os.DevNull // the draft was started by hand; all of it is the user's
 	}
-	cmd := exec.Command("git", "-C", s.Root, "diff", "--no-index", "--", snap, s.CanvasPath())
-	out, err := cmd.Output()
+	out, err := exec.Command("git", "-C", s.Root, "diff", "--no-index", "--", snap, s.CanvasPath()).Output()
 	var exit *exec.ExitError
-	switch {
-	case err == nil:
-		return false, "", nil
-	case errors.As(err, &exit) && exit.ExitCode() == 1:
-		return true, string(out), nil
-	default:
-		return false, "", fmt.Errorf("git diff: %w", err)
+	if errors.As(err, &exit) && exit.ExitCode() == 1 {
+		err = nil // exit 1 is "differences found"
 	}
+	if err != nil {
+		return nil, fmt.Errorf("git diff: %w", err)
+	}
+	return out, nil
 }
 
-// CanvasSave writes the draft, prefixed with fm, to writing/<slug>.md and
-// empties the canvas. The note is created when absent and replaced when
-// present; action says which. The commit is the caller's.
-func (s *Store) CanvasSave(slug, fm string) (rel, action string, err error) {
+// CanvasSave writes the draft, prefixed with fm, to writing/<slug>.md,
+// overwriting an earlier save of the same slug, and empties the canvas. The
+// commit is the caller's.
+func (s *Store) CanvasSave(slug, fm string) (string, error) {
 	body, err := s.CanvasRead()
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-	p := WritingDir + "/" + slug + ".md"
-	doc := append([]byte(fm), body...)
-	abs, err := s.Resolve(p)
+	abs, err := s.Resolve(WritingDir + "/" + slug + ".md")
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-	action = "write"
-	if _, err := os.Stat(abs); err == nil {
-		action = "replace"
+	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+		return "", err
 	}
-	if action == "replace" {
-		rel, err = s.Replace(p, doc)
-	} else {
-		rel, err = s.Write(p, doc, false)
+	if err := os.WriteFile(abs, append([]byte(fm), body...), 0o644); err != nil {
+		return "", err
 	}
-	if err != nil {
-		return "", "", err
-	}
-	return rel, action, s.CanvasDrop()
+	return s.Rel(abs), s.CanvasDrop()
 }
 
 // CanvasDrop empties the canvas and forgets the snapshot. The file stays so
@@ -155,38 +131,4 @@ func (s *Store) CanvasDrop() error {
 		return err
 	}
 	return nil
-}
-
-// ignoreCanvas adds the canvas files to the root's .gitignore and commits
-// that once. A root that already ignores them is left alone.
-func (s *Store) ignoreCanvas() error {
-	path := filepath.Join(s.Root, ".gitignore")
-	old, err := os.ReadFile(path)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return err
-	}
-	have := map[string]bool{}
-	for _, line := range strings.Split(string(old), "\n") {
-		have[strings.TrimSpace(line)] = true
-	}
-	var add []string
-	for _, f := range []string{CanvasFile, canvasSnapshot} {
-		if !have[f] && !have["/"+f] {
-			add = append(add, f)
-		}
-	}
-	if len(add) == 0 {
-		return nil
-	}
-	var buf bytes.Buffer
-	buf.Write(old)
-	if len(old) > 0 && !bytes.HasSuffix(old, []byte("\n")) {
-		buf.WriteByte('\n')
-	}
-	buf.WriteString(strings.Join(add, "\n") + "\n")
-	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
-		return err
-	}
-	_, err = s.Commit("nabu: ignore "+strings.Join(add, " "), ".gitignore")
-	return err
 }
