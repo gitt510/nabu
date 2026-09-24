@@ -29,14 +29,19 @@ const usage = `usage: nabu <command> [args]
   note grep    <query>     find lines containing query (case-insensitive)
   task new     <slug>      create tasks/inbox/<slug>.md with optional --scheduled / --ticket frontmatter
   task mv      <slug> <st> move a task to tasks/<st>/ (inbox, doing, done)
+  canvas open              start a draft in CANVAS.md for the user to edit by hand
+  canvas read|write|diff   read, revise, or see the user's edits to the draft
+  canvas save  <slug>      move the draft to writing/<slug>.md and commit
+  canvas drop              empty the draft
   init                     create the root declared in the config as a git repository
   doctor                   check the config file, the root, and git readiness
                            (--notes also lints filenames and titles)
   help, -h             print this usage
 
 Paths are relative to the root, must stay inside it, and end in .md.
-The root is a git repository; write, replace, append, mv, task new, and task mv
-commit their change unless --no-commit is given. Every command accepts --json.
+The root is a git repository; write, replace, append, mv, task new, task mv, and
+canvas save commit their change unless --no-commit is given. CANVAS.md is
+ignored by git and is not a note. Every command accepts --json.
 
 The root comes from --root <dir>, or else from root in ` + "%s" + `
 See "nabu <command> -h" for the flags of each command.
@@ -73,6 +78,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runDoctor(args[1:], stdout, stderr)
 	case "task":
 		return runTask(args[1:], stdin, stdout, stderr)
+	case "canvas":
+		return runCanvas(args[1:], stdin, stdout, stderr)
 	case "note":
 		return runNote(args[1:], stdin, stdout, stderr)
 	}

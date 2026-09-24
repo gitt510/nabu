@@ -273,3 +273,113 @@ func TestTaskMvViaCLI(t *testing.T) {
 		t.Fatalf("log: %s", log)
 	}
 }
+
+func TestCanvasFlowViaCLI(t *testing.T) {
+	dir := t.TempDir()
+	for _, args := range [][]string{{"init", "-q"}, {"config", "user.email", "t@x"}, {"config", "user.name", "t"}} {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	var out, errb bytes.Buffer
+	nabu := func(want int, args ...string) string {
+		out.Reset()
+		errb.Reset()
+		if code := run(append(args, "--root", dir), strings.NewReader(""), &out, &errb); code != want {
+			t.Fatalf("%v: exit %d want %d: %s%s", args, code, want, out.String(), errb.String())
+		}
+		return out.String()
+	}
+
+	// read / write / diff / save need a draft
+	nabu(exitFail, "canvas", "read")
+	nabu(exitFail, "canvas", "write", "--content", "x")
+	nabu(exitFail, "canvas", "save", "s")
+
+	nabu(exitOK, "canvas", "open", "--content", "# Draft\n\nfirst")
+	if got := nabu(exitOK, "canvas", "read"); got != "# Draft\n\nfirst\n" {
+		t.Fatalf("read=%q", got)
+	}
+	// the first open ignores the canvas files and commits that once
+	if ig, err := os.ReadFile(filepath.Join(dir, ".gitignore")); err != nil || !strings.Contains(string(ig), "CANVAS.md") {
+		t.Fatalf(".gitignore=%q %v", ig, err)
+	}
+	if got := nabu(exitOK, "canvas", "diff", "--json"); !strings.Contains(got, `"changed": false`) {
+		t.Fatalf("diff before edit=%q", got)
+	}
+	// a second open refuses; the canvas is not a note
+	nabu(exitFail, "canvas", "open", "--content", "again")
+	nabu(exitFail, "note", "write", "CANVAS.md", "--content", "x")
+	nabu(exitFail, "note", "read", "CANVAS.md")
+	if got := nabu(exitOK, "note", "ls"); strings.Contains(got, "CANVAS") {
+		t.Fatalf("ls shows canvas: %q", got)
+	}
+
+	// the user edits by hand; diff shows it
+	if err := os.WriteFile(filepath.Join(dir, "CANVAS.md"), []byte("# Draft\n\nfirst, edited\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := nabu(exitOK, "canvas", "diff"); !strings.Contains(got, "+first, edited") || !strings.Contains(got, "-first") {
+		t.Fatalf("diff=%q", got)
+	}
+	// the agent revises; the snapshot moves with it
+	nabu(exitOK, "canvas", "write", "--content", "# Draft\n\nfirst, edited, polished")
+	if got := nabu(exitOK, "canvas", "diff"); got != "" {
+		t.Fatalf("diff after write=%q", got)
+	}
+
+	nabu(exitUsage, "canvas", "save", "Bad Slug")
+	got := nabu(exitOK, "canvas", "save", "pr68-comment", "--ticket", "https://github.com/x/y/pull/68", "--json")
+	if !strings.Contains(got, `"path": "writing/pr68-comment.md"`) || !strings.Contains(got, `"committed": true`) {
+		t.Fatalf("save=%q", got)
+	}
+	saved, err := os.ReadFile(filepath.Join(dir, "writing", "pr68-comment.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(string(saved), "---\ncreated: \"") || !strings.Contains(string(saved), "  - \"https://github.com/x/y/pull/68\"\n---\n# Draft\n\nfirst, edited, polished\n") {
+		t.Fatalf("saved=%q", saved)
+	}
+	// the canvas file stays, empty, and nothing is left uncommitted
+	if b, err := os.ReadFile(filepath.Join(dir, "CANVAS.md")); err != nil || len(b) != 0 {
+		t.Fatalf("canvas after save=%q %v", b, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".CANVAS.agent.md")); !os.IsNotExist(err) {
+		t.Fatalf("snapshot left behind: %v", err)
+	}
+	st, err := exec.Command("git", "-C", dir, "status", "--porcelain").Output()
+	if err != nil || len(bytes.TrimSpace(st)) != 0 {
+		t.Fatalf("worktree not clean after save: %q %v", st, err)
+	}
+	log, _ := exec.Command("git", "-C", dir, "log", "--format=%s").Output()
+	if want := "nabu: canvas save writing/pr68-comment.md\nnabu: ignore CANVAS.md .CANVAS.agent.md\n"; string(log) != want {
+		t.Fatalf("log=%q", log)
+	}
+
+	// saving again to the same slug replaces; a draft with its own frontmatter is refused
+	nabu(exitOK, "canvas", "open", "--content", "---\nx: 1\n---\n# Two")
+	nabu(exitFail, "canvas", "save", "pr68-comment")
+	nabu(exitOK, "canvas", "drop")
+	nabu(exitOK, "canvas", "open", "--content", "# Two")
+	if got := nabu(exitOK, "canvas", "save", "pr68-comment"); !strings.Contains(got, "canvas save writing/pr68-comment.md") {
+		t.Fatalf("second save=%q", got)
+	}
+	if saved, _ := os.ReadFile(filepath.Join(dir, "writing", "pr68-comment.md")); !strings.HasSuffix(string(saved), "---\n# Two\n") {
+		t.Fatalf("replaced=%q", saved)
+	}
+}
+
+func TestInitIgnoresCanvas(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "root")
+	for _, kv := range [][2]string{{"GIT_AUTHOR_NAME", "t"}, {"GIT_AUTHOR_EMAIL", "t@x"}, {"GIT_COMMITTER_NAME", "t"}, {"GIT_COMMITTER_EMAIL", "t@x"}} {
+		t.Setenv(kv[0], kv[1])
+	}
+	var out, errb bytes.Buffer
+	if code := run([]string{"init", "--root", dir}, strings.NewReader(""), &out, &errb); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	ig, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
+	if err != nil || string(ig) != "CANVAS.md\n.CANVAS.agent.md\n" {
+		t.Fatalf(".gitignore=%q %v", ig, err)
+	}
+}
