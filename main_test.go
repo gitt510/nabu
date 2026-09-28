@@ -209,6 +209,39 @@ func TestTaskMvViaCLI(t *testing.T) {
 	}
 }
 
+func TestTaskRenameViaCLI(t *testing.T) {
+	dir, nabu := newRoot(t)
+	nabu(exitOK, "", "task", "new", "ship", "--content", "# Ship\n", "--ticket", "https://example.com/1")
+	nabu(exitOK, "", "task", "new", "sail", "--content", "# Sail\n")
+	nabu(exitOK, "", "task", "mv", "ship", "doing")
+	for _, args := range [][]string{
+		{"task", "rename", "ship"},
+		{"task", "rename", "ship", "Bad Slug"},
+		{"task", "rename", "ship", "ship"},
+	} {
+		nabu(exitUsage, "", args...)
+	}
+	nabu(exitFail, "", "task", "rename", "nope", "launch")
+	nabu(exitFail, "", "task", "rename", "ship", "sail") // taken, whatever its status
+	got := nabu(exitOK, "", "task", "rename", "ship", "launch")
+	if !strings.Contains(got, `"from": "tasks/doing/ship.md"`) || !strings.Contains(got, `"to": "tasks/doing/launch.md"`) || !strings.Contains(got, `"committed": true`) {
+		t.Fatalf("stdout=%q", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "tasks", "doing", "ship.md")); err == nil {
+		t.Fatal("source still exists")
+	}
+	read := nabu(exitOK, "", "task", "read", "launch")
+	if !strings.Contains(read, "https://example.com/1") || !strings.Contains(read, "# Ship") {
+		t.Fatalf("content changed: %q", read)
+	}
+	nabu(exitOK, "", "task", "new", "ship", "--content", "# Ship\n") // the old slug is free again
+	gitClean(t, dir)
+	log, _ := exec.Command("git", "-C", dir, "log", "-2", "--format=%s").Output()
+	if !strings.Contains(string(log), "nabu: task rename tasks/doing/ship.md -> tasks/doing/launch.md") {
+		t.Fatalf("log: %s", log)
+	}
+}
+
 func TestCanvasFlowViaCLI(t *testing.T) {
 	dir, nabu := newRoot(t)
 	nabu(exitOK, "", "init") // seeds .gitignore so the canvas stays out of git

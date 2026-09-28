@@ -42,6 +42,7 @@ nabu task new <slug> [--scheduled <RFC3339>] [--ticket <url>]...  # create tasks
 nabu task replace <slug>                  # replace a task's body, keeping its frontmatter
 nabu task set <slug> [--scheduled <RFC3339>|--clear-scheduled] [--waiting <text>|--clear-waiting] [--ticket <url>]... [--clear-tickets]
 nabu task mv <slug> <inbox|doing|done>    # move a task to its status folder
+nabu task rename <slug> <new-slug>        # give a task a new slug, keeping its status
 nabu task read <slug>                     # print a task, whatever its status
 nabu task ls [status] [--json]            # status, slug, title, waiting per task
 nabu task grep <query> [--json]           # find lines under tasks/
@@ -74,6 +75,7 @@ nabu -h / nabu note <command> -h         # usage
 - `task replace` finds the task by slug in any status folder and replaces its body, keeping the frontmatter as is
 - `task set` finds the task the same way and rewrites its frontmatter, keeping the body: `--scheduled` / `--waiting` set a field, `--clear-scheduled` / `--clear-waiting` drop it (a value and its clear flag together are refused), `--ticket` adds a URL not already listed, `--clear-tickets` empties the list before any `--ticket` is added. At least one flag is required
 - `waiting` means the ball is with someone else: the user has done their part and waits for a reply or a review. The task stays in `tasks/doing/`; clearing `waiting` means the ball is back. Nothing records when it was set: `git log` on the task does
+- `task rename` finds the task by slug the same way and moves it to `<new-slug>.md` in the same folder, frontmatter and body untouched; it fails on an unknown slug, on a new slug already present in any status folder, and when both slugs are equal
 - `task read` prints the task found by slug in any status folder, frontmatter included
 - `task ls` lists every task, or one status folder's, sorted by path, as `status  slug  title  waiting: <text>`; `--json` adds `path`, `scheduled`, and `tickets` (empty fields omitted). A `tasks/<slug>.md` outside every folder is listed with status `stray`; a frontmatter nabu cannot read leaves the row's frontmatter fields empty
 - `task grep` is `note grep` limited to `tasks/`
@@ -85,10 +87,10 @@ nabu -h / nabu note <command> -h         # usage
 - `canvas save` and `canvas drop` empty `CANVAS.md` rather than deleting it, so an editor with the file open sees a reload, and remove the snapshot
 - `CANVAS.md` and `.CANVAS.agent.md` are in the `.gitignore` that `init` seeds; a root initialized before the canvas existed needs the two lines added by hand
 - `ls`, `grep`, `task ls`, `task grep`, and `doctor --notes` skip the canvas files; `note write`, `replace`, `append`, `mv`, and `read` refuse them
-- `write`, `replace`, `append`, `task new`, `task replace`, and `task set` commit the changed file as `nabu: <command> <path>` (`task new` as `nabu: task <path>`); `mv` commits as `nabu: mv <from> -> <to>`, `task mv` as `nabu: task mv <from> -> <to>`. There is no way to leave a change uncommitted
+- `write`, `replace`, `append`, `task new`, `task replace`, and `task set` commit the changed file as `nabu: <command> <path>` (`task new` as `nabu: task <path>`); `mv` commits as `nabu: mv <from> -> <to>`, `task mv` as `nabu: task mv <from> -> <to>`, `task rename` as `nabu: task rename <from> -> <to>`. There is no way to leave a change uncommitted
 - Nothing pushes on its own. `nabu push` runs `git push` for the root's current branch and prints `action` and `upstream` (`origin/main`); it fails when the branch has no upstream (set one by hand with `git push -u`) or when the push is rejected, and never pulls or rebases
 - `doctor --notes` also warns about a note under `tasks/` that is not directly inside a status folder
-- `write`, `replace`, `append`, `task new`, `task replace`, `task set`, and `canvas save` print `path`, `action`, `bytes`, `committed`; `mv` and `task mv` print `from`, `to`, `action`, `committed`; `canvas open`, `write`, and `drop` print `path` (`CANVAS.md`), `file` (absolute), `action`, `bytes`
+- `write`, `replace`, `append`, `task new`, `task replace`, `task set`, and `canvas save` print `path`, `action`, `bytes`, `committed`; `mv`, `task mv`, and `task rename` print `from`, `to`, `action`, `committed`; `canvas open`, `write`, and `drop` print `path` (`CANVAS.md`), `file` (absolute), `action`, `bytes`
 - `ls` skips `.git` and non-`.md` files and prints path and title; `--json` adds `modified` and `bytes`
 - `grep --json` carries `path`, `line`, `text`
 
@@ -110,7 +112,7 @@ nabu -h / nabu note <command> -h         # usage
 | skill | file | covers |
 | --- | --- | --- |
 | `nabu:note` | `skills/note/SKILL.md` | `note` commands, `doctor --notes`, `push` |
-| `nabu:task` | `skills/task/SKILL.md` | `task new`, `replace`, `set`, `mv`, `read`, `ls`, `grep`, the status folders |
+| `nabu:task` | `skills/task/SKILL.md` | `task new`, `replace`, `set`, `mv`, `rename`, `read`, `ls`, `grep`, the status folders |
 | `nabu:canvas` | `skills/canvas/SKILL.md` | the `canvas` commands and the co-writing loop |
 
 ## Development
