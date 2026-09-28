@@ -14,10 +14,14 @@ for the contract; this file only says how to use it well.
 
 ```bash
 nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]...  # tasks/inbox/<slug>.md, body on stdin
+nabu task replace <slug>                     # new body on stdin; frontmatter is kept
+nabu task set <slug> --waiting "<who/what>"  # the ball is with someone else
+nabu task set <slug> --clear-waiting         # the ball is back
+nabu task set <slug> --scheduled <RFC3339> --ticket <https-url>   # other metadata; --clear-* drops
 nabu task mv <slug> <inbox|doing|done>       # move a task to its status folder
-nabu note ls tasks/doing --json              # what is in flight
-nabu note read tasks/doing/<slug>.md         # a task's content
-nabu note replace tasks/<st>/<slug>.md       # revise a task's body (whole file, stdin)
+nabu task ls [status] [--json]               # what exists; waiting shows who holds the ball
+nabu task read <slug>                        # a task's content, any status
+nabu task grep <query> [--json]              # where something is written in tasks
 nabu doctor --notes                          # warn on tasks outside a status folder
 ```
 
@@ -25,7 +29,9 @@ nabu doctor --notes                          # warn on tasks outside a status fo
 
 1. **Read the conventions first.** `nabu note read README.md` gives the
    rules of this particular root; they win over any default here. Check
-   `nabu note ls tasks --json` before filing so a task is not filed twice.
+   `nabu task ls --json` before filing so a task is not filed twice. The
+   `note` commands do not see `tasks/`; every task read and write is a
+   `task` command.
 2. **File with `task new`.** The slug is the filename (lowercase
    kebab-case); the body (stdin) is ordinary markdown starting with a `# `
    title. Metadata goes through flags, never hand-written in the body:
@@ -34,13 +40,24 @@ nabu doctor --notes                          # warn on tasks outside a status fo
 3. **Move with `task mv`.** Run `nabu task mv <slug> doing` when work
    starts and `... done` when it ends. Never write a status into the body or
    frontmatter; the folder is the status.
-4. **Revise with `note replace`.** It rewrites the whole file: read it
-   first and keep the frontmatter block in the new body.
-5. **Report the path.** After a write, tell the user the relative path nabu
-   printed (`task new` prints `path`; `task mv` prints `from` and `to`).
-6. **Repair with `note mv`.** A task flagged by `doctor --notes` as outside
-   a status folder moves with
-   `nabu note mv tasks/<slug>.md tasks/inbox/<slug>.md`.
+4. **Revise with `task replace` and `task set`.** `tasks/` belongs to
+   `task`; `note write`, `replace`, `append`, and `mv` refuse it. `task
+   replace` takes the new body on stdin and keeps the frontmatter; `task
+   set` changes the frontmatter and keeps the body. Never write a
+   frontmatter block by hand: a body that starts with `---` is refused.
+5. **Mark a wait with `task set --waiting`.** When the user has done their
+   part and waits on someone else (a reply, a review), keep the task in
+   `doing/` and run `nabu task set <slug> --waiting "<who or what>"`;
+   `--clear-waiting` when the ball is back. Do not write the wait into the
+   body as well.
+6. **Report the path.** After a write, tell the user the relative path nabu
+   printed (`task new`, `replace`, and `set` print `path`; `task mv` prints
+   `from` and `to`).
+7. **Repair with `task mv`.** A task that `task ls` shows as `stray`
+   (a `tasks/<slug>.md` outside every status folder) moves with
+   `nabu task mv <slug> inbox`. A
+   frontmatter refused by `task set` or `task replace` was edited by hand;
+   tell the user and let them fix the file.
 
 Ordinary notes are the `nabu:note` skill.
 

@@ -175,7 +175,7 @@ func TestTaskNewViaCLI(t *testing.T) {
 	if saved, _ := os.ReadFile(filepath.Join(dir, "tasks", "inbox", "plain.md")); string(saved) != "# Plain\n" {
 		t.Fatalf("plain task got frontmatter: %q", saved)
 	}
-	if got := nabu(exitOK, "", "note", "ls", "tasks", "--json"); !strings.Contains(got, `"title": "Retire legacy domain"`) {
+	if got := nabu(exitOK, "", "task", "ls", "--json"); !strings.Contains(got, `"title": "Retire legacy domain"`) {
 		t.Fatalf("frontmatter broke title extraction: %s", got)
 	}
 }
@@ -326,5 +326,129 @@ func TestPushViaCLI(t *testing.T) {
 	log, _ := exec.Command("git", "-C", bare, "log", "--format=%s", "main").Output()
 	if !strings.Contains(string(log), "nabu: append a.md") {
 		t.Fatalf("remote log: %s", log)
+	}
+}
+
+func TestTaskReplaceAndSetViaCLI(t *testing.T) {
+	dir, nabu := newRoot(t)
+	read := func() string {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join(dir, "tasks", "inbox", "wait.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	nabu(exitOK, "# Wait\n\n- [ ] send\n", "task", "new", "wait", "--ticket", "https://example.com/1")
+	nabu(exitOK, "", "task", "set", "wait", "--waiting", "担当者からの LINE 返信", "--scheduled", "2026-10-02T10:00:00+09:00", "--ticket", "https://example.com/2", "--ticket", "https://example.com/1")
+	want := "---\nscheduled: \"2026-10-02T10:00:00+09:00\"\nwaiting: \"担当者からの LINE 返信\"\ntickets:\n  - \"https://example.com/1\"\n  - \"https://example.com/2\"\n---\n# Wait\n\n- [ ] send\n"
+	if got := read(); got != want {
+		t.Fatalf("after set:\n%s\nwant:\n%s", got, want)
+	}
+	nabu(exitOK, "# Wait\n\n- [x] send\n", "task", "replace", "wait")
+	want = strings.Replace(want, "- [ ] send", "- [x] send", 1)
+	if got := read(); got != want {
+		t.Fatalf("after replace:\n%s\nwant:\n%s", got, want)
+	}
+	nabu(exitOK, "", "task", "set", "wait", "--clear-waiting", "--clear-scheduled", "--clear-tickets")
+	if got := read(); got != "# Wait\n\n- [x] send\n" {
+		t.Fatalf("after clear: %q", got)
+	}
+	for _, args := range [][]string{
+		{"task", "set", "wait"},
+		{"task", "set", "wait", "--waiting", "x", "--clear-waiting"},
+		{"task", "set", "wait", "--waiting", "  "},
+		{"task", "set", "wait", "--scheduled", "2026-10-02"},
+		{"task", "set", "wait", "--ticket", "http://example.com/1"},
+		{"task", "replace", "wait", "--content", "---\nwaiting: \"x\"\n---\n# Wait\n"},
+		{"task", "new", "other", "--content", "---\nwaiting: \"x\"\n---\n# Other\n"},
+	} {
+		nabu(exitUsage, "", args...)
+	}
+	nabu(exitFail, "", "task", "set", "missing", "--waiting", "x")
+	nabu(exitFail, "# x\n", "task", "replace", "missing")
+	if err := os.WriteFile(filepath.Join(dir, "tasks", "inbox", "wait.md"), []byte("---\nwating: \"typo\"\n---\n# Wait\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	nabu(exitFail, "", "task", "set", "wait", "--waiting", "x")
+	nabu(exitFail, "# Wait\n", "task", "replace", "wait")
+}
+
+func TestNoteRefusesTasksDir(t *testing.T) {
+	dir, nabu := newRoot(t)
+	nabu(exitOK, "# Wait\n", "task", "new", "wait")
+	nabu(exitOK, "", "note", "write", "work/free.md", "--content", "# Free\n")
+	for _, args := range [][]string{
+		{"note", "write", "tasks/inbox/x.md", "--content", "# x"},
+		{"note", "replace", "tasks/inbox/wait.md", "--content", "# x"},
+		{"note", "append", "tasks/inbox/wait.md", "--content", "more"},
+		{"note", "append", "tasks/x.md", "--content", "more"},
+		{"note", "mv", "tasks/inbox/wait.md", "tasks/doing/wait.md"},
+		{"note", "mv", "work/free.md", "tasks/inbox/free.md"},
+		{"note", "mv", "tasks/inbox/wait.md", "work/wait.md"},
+		{"note", "write", "./tasks/inbox/x.md", "--content", "# x"},
+	} {
+		nabu(exitUsage, "", args...)
+	}
+	for _, args := range [][]string{
+		{"note", "read", "tasks/inbox/wait.md"},
+		{"note", "ls", "tasks"},
+		{"note", "ls", "tasks/inbox"},
+	} {
+		nabu(exitUsage, "", args...)
+	}
+	if got := nabu(exitOK, "", "note", "ls"); strings.Contains(got, "tasks/") || !strings.Contains(got, "work/free.md") {
+		t.Fatalf("note ls leaks tasks: %q", got)
+	}
+	if got := nabu(exitOK, "", "note", "grep", "Wait"); got != "" {
+		t.Fatalf("note grep leaks tasks: %q", got)
+	}
+	if got := nabu(exitOK, "", "note", "grep", "Wait", "--json"); strings.TrimSpace(got) != "[]" {
+		t.Fatalf("note grep --json: %q", got)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "tasks", "stray.md"), []byte("# Stray\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	nabu(exitFail, "# x\n", "task", "new", "stray")
+	if got := nabu(exitOK, "", "task", "ls"); !strings.Contains(got, "stray  stray  Stray") {
+		t.Fatalf("task ls stray: %q", got)
+	}
+	if got := nabu(exitOK, "", "task", "mv", "stray", "inbox"); !strings.Contains(got, `"from": "tasks/stray.md"`) {
+		t.Fatalf("stray mv: %s", got)
+	}
+}
+
+func TestTaskReadLsGrepViaCLI(t *testing.T) {
+	_, nabu := newRoot(t)
+	nabu(exitOK, "# Wait\n\nping them\n", "task", "new", "wait", "--ticket", "https://example.com/1")
+	nabu(exitOK, "# Other\n", "task", "new", "other")
+	nabu(exitOK, "", "task", "mv", "wait", "doing")
+	nabu(exitOK, "", "task", "set", "wait", "--waiting", "their reply")
+	nabu(exitOK, "", "note", "write", "work/free.md", "--content", "# Free\n\nping them\n")
+	if got := nabu(exitOK, "", "task", "read", "wait"); got != "---\nwaiting: \"their reply\"\ntickets:\n  - \"https://example.com/1\"\n---\n# Wait\n\nping them\n" {
+		t.Fatalf("read: %q", got)
+	}
+	nabu(exitFail, "", "task", "read", "missing")
+	if got := nabu(exitOK, "", "task", "ls"); got != "doing  wait   Wait   waiting: their reply\ninbox  other  Other\n" {
+		t.Fatalf("ls: %q", got)
+	}
+	if got := nabu(exitOK, "", "task", "ls", "inbox"); got != "inbox  other  Other\n" {
+		t.Fatalf("ls inbox: %q", got)
+	}
+	nabu(exitUsage, "", "task", "ls", "later")
+	got := nabu(exitOK, "", "task", "ls", "doing", "--json")
+	for _, want := range []string{`"slug": "wait"`, `"status": "doing"`, `"waiting": "their reply"`, `"https://example.com/1"`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("ls --json lacks %s: %s", want, got)
+		}
+	}
+	if strings.Contains(got, `"scheduled"`) {
+		t.Fatalf("ls --json prints empty scheduled: %s", got)
+	}
+	if got := nabu(exitOK, "", "task", "grep", "PING"); got != "tasks/doing/wait.md:8: ping them\n" {
+		t.Fatalf("grep: %q", got)
+	}
+	if got := nabu(exitOK, "", "note", "grep", "PING"); got != "work/free.md:3: ping them\n" {
+		t.Fatalf("note grep: %q", got)
 	}
 }

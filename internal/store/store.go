@@ -422,15 +422,23 @@ func TaskPath(status, slug string) string {
 }
 
 // FindTask returns the path of the task with this slug, whatever its
-// status, or "" when no status folder has it.
+// status, or "" when tasks/ has no such note. A stray tasks/<slug>.md
+// outside every status folder is found last, so task mv can put it away.
 func (s *Store) FindTask(slug string) string {
-	for _, st := range TaskStatuses {
-		rel := TaskPath(st, slug)
+	for _, rel := range append(taskPaths(slug), "tasks/"+slug+".md") {
 		if _, err := os.Stat(filepath.Join(s.Root, filepath.FromSlash(rel))); err == nil {
 			return rel
 		}
 	}
 	return ""
+}
+
+func taskPaths(slug string) []string {
+	out := make([]string, 0, len(TaskStatuses))
+	for _, st := range TaskStatuses {
+		out = append(out, TaskPath(st, slug))
+	}
+	return out
 }
 
 // taskFolderOK reports whether a note under tasks/ sits directly in a
