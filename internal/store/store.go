@@ -354,6 +354,21 @@ func (s *Store) Commit(message string, rels ...string) (bool, error) {
 	return true, nil
 }
 
+// Push sends the current branch to its upstream and returns that upstream
+// ("origin/main"). It refuses a branch without one, so the remote is set up
+// by hand once and never guessed.
+func (s *Store) Push() (string, error) {
+	out, err := exec.Command("git", "-C", s.Root, "rev-parse", "--abbrev-ref", "@{u}").Output()
+	if err != nil {
+		return "", errors.New("no upstream branch; run git push -u <remote> <branch> in the root once")
+	}
+	upstream := strings.TrimSpace(string(out))
+	if err := s.git("push", "-q"); err != nil {
+		return "", err
+	}
+	return upstream, nil
+}
+
 // Finding is one convention warning from Lint.
 type Finding struct {
 	Path   string `json:"path"`

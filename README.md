@@ -46,6 +46,7 @@ nabu canvas diff                          # the user's edits since the agent las
 nabu canvas write --content <text>        # replace the draft with a revision
 nabu canvas save <slug> [--ticket <url>]... # move the draft to writing/<slug>.md and commit
 nabu canvas drop                          # empty the canvas
+nabu push                                 # git push the root to its upstream
 nabu -h / nabu note <command> -h         # usage
 ```
 
@@ -71,6 +72,7 @@ nabu -h / nabu note <command> -h         # usage
 - `CANVAS.md` and `.CANVAS.agent.md` are in the `.gitignore` that `init` seeds; a root initialized before the canvas existed needs the two lines added by hand
 - `ls`, `grep`, and `doctor --notes` skip the canvas files; `note write`, `replace`, `append`, `mv`, and `read` refuse them
 - `write`, `replace`, `append`, and `task new` commit the changed file as `nabu: <command> <path>` (`task new` as `nabu: task <path>`); `mv` commits as `nabu: mv <from> -> <to>`, `task mv` as `nabu: task mv <from> -> <to>`. There is no way to leave a change uncommitted
+- Nothing pushes on its own. `nabu push` runs `git push` for the root's current branch and prints `action` and `upstream` (`origin/main`); it fails when the branch has no upstream (set one by hand with `git push -u`) or when the push is rejected, and never pulls or rebases
 - `doctor --notes` also warns about a note under `tasks/` that is not directly inside a status folder
 - `write`, `replace`, `append`, `task new`, and `canvas save` print `path`, `action`, `bytes`, `committed`; `mv` and `task mv` print `from`, `to`, `action`, `committed`; `canvas open`, `write`, and `drop` print `path` (`CANVAS.md`), `file` (absolute), `action`, `bytes`
 - `ls` skips `.git` and non-`.md` files and prints path and title; `--json` adds `modified` and `bytes`

@@ -34,6 +34,7 @@ const usage = `usage: nabu <command> [args]
   canvas read|write|diff   read, revise, or see the user's edits to the draft
   canvas save  <slug>      move the draft to writing/<slug>.md and commit
   canvas drop              empty the draft
+  push                     git push the root to its upstream
   init                     create the root declared in the config as a git repository
   doctor                   check the config file, the root, and git readiness
                            (--notes also lints filenames and titles)
@@ -78,6 +79,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runInit(args[1:], stdout, stderr)
 	case "doctor":
 		return runDoctor(args[1:], stdout, stderr)
+	case "push":
+		return runPush(args[1:], stdout, stderr)
 	case "task":
 		return runTask(args[1:], stdin, stdout, stderr)
 	case "canvas":
@@ -193,6 +196,23 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 		return fail(stderr, err, exitFail)
 	}
 	return emit(stdout, r)
+}
+
+func runPush(args []string, stdout, stderr io.Writer) int {
+	fs := newFlagSet("push", "nabu push [--root <dir>]\n\nruns git push for the root's current branch; the branch must already have an upstream")
+	root := bindRoot(fs)
+	if ok, code := parse(fs, args, 0, 0, stdout, stderr); !ok {
+		return code
+	}
+	s, err := openStore(*root)
+	if err != nil {
+		return fail(stderr, err, exitFail)
+	}
+	upstream, err := s.Push()
+	if err != nil {
+		return fail(stderr, err, exitFail)
+	}
+	return emit(stdout, map[string]string{"action": "push", "upstream": upstream})
 }
 
 // check is one doctor finding. Status is ok, warn, or fail.

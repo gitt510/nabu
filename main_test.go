@@ -299,3 +299,32 @@ func TestInitSeedsGitignore(t *testing.T) {
 		t.Fatalf(".gitignore=%q %v", ig, err)
 	}
 }
+
+func TestPushViaCLI(t *testing.T) {
+	dir, nabu := newRoot(t)
+	nabu(1, "", "push") // no upstream yet
+
+	bare := t.TempDir()
+	for _, args := range [][]string{
+		{"init", "-q", "--bare", bare},
+		{"-C", dir, "remote", "add", "origin", bare},
+	} {
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	nabu(0, "hello", "note", "write", "a.md")
+	if out, err := exec.Command("git", "-C", dir, "push", "-q", "-u", "origin", "main").CombinedOutput(); err != nil {
+		t.Fatalf("git push -u: %s", out)
+	}
+
+	nabu(0, "world", "note", "append", "a.md")
+	out := nabu(0, "", "push")
+	if !strings.Contains(out, `"upstream": "origin/main"`) {
+		t.Fatalf("push output: %s", out)
+	}
+	log, _ := exec.Command("git", "-C", bare, "log", "--format=%s", "main").Output()
+	if !strings.Contains(string(log), "nabu: append a.md") {
+		t.Fatalf("remote log: %s", log)
+	}
+}

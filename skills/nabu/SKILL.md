@@ -28,6 +28,7 @@ nabu canvas write                            # revise the draft (stdin)
 nabu canvas save <slug> [--ticket <https-url>]...  # writing/<slug>.md; the only canvas step that commits
 nabu canvas drop                             # empty the canvas
 nabu doctor --notes                          # warn on non-kebab filenames / missing titles / misplaced tasks
+nabu push                                    # git push the root; only when the user asks
 ```
 
 Flags may follow the positional argument. Multi-line bodies go through stdin:
@@ -106,7 +107,9 @@ for text the user wants to shape with you.
 
 - Read or edit files under the notes root with Read / Edit / Write / shell
   redirection. Only nabu touches the root.
-- Run git inside the notes root. nabu commits each change itself; pushing
-  is the user's job.
+- Run git inside the notes root. nabu commits each change itself.
+- `nabu push` unprompted. Run it only when the user asks to push (「push
+  して」), and report its `upstream`; a rejected push or a missing upstream
+  is shown to the user as is, never fixed with git.
 - Guess the root. If nabu exits 2 with "no root declared", run `nabu doctor`
   and show the user its output; it tells them what to fix.
