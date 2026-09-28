@@ -56,7 +56,8 @@ EOF
    flags a filename, rename with `nabu note mv` and grep for references
    first; fix a missing title with `replace`.
 
-Tasks under `tasks/` are the `nabu:task` skill; a draft the user shapes
+Tasks under `tasks/` are the `nabu:task` skill: no `note` command sees
+that directory, and `ls` and `grep` leave it out. A draft the user shapes
 with you over rounds is the `nabu:canvas` skill.
 
 ## Do not
