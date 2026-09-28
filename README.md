@@ -91,7 +91,13 @@ nabu -h / nabu note <command> -h         # usage
 /plugin install nabu@nabu
 ```
 
-- The skill in `skills/nabu/SKILL.md` directs the agent to use nabu for every read and write under the root
+- Three skills, one per concept, each directing the agent to use nabu for every read and write under the root:
+
+| skill | file | covers |
+| --- | --- | --- |
+| `nabu:note` | `skills/note/SKILL.md` | `note` commands, `doctor --notes`, `push` |
+| `nabu:task` | `skills/task/SKILL.md` | `task new`, `task mv`, the status folders |
+| `nabu:canvas` | `skills/canvas/SKILL.md` | the `canvas` commands and the co-writing loop |
 
 ## Development
 
