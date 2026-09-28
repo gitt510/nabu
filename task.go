@@ -15,12 +15,13 @@ import (
 	"github.com/gitt510/nabu/internal/store"
 )
 
-const taskUsage = `usage: nabu task <new|replace|set|mv|read|ls|grep> [flags] [args]
+const taskUsage = `usage: nabu task <new|replace|set|mv|rename|read|ls|grep> [flags] [args]
 
   new     <slug>           create tasks/inbox/<slug>.md
   replace <slug>           replace a task's body, keeping its frontmatter
   set     <slug>           change a task's frontmatter (scheduled, waiting, tickets)
   mv      <slug> <status>  move a task to tasks/<status>/ (inbox, doing, done)
+  rename  <slug> <new>     give a task a new slug, keeping its status and content
   read    <slug>           print a task, whatever its status
   ls      [status]         list tasks with status, title, and frontmatter
   grep    <query>          find lines containing query in tasks (case-insensitive)
@@ -133,6 +134,8 @@ func runTask(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runTaskSet(args[1:], stdout, stderr)
 	case "mv":
 		return runTaskMv(args[1:], stdout, stderr)
+	case "rename":
+		return runTaskRename(args[1:], stdout, stderr)
 	case "read":
 		return runTaskRead(args[1:], stdout, stderr)
 	case "ls":
@@ -286,6 +289,39 @@ func runTaskMv(args []string, stdout, stderr io.Writer) int {
 		return fail(stderr, err, exitFail)
 	}
 	return finishMv(s, from, to, "task mv", stdout, stderr)
+}
+
+func runTaskRename(args []string, stdout, stderr io.Writer) int {
+	fs := newFlagSet("task rename", "nabu task rename <slug> <new-slug>\n\nmoves tasks/<status>/<slug>.md to tasks/<status>/<new-slug>.md; status, frontmatter, and body stay as they are.\na new slug already present under tasks/ is refused")
+	root := bindRoot(fs)
+	if ok, code := parse(fs, args, 2, 2, stdout, stderr); !ok {
+		return code
+	}
+	slug, newSlug := fs.Arg(0), fs.Arg(1)
+	for _, v := range []string{slug, newSlug} {
+		if !store.Slug(v) {
+			return fail(stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", v), exitUsage)
+		}
+	}
+	if slug == newSlug {
+		return fail(stderr, fmt.Errorf("new slug is the same as the old one: %s", slug), exitUsage)
+	}
+	s, err := openStore(*root)
+	if err != nil {
+		return fail(stderr, err, exitFail)
+	}
+	from := s.FindTask(slug)
+	if from == "" {
+		return fail(stderr, fmt.Errorf("no task %s under tasks/", slug), exitFail)
+	}
+	if taken := s.FindTask(newSlug); taken != "" {
+		return fail(stderr, fmt.Errorf("%s: %w", taken, store.ErrExists), exitFail)
+	}
+	to := path.Dir(from) + "/" + newSlug + ".md"
+	if _, _, err := s.Move(from, to); err != nil {
+		return fail(stderr, err, exitFail)
+	}
+	return finishMv(s, from, to, "task rename", stdout, stderr)
 }
 
 func runTaskRead(args []string, stdout, stderr io.Writer) int {

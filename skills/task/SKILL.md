@@ -19,6 +19,7 @@ nabu task set <slug> --waiting "<who/what>"  # the ball is with someone else
 nabu task set <slug> --clear-waiting         # the ball is back
 nabu task set <slug> --scheduled <RFC3339> --ticket <https-url>   # other metadata; --clear-* drops
 nabu task mv <slug> <inbox|doing|done>       # move a task to its status folder
+nabu task rename <slug> <new-slug>           # new slug, same status and content
 nabu task ls [status] [--json]               # what exists; waiting shows who holds the ball
 nabu task read <slug>                        # a task's content, any status
 nabu task grep <query> [--json]              # where something is written in tasks
@@ -51,8 +52,8 @@ nabu doctor --notes                          # warn on tasks outside a status fo
    `--clear-waiting` when the ball is back. Do not write the wait into the
    body as well.
 6. **Report the path.** After a write, tell the user the relative path nabu
-   printed (`task new`, `replace`, and `set` print `path`; `task mv` prints
-   `from` and `to`).
+   printed (`task new`, `replace`, and `set` print `path`; `task mv` and `task
+   rename` print `from` and `to`).
 7. **Repair with `task mv`.** A task that `task ls` shows as `stray`
    (a `tasks/<slug>.md` outside every status folder) moves with
    `nabu task mv <slug> inbox`. A
