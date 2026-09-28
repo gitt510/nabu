@@ -1,12 +1,19 @@
 {
   "name": "nabu",
   "version": "0.1.0",
-  "description": "Read, write, append, list, and grep markdown notes in the user's notes repository through the nabu CLI. Use when the user asks to save a memo, jot something down, append to a note, or look something up in their notes.",
+  "description": "Agent skills for the nabu notes CLI: note (memo, append, read, grep), task (tasks/ with status folders), and canvas (co-write a draft in CANVAS.md). Every read and write of the notes repository goes through nabu.",
   "author": {
     "name": "Taichi Goto",
     "url": "https://github.com/gitt510"
   },
   "repository": "https://github.com/gitt510/nabu",
   "license": "MIT",
-  "keywords": ["notes", "markdown", "memo", "cli"]
+  "keywords": [
+    "notes",
+    "markdown",
+    "memo",
+    "task",
+    "canvas",
+    "cli"
+  ]
 }
