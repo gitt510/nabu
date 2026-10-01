@@ -392,6 +392,22 @@ func TestTaskReadLsGrepViaCLI(t *testing.T) {
 	if strings.Contains(got, `"scheduled"`) {
 		t.Fatalf("ls --json prints empty scheduled: %s", got)
 	}
+	view := t.TempDir()
+	if got := nabu(exitOK, "", "task", "view", "--no-open", "--out", view); got != filepath.Join(view, "index.html")+"\n" {
+		t.Fatalf("task view: %q", got)
+	}
+	page, err := os.ReadFile(filepath.Join(view, "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"slug":"wait"`, `"status":"doing"`, `"waiting":"their reply"`, `\u003cp\u003eping them\u003c/p\u003e`, `id="tree"`} {
+		if !strings.Contains(string(page), want) {
+			t.Fatalf("task view page lacks %s", want)
+		}
+	}
+	if strings.Contains(string(page), "<script>\n</script>") || strings.Contains(string(page), "<style>\n</style>") {
+		t.Fatal("task view page has empty css or js")
+	}
 	if got := nabu(exitOK, "", "task", "grep", "PING"); got != "tasks/doing/wait.md:14: ping them\n" {
 		t.Fatalf("grep: %q", got)
 	}
