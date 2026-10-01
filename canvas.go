@@ -17,7 +17,7 @@ const canvasUsage = `usage: nabu canvas <open|read|write|diff|save|drop> [flags]
   read          print the draft as it is now
   write         replace the draft with a revision
   diff          the user's edits since the agent last wrote (empty when none)
-  save <slug>   move the draft to writing/<slug>.md and commit; empties the canvas
+  save <slug>   move the draft to gallery/<slug>.md and commit; empties the canvas
   drop          empty the canvas
 
 The canvas is one file at the root, CANVAS.md, edited by the user in an
@@ -120,7 +120,7 @@ func runCanvasShow(args []string, action string, stdout, stderr io.Writer) int {
 
 func runCanvasSave(args []string, stdout, stderr io.Writer) int {
 	var tk tickets
-	fs := newFlagSet("canvas save", "nabu canvas save <slug> [--ticket <https-url>]...\n\nwrites the draft to writing/<slug>.md (created or replaced) with a frontmatter block carrying created and any tickets, commits it, and empties the canvas.\nthe draft must not start with a frontmatter block of its own")
+	fs := newFlagSet("canvas save", "nabu canvas save <slug> [--ticket <https-url>]...\n\nwrites the draft to gallery/<slug>.md (created or replaced) with a frontmatter block carrying created and any tickets, commits it, and empties the canvas.\nthe draft must not start with a frontmatter block of its own")
 	root := bindRoot(fs)
 	fs.Var(&tk, "ticket", "related issue or PR URL (https); repeatable")
 	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {

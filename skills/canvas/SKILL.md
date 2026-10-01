@@ -1,6 +1,6 @@
 ---
 name: canvas
-description: Co-write a text with the user on the canvas of their nabu repository through the `nabu` CLI, when it will go through rounds before it is final — "draft this", "scaffold a comment", "let's write this together", "polish my edit", 「下書きして」「たたき台を作って」「一緒に書こう」「添削して」「canvas に」. The user edits CANVAS.md by hand, the agent revises it through nabu, and `canvas save` files it under writing/. Never read or edit the canvas directly; every read and write goes through nabu.
+description: Co-write a text with the user on the canvas of their nabu repository through the `nabu` CLI, when it will go through rounds before it is final — "draft this", "scaffold a comment", "let's write this together", "polish my edit", 「下書きして」「たたき台を作って」「一緒に書こう」「添削して」「canvas に」. The user edits CANVAS.md by hand, the agent revises it through nabu, and `canvas save` hangs it in gallery/. Never read or edit the canvas directly; every read and write goes through nabu.
 ---
 
 # nabu canvas
@@ -18,7 +18,7 @@ nabu canvas open                             # start a draft in CANVAS.md (stdin
 nabu canvas diff                             # what the user changed by hand since your last open/write
 nabu canvas read                             # the draft as it is now
 nabu canvas write                            # revise the draft (stdin)
-nabu canvas save <slug> [--ticket <https-url>]...  # writing/<slug>.md; the only canvas step that commits
+nabu canvas save <slug> [--ticket <https-url>]...  # gallery/<slug>.md; the only canvas step that commits
 nabu canvas drop                             # empty the canvas
 ```
 
@@ -35,7 +35,7 @@ nabu canvas drop                             # empty the canvas
 3. Revise with `nabu canvas write` (whole body on stdin). Keep the user's
    wording where the diff shows they changed it deliberately. Repeat 2-3.
 4. When the user says it is final, `nabu canvas save <slug> [--ticket <url>]`.
-   It lands in `writing/<slug>.md` with a `created` frontmatter. Report the
+   It hangs in `gallery/<slug>.md` with a `created` frontmatter. Report the
    path. Only this step commits.
 
 ## Do not

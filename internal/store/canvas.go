@@ -19,8 +19,8 @@ const CanvasFile = "CANVAS.md"
 // canvas so Diff can show what the user changed since.
 const canvasSnapshot = ".CANVAS.agent.md"
 
-// WritingDir is where a saved canvas lands, as writing/<slug>.md.
-const WritingDir = "writing"
+// GalleryDir is where a saved canvas hangs, as gallery/<slug>.md.
+const GalleryDir = "gallery"
 
 // ErrCanvasBusy is returned by CanvasOpen when the canvas is not empty.
 var ErrCanvasBusy = errors.New("canvas is not empty (save or drop it first)")
@@ -100,7 +100,7 @@ func (s *Store) CanvasDiff() ([]byte, error) {
 	return out, nil
 }
 
-// CanvasSave writes the draft, prefixed with fm, to writing/<slug>.md,
+// CanvasSave writes the draft, prefixed with fm, to gallery/<slug>.md,
 // overwriting an earlier save of the same slug, and empties the canvas. The
 // commit is the caller's.
 func (s *Store) CanvasSave(slug, fm string) (string, error) {
@@ -108,7 +108,7 @@ func (s *Store) CanvasSave(slug, fm string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	abs, err := s.Resolve(WritingDir + "/" + slug + ".md")
+	abs, err := s.Resolve(GalleryDir + "/" + slug + ".md")
 	if err != nil {
 		return "", err
 	}

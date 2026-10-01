@@ -215,10 +215,10 @@ func TestCanvasFlowViaCLI(t *testing.T) {
 
 	nabu(exitUsage, "", "canvas", "save", "Bad Slug")
 	got := nabu(exitOK, "", "canvas", "save", "pr68-comment", "--ticket", "https://github.com/x/y/pull/68")
-	if !strings.Contains(got, `"path": "writing/pr68-comment.md"`) || !strings.Contains(got, `"committed": true`) {
+	if !strings.Contains(got, `"path": "gallery/pr68-comment.md"`) || !strings.Contains(got, `"committed": true`) {
 		t.Fatalf("save=%q", got)
 	}
-	saved, err := os.ReadFile(filepath.Join(dir, "writing", "pr68-comment.md"))
+	saved, err := os.ReadFile(filepath.Join(dir, "gallery", "pr68-comment.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +234,7 @@ func TestCanvasFlowViaCLI(t *testing.T) {
 	}
 	gitClean(t, dir)
 	log, _ := exec.Command("git", "-C", dir, "log", "--format=%s").Output()
-	if want := "nabu: canvas save writing/pr68-comment.md\nnabu: init\n"; string(log) != want {
+	if want := "nabu: canvas save gallery/pr68-comment.md\nnabu: init\n"; string(log) != want {
 		t.Fatalf("log=%q", log)
 	}
 
@@ -244,7 +244,7 @@ func TestCanvasFlowViaCLI(t *testing.T) {
 	nabu(exitOK, "", "canvas", "drop")
 	nabu(exitOK, "", "canvas", "open", "--content", "# Two")
 	nabu(exitOK, "", "canvas", "save", "pr68-comment")
-	if saved, _ := os.ReadFile(filepath.Join(dir, "writing", "pr68-comment.md")); !strings.HasSuffix(string(saved), "---\n# Two\n") {
+	if saved, _ := os.ReadFile(filepath.Join(dir, "gallery", "pr68-comment.md")); !strings.HasSuffix(string(saved), "---\n# Two\n") {
 		t.Fatalf("replaced=%q", saved)
 	}
 }
