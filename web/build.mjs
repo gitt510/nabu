@@ -6,7 +6,8 @@ const here = (name) => new URL(name, import.meta.url);
 const read = (name) => readFileSync(here(name), "utf8");
 
 const order = { doing: 0, inbox: 1, done: 2, stray: 3 };
-const key = (t) => (t.frontmatter.scheduled ? "0" + t.frontmatter.scheduled : "1" + t.slug);
+// scheduled tasks first, by instant (RFC3339 with any offset), then the rest by slug
+const key = (t) => (t.frontmatter.scheduled ? "0" + String(Date.parse(t.frontmatter.scheduled)).padStart(15, "0") : "1" + t.slug);
 
 const tasks = JSON.parse(read("data.json")).map((r) => {
   const frontmatter = r.frontmatter ?? {};
