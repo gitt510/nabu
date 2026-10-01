@@ -13,7 +13,7 @@ import (
 
 // Config is the source of truth.
 type Config struct {
-	// Root is the notes repository every path is relative to.
+	// Root is the repository every path is relative to.
 	Root string `json:"root"`
 }
 

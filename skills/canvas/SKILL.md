@@ -1,16 +1,15 @@
 ---
 name: canvas
-description: Co-write a text with the user on the canvas of their notes repository through the `nabu` CLI, when it will go through rounds before it is final — "draft this", "scaffold a comment", "let's write this together", "polish my edit", 「下書きして」「たたき台を作って」「一緒に書こう」「添削して」「canvas に」. The user edits CANVAS.md by hand, the agent revises it through nabu, and `canvas save` turns it into a note. Never read or edit the canvas directly; every read and write goes through nabu.
+description: Co-write a text with the user on the canvas of their nabu repository through the `nabu` CLI, when it will go through rounds before it is final — "draft this", "scaffold a comment", "let's write this together", "polish my edit", 「下書きして」「たたき台を作って」「一緒に書こう」「添削して」「canvas に」. The user edits CANVAS.md by hand, the agent revises it through nabu, and `canvas save` files it under writing/. Never read or edit the canvas directly; every read and write goes through nabu.
 ---
 
 # nabu canvas
 
-The canvas is a single draft file, `CANVAS.md` at the notes root, that the
-user edits by hand while you revise it through the CLI. Use it when the
-text will go through rounds before it is final: a PR comment, a proposal,
-a message to someone. 「メモして」「追記して」 is the `nabu:note` skill; the
-canvas is for text the user wants to shape with you. `nabu canvas -h` is
-the source of truth for the contract.
+The canvas is a single draft file, `CANVAS.md` at the root, that the user
+edits by hand while you revise it through the CLI. Use it when the text
+will go through rounds before it is final: a PR comment, a proposal, a
+message to someone. `nabu canvas -h` is the source of truth for the
+contract.
 
 ## Commands
 
@@ -45,9 +44,9 @@ nabu canvas drop                             # empty the canvas
   `canvas diff` relies on. Go through the canvas commands.
 - `canvas write` while the user is editing. Run `canvas diff` first so their
   edits are read, not overwritten. Do not `canvas save` until they say so.
-- Read or edit files under the notes root with Read / Edit / Write / shell
+- Read or edit files under the root with Read / Edit / Write / shell
   redirection. Only nabu touches the root.
-- Run git inside the notes root. nabu commits each change itself; `nabu
+- Run git inside the root. nabu commits each change itself; `nabu
   push` only when the user asks.
 - Guess the root. If nabu exits 2 with "no root declared", show the user
   the message; it tells them what to fix.

@@ -1,6 +1,6 @@
-// Package store performs the file operations on the notes root and records
-// each write as a git commit. Every path is relative to the root, cleaned,
-// confined to it, and ends in .md.
+// Package store performs the file operations on the repository root and
+// records each write as a git commit. Every path is relative to the root,
+// cleaned, confined to it, and ends in .md.
 package store
 
 import (
@@ -14,10 +14,9 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"time"
 )
 
-// Store is a notes root.
+// Store is a repository root.
 type Store struct {
 	Root string
 }
@@ -53,7 +52,7 @@ type InitResult struct {
 }
 
 // readme is the seed file of a fresh root, so the first commit has content.
-const readme = "# notes\n\nManaged by nabu.\n"
+const readme = "# tasks\n\nManaged by nabu.\n"
 
 // Init makes root usable: the directory exists, it is a git repository on
 // main, and it has at least one commit. Each step is skipped when already
@@ -98,13 +97,13 @@ func Init(root string) (InitResult, error) {
 	return r, err
 }
 
-// ErrExists is returned by Write when the note is already there.
-var ErrExists = errors.New("note exists (use note replace to revise it)")
+// ErrExists is returned by Write and Move when the destination is taken.
+var ErrExists = errors.New("already exists")
 
-// ErrNotExist is returned by Replace and Move when the note is missing.
-var ErrNotExist = errors.New("no such note")
+// ErrNotExist is returned by Replace and Move when the file is missing.
+var ErrNotExist = errors.New("no such file")
 
-// Resolve turns a note path into an absolute path, rejecting anything that
+// Resolve turns a path into an absolute path, rejecting anything that
 // escapes the root or is not a markdown file.
 func (s *Store) Resolve(p string) (string, error) {
 	if p == "" {
@@ -121,7 +120,7 @@ func (s *Store) Resolve(p string) (string, error) {
 		return "", fmt.Errorf("path is inside .git: %s", p)
 	}
 	if isCanvasPath(filepath.ToSlash(clean)) {
-		return "", fmt.Errorf("%s is the canvas, not a note (use nabu canvas)", clean)
+		return "", fmt.Errorf("%s is the canvas (use nabu canvas)", clean)
 	}
 	if filepath.Ext(clean) != ".md" {
 		return "", fmt.Errorf("path must end in .md: %s", p)
@@ -138,7 +137,7 @@ func (s *Store) Rel(abs string) string {
 	return filepath.ToSlash(r)
 }
 
-// Write creates a note. It refuses to overwrite.
+// Write creates a file. It refuses to overwrite.
 func (s *Store) Write(p string, content []byte) (string, error) {
 	abs, err := s.Resolve(p)
 	if err != nil {
@@ -153,8 +152,8 @@ func (s *Store) Write(p string, content []byte) (string, error) {
 	return s.Rel(abs), os.WriteFile(abs, ensureNewline(content), 0o644)
 }
 
-// Replace overwrites the whole body of an existing note. It refuses to
-// create one, so a typo in the path cannot silently start a new note.
+// Replace overwrites the whole body of an existing file. It refuses to
+// create one, so a typo in the path cannot silently start a new file.
 func (s *Store) Replace(p string, content []byte) (string, error) {
 	abs, err := s.Resolve(p)
 	if err != nil {
@@ -168,7 +167,7 @@ func (s *Store) Replace(p string, content []byte) (string, error) {
 	return s.Rel(abs), os.WriteFile(abs, ensureNewline(content), 0o644)
 }
 
-// Move renames a note. The source must exist and the destination must not,
+// Move renames a file. The source must exist and the destination must not,
 // so a move never overwrites. Both paths are returned for the commit.
 func (s *Store) Move(from, to string) (string, string, error) {
 	src, err := s.Resolve(from)
@@ -193,39 +192,7 @@ func (s *Store) Move(from, to string) (string, string, error) {
 	return s.Rel(src), s.Rel(dst), os.Rename(src, dst)
 }
 
-// Append adds content to the end of a note, creating it when absent, as
-// its own paragraph. With a heading, the heading line is written first
-// unless the note already ends in that section (its last heading is the
-// same), so repeated appends under one heading stay in one section.
-func (s *Store) Append(p string, content []byte, heading string) (string, error) {
-	abs, err := s.Resolve(p)
-	if err != nil {
-		return "", err
-	}
-	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
-		return "", err
-	}
-	old, err := os.ReadFile(abs)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return "", err
-	}
-	var buf bytes.Buffer
-	buf.Write(old)
-	if len(old) > 0 {
-		if !bytes.HasSuffix(old, []byte("\n")) {
-			buf.WriteByte('\n')
-		}
-		buf.WriteByte('\n')
-	}
-	if heading != "" && lastHeading(old) != heading {
-		buf.WriteString(heading)
-		buf.WriteString("\n\n")
-	}
-	buf.Write(ensureNewline(content))
-	return s.Rel(abs), os.WriteFile(abs, buf.Bytes(), 0o644)
-}
-
-// Read returns a note's content.
+// Read returns a file's content.
 func (s *Store) Read(p string) ([]byte, error) {
 	abs, err := s.Resolve(p)
 	if err != nil {
@@ -233,20 +200,18 @@ func (s *Store) Read(p string) ([]byte, error) {
 	}
 	b, err := os.ReadFile(abs)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("no such note: %s", p)
+		return nil, fmt.Errorf("%s: %w", p, ErrNotExist)
 	}
 	return b, err
 }
 
-// Entry is one note in a listing.
+// Entry is one file in a listing.
 type Entry struct {
-	Path     string    `json:"path"`
-	Title    string    `json:"title"`
-	Modified time.Time `json:"modified"`
-	Bytes    int64     `json:"bytes"`
+	Path  string
+	Title string
 }
 
-// List returns the notes under dir (root when empty), sorted by path.
+// List returns the markdown files under dir (root when empty), sorted by path.
 func (s *Store) List(dir string) ([]Entry, error) {
 	start := s.Root
 	if dir != "" {
@@ -270,16 +235,7 @@ func (s *Store) List(dir string) ([]Entry, error) {
 		if filepath.Ext(path) != ".md" || isCanvasPath(s.Rel(path)) {
 			return nil
 		}
-		info, err := d.Info()
-		if err != nil {
-			return err
-		}
-		out = append(out, Entry{
-			Path:     s.Rel(path),
-			Title:    firstTitle(path),
-			Modified: info.ModTime().UTC(),
-			Bytes:    info.Size(),
-		})
+		out = append(out, Entry{Path: s.Rel(path), Title: firstTitle(path)})
 		return nil
 	})
 	if errors.Is(err, fs.ErrNotExist) {
@@ -299,17 +255,17 @@ type Match struct {
 	Text string `json:"text"`
 }
 
-// Grep finds lines containing query (case-insensitive) across all notes.
-func (s *Store) Grep(query string) ([]Match, error) {
+// Grep finds lines containing query (case-insensitive) under dir.
+func (s *Store) Grep(dir, query string) ([]Match, error) {
 	if query == "" {
 		return nil, errors.New("empty query")
 	}
-	entries, err := s.List("")
+	entries, err := s.List(dir)
 	if err != nil {
 		return nil, err
 	}
 	q := strings.ToLower(query)
-	var out []Match
+	out := []Match{}
 	for _, e := range entries {
 		b, err := os.ReadFile(filepath.Join(s.Root, filepath.FromSlash(e.Path)))
 		if err != nil {
@@ -382,13 +338,13 @@ var TaskStatuses = []string{"inbox", "doing", "done"}
 // TaskStatus reports whether status names one of the task folders.
 func TaskStatus(status string) bool { return slices.Contains(TaskStatuses, status) }
 
-// TaskPath is the note path of a task in the given status folder.
+// TaskPath is the path of a task in the given status folder.
 func TaskPath(status, slug string) string {
 	return "tasks/" + status + "/" + slug + ".md"
 }
 
 // FindTask returns the path of the task with this slug, whatever its
-// status, or "" when tasks/ has no such note. A stray tasks/<slug>.md
+// status, or "" when tasks/ has no such file. A stray tasks/<slug>.md
 // outside every status folder is found last, so task mv can put it away.
 func (s *Store) FindTask(slug string) string {
 	for _, rel := range append(taskPaths(slug), "tasks/"+slug+".md") {
@@ -452,17 +408,6 @@ func ensureNewline(b []byte) []byte {
 		return b
 	}
 	return append(b, '\n')
-}
-
-// lastHeading is the last markdown heading line in b, or "".
-func lastHeading(b []byte) string {
-	last := ""
-	for _, line := range strings.Split(string(b), "\n") {
-		if strings.HasPrefix(line, "#") {
-			last = strings.TrimRight(line, " \t")
-		}
-	}
-	return last
 }
 
 // firstTitle is the first "# " heading of the file, or "".

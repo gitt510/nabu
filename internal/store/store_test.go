@@ -59,24 +59,6 @@ func TestWriteRefusesOverwrite(t *testing.T) {
 	}
 }
 
-func TestAppendHeadingOnce(t *testing.T) {
-	s := newRepo(t)
-	if _, err := s.Append("j.md", []byte("first"), "## 2026-09-03"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.Append("j.md", []byte("second"), "## 2026-09-03"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.Append("j.md", []byte("third"), "## 2026-09-04"); err != nil {
-		t.Fatal(err)
-	}
-	b, _ := s.Read("j.md")
-	want := "## 2026-09-03\n\nfirst\n\nsecond\n\n## 2026-09-04\n\nthird\n"
-	if string(b) != want {
-		t.Fatalf("got:\n%s", b)
-	}
-}
-
 func TestListAndGrep(t *testing.T) {
 	s := newRepo(t)
 	if _, err := s.Write("career/goal.md", []byte("# Goal\n\nIaC を進める")); err != nil {
@@ -92,7 +74,7 @@ func TestListAndGrep(t *testing.T) {
 	if len(es) != 1 || es[0].Path != "career/goal.md" || es[0].Title != "Goal" {
 		t.Fatalf("got %+v", es)
 	}
-	ms, err := s.Grep("iac")
+	ms, err := s.Grep("", "iac")
 	if err != nil {
 		t.Fatal(err)
 	}
