@@ -30,7 +30,6 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 - The folder is the status: `inbox`, `doing`, `done`
 - The body has two sections: `## For Human` for the user, `## AI memo` for the agent
 - Every change is a git commit; nothing is pushed until you ask for `nabu push`
-- `nabu task view` renders every task into one HTML page and opens it in the browser
 
 ### Frontmatter
 

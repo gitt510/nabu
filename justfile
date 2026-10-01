@@ -18,3 +18,9 @@ check:
 # Build and install the binary into GOBIN
 install:
     go install .
+
+# Render tasks/ into web/dist/index.html from `nabu task ls --json` and open it
+view:
+    go run . task ls --json > web/data.json
+    cd web && npm ci --silent --no-fund --no-audit && npm run --silent build
+    open web/dist/index.html

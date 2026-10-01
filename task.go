@@ -15,7 +15,7 @@ import (
 	"github.com/gitt510/nabu/internal/store"
 )
 
-const taskUsage = `usage: nabu task <new|replace|set|mv|rename|read|ls|grep|validate|view> [flags] [args]
+const taskUsage = `usage: nabu task <new|replace|set|mv|rename|read|ls|grep|validate> [flags] [args]
 
   new     <slug>           create tasks/inbox/<slug>.md
   replace <slug>           replace a task's body, keeping its frontmatter
@@ -26,7 +26,6 @@ const taskUsage = `usage: nabu task <new|replace|set|mv|rename|read|ls|grep|vali
   ls      [status]         list tasks with status, title, and frontmatter
   grep    <query>          find lines containing query in tasks (case-insensitive)
   validate [slug]          check one task, or every task, against the task shape
-  view                     render every task into one HTML page and open it
 
 See "nabu task <command> -h".
 `
@@ -145,8 +144,6 @@ func runTask(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runTaskGrep(args[1:], stdout, stderr)
 	case "validate":
 		return runTaskValidate(args[1:], stdout, stderr)
-	case "view":
-		return runTaskView(args[1:], stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "unknown task command: %s\n\n%s", args[0], taskUsage)
 	return exitUsage

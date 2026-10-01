@@ -1,4 +1,46 @@
-<!doctype html>
+// Builds dist/index.html from data.json, the output of `nabu task ls --json`.
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { marked } from "marked";
+
+const here = (name) => new URL(name, import.meta.url);
+const read = (name) => readFileSync(here(name), "utf8");
+
+const order = { doing: 0, inbox: 1, done: 2, stray: 3 };
+// scheduled tasks first, by instant (RFC3339 with any offset), then the rest by slug
+const key = (t) => (t.frontmatter.scheduled ? "0" + String(Date.parse(t.frontmatter.scheduled)).padStart(15, "0") : "1" + t.slug);
+
+const tasks = JSON.parse(read("data.json")).map((r) => {
+  const frontmatter = r.frontmatter ?? {};
+  let body = r.body.trim();
+  if (body.startsWith("# " + r.title)) body = body.slice(r.title.length + 2);
+  body = body.trim();
+  return {
+    path: r.path,
+    slug: r.slug,
+    status: r.status,
+    title: r.title,
+    frontmatter,
+    html: marked.parse(body),
+    text: [r.title, r.slug, frontmatter.waiting ?? "", body].join("\n").toLowerCase(),
+  };
+});
+// doing, inbox, done, stray; inside a status, scheduled tasks by time, then the rest by slug
+tasks.sort((a, b) => order[a.status] - order[b.status] || (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
+
+// escaping < keeps the JSON from closing its <script>
+const data = JSON.stringify(tasks).replaceAll("<", "\\u003c");
+const css = read("app.css");
+const js = read("app.js");
+const built = new Intl.DateTimeFormat("ja-JP", {
+  timeZone: "Asia/Tokyo",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+}).format(new Date());
+
+const page = `<!doctype html>
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -8,7 +50,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
-{{.CSS}}
+${css}
 </style>
 </head>
 <body>
@@ -23,7 +65,7 @@
   <aside class="side" id="side">
     <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search" autocomplete="off" aria-label="Search"></label>
     <ul class="tree" id="tree"></ul>
-    <div class="side-foot">built {{.Built}}</div>
+    <div class="side-foot">built ${built}</div>
   </aside>
   <main class="main"><article class="doc" id="doc"><p class="empty">読み込み中</p></article></main>
 </div>
@@ -36,9 +78,13 @@
   </div>
   <p class="settings-foot"><button type="button" id="s-reset">default に戻す</button></p>
 </dialog>
-<script id="data" type="application/json">{{.Data}}</script>
+<script id="data" type="application/json">${data}</script>
 <script>
-{{.JS}}
+${js}
 </script>
 </body>
 </html>
+`;
+
+mkdirSync(here("dist/"), { recursive: true });
+writeFileSync(here("dist/index.html"), page);
