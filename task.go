@@ -344,20 +344,28 @@ func runTaskRead(args []string, stdout, stderr io.Writer) int {
 	return exitOK
 }
 
-// taskEntry is one row of task ls: the file plus its frontmatter. Status
-// is the folder, or "stray" for a tasks/<slug>.md outside every folder.
+// taskEntry is one row of task ls. Path, slug, status, and title are the
+// values nabu derives by its own rules (status is the folder, or "stray"
+// for a tasks/<slug>.md outside every folder); frontmatter and body are
+// the file as written, so a consumer never has to know those rules.
 type taskEntry struct {
-	Path      string   `json:"path"`
-	Slug      string   `json:"slug"`
-	Status    string   `json:"status"`
-	Title     string   `json:"title"`
+	Path        string   `json:"path"`
+	Slug        string   `json:"slug"`
+	Status      string   `json:"status"`
+	Title       string   `json:"title"`
+	Frontmatter taskMeta `json:"frontmatter"`
+	Body        string   `json:"body"`
+}
+
+// taskMeta is meta as task ls --json prints it.
+type taskMeta struct {
 	Scheduled string   `json:"scheduled,omitempty"`
 	Waiting   string   `json:"waiting,omitempty"`
 	Tickets   []string `json:"tickets,omitempty"`
 }
 
 func runTaskLs(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("task ls", "nabu task ls [status] [--json]\n\nlists every task, or those in one status folder; a task outside every folder shows as stray.\nprints status, slug, title, and waiting; --json adds path, scheduled, and tickets")
+	fs := newFlagSet("task ls", "nabu task ls [status] [--json]\n\nlists every task, or those in one status folder; a task outside every folder shows as stray.\nprints status, slug, title, and waiting; --json adds path, the frontmatter, and the body")
 	root := bindRoot(fs)
 	asJSON := fs.Bool("json", false, "print the result as JSON")
 	if ok, code := parse(fs, args, 0, 1, stdout, stderr); !ok {
@@ -384,8 +392,9 @@ func runTaskLs(args []string, stdout, stderr io.Writer) int {
 		}
 		row := taskEntry{Path: e.Path, Slug: strings.TrimSuffix(file, ".md"), Status: st, Title: e.Title}
 		if doc, err := s.Read(e.Path); err == nil {
-			if m, _, err := splitMeta(doc); err == nil {
-				row.Scheduled, row.Waiting, row.Tickets = m.scheduled, m.waiting, m.tickets
+			if m, body, err := splitMeta(doc); err == nil {
+				row.Frontmatter = taskMeta{m.scheduled, m.waiting, m.tickets}
+				row.Body = string(body)
 			}
 		}
 		rows = append(rows, row)
@@ -397,8 +406,8 @@ func runTaskLs(args []string, stdout, stderr io.Writer) int {
 	tw := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
 	for _, r := range rows {
 		w := ""
-		if r.Waiting != "" {
-			w = "waiting: " + r.Waiting
+		if r.Frontmatter.Waiting != "" {
+			w = "waiting: " + r.Frontmatter.Waiting
 		}
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", r.Status, r.Slug, r.Title, w)
 	}

@@ -384,7 +384,7 @@ func TestTaskReadLsGrepViaCLI(t *testing.T) {
 	}
 	nabu(exitUsage, "", "task", "ls", "later")
 	got := nabu(exitOK, "", "task", "ls", "doing", "--json")
-	for _, want := range []string{`"slug": "wait"`, `"status": "doing"`, `"waiting": "their reply"`, `"https://example.com/1"`} {
+	for _, want := range []string{`"slug": "wait"`, `"status": "doing"`, `"frontmatter": {`, `"waiting": "their reply"`, `"https://example.com/1"`, `"body": "# Wait`} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("ls --json lacks %s: %s", want, got)
 		}
