@@ -123,6 +123,13 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .file:focus-visible { outline: 2px solid var(--fg); outline-offset: -2px; }
 .file .flag { color: var(--fg-3); margin-left: 6px; }
 .done .file { color: var(--fg-2); }
+.file .flag.late { color: #b91c1c; }
+.dir.home { padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.home-list { list-style: none; margin: 0 0 1em; padding: 0; }
+.home-list li { display: flex; gap: 12px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.home-list .flag { margin-left: auto; color: var(--fg-3); white-space: nowrap; font-family: var(--mono); font-size: 0.85em; }
+.home-list .flag.late { color: #b91c1c; }
+.home-counts { color: var(--fg-3); font-family: var(--mono); font-size: 0.9em; }
 .hidden { display: none !important; }
 .tree-empty { padding: 16px 12px; color: var(--fg-3); }
 .side-foot { padding: 10px 12px; border-top: 1px solid var(--line); color: var(--fg-3); font-size: 0.8125rem; font-family: var(--mono); letter-spacing: 0; }
