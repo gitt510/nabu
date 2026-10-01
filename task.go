@@ -149,7 +149,7 @@ func runTask(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var tk tickets
-	fs := newFlagSet("task new", "nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]... [--content <text>]\n\ncreates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the note's frontmatter; the body must not carry one of its own.\n--scheduled is the time the work is planned to happen, not a deadline")
+	fs := newFlagSet("task new", "nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]... [--content <text>]\n\ncreates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the note's frontmatter; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (bullets and ### headings only, each bullet at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline")
 	root := bindRoot(fs)
 	content := fs.String("content", "", "note body; stdin is read when omitted")
 	scheduled := fs.String("scheduled", "", "planned work time, RFC3339 with offset (2026-09-15T18:00:00+09:00)")
@@ -188,7 +188,7 @@ func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func runTaskReplace(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	fs := newFlagSet("task replace", "nabu task replace <slug> [--content <text>]\n\nreplaces the body of a task in any status folder; its frontmatter is kept as is (see task set).\nthe body is read from stdin unless --content is given and must not carry a frontmatter block")
+	fs := newFlagSet("task replace", "nabu task replace <slug> [--content <text>]\n\nreplaces the body of a task in any status folder; its frontmatter is kept as is (see task set).\nthe body is read from stdin unless --content is given and must not carry a frontmatter block.\nit is in the same shape task new requires: \"## For Human\" (bullets of at most 30 characters), ---, \"## AI memo\"")
 	root := bindRoot(fs)
 	content := fs.String("content", "", "new body; stdin is read when omitted")
 	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
@@ -480,7 +480,8 @@ func (m meta) check() error {
 }
 
 // readTaskBody reads a body and refuses one that opens with a frontmatter
-// block: task metadata comes from flags only.
+// block (task metadata comes from flags only) or that is not in the task
+// shape (see checkTaskShape).
 func readTaskBody(content string, stdin io.Reader) ([]byte, error) {
 	body, err := readBody(content, stdin)
 	if err != nil {
@@ -488,6 +489,9 @@ func readTaskBody(content string, stdin io.Reader) ([]byte, error) {
 	}
 	if hasFrontmatter(body) {
 		return nil, errors.New("body starts with a frontmatter block; task metadata comes from flags (see task set)")
+	}
+	if err := checkTaskShape(body); err != nil {
+		return nil, err
 	}
 	return body, nil
 }
