@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 	"text/tabwriter"
 
@@ -35,14 +34,13 @@ const usage = `usage: nabu <command> [args]
   task read    <slug>      print a task, whatever its status
   task ls      [st]        list tasks with status, title, and waiting (--json adds the rest)
   task grep    <query>     find lines containing query under tasks/
+  task validate [slug]     check one task, or every task, against the task shape
   canvas open              start a draft in CANVAS.md for the user to edit by hand
   canvas read|write|diff   read, revise, or see the user's edits to the draft
   canvas save  <slug>      move the draft to writing/<slug>.md and commit
   canvas drop              empty the draft
   push                     git push the root to its upstream
   init                     create the root declared in the config as a git repository
-  doctor                   check the config file, the root, and git readiness
-                           (--notes also lints filenames and titles)
   help, -h             print this usage
 
 Paths are relative to the root, must stay inside it, and end in .md.
@@ -50,7 +48,7 @@ tasks/ belongs to the task commands: the note commands refuse a path under
 it and leave it out of ls and grep.
 The root is a git repository; every change is committed as it is made.
 Commands that change the root report the result as JSON; read, canvas read,
-and canvas diff print raw text; ls, grep, and doctor print text unless --json.
+and canvas diff print raw text; ls, grep, and task validate print text unless --json.
 CANVAS.md is ignored by git and is not a note.
 
 The root comes from --root <dir>, or else from root in ` + "%s" + `
@@ -84,8 +82,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return exitOK
 	case "init":
 		return runInit(args[1:], stdout, stderr)
-	case "doctor":
-		return runDoctor(args[1:], stdout, stderr)
 	case "push":
 		return runPush(args[1:], stdout, stderr)
 	case "task":
@@ -220,114 +216,6 @@ func runPush(args []string, stdout, stderr io.Writer) int {
 		return fail(stderr, err, exitFail)
 	}
 	return emit(stdout, map[string]string{"action": "push", "upstream": upstream})
-}
-
-// check is one doctor finding. Status is ok, warn, or fail.
-type check struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Detail string `json:"detail"`
-}
-
-func runDoctor(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("doctor", "nabu doctor [--notes] [--root <dir>] [--json]\n\n--notes also warns about notes whose filename is not kebab-case, that have no \"# \" title, or that sit under tasks/ outside a status folder")
-	root := bindRoot(fs)
-	asJSON := fs.Bool("json", false, "print the result as JSON")
-	notes := fs.Bool("notes", false, "lint note filenames, titles, and task folders (warn only)")
-	if ok, code := parse(fs, args, 0, 0, stdout, stderr); !ok {
-		return code
-	}
-	checks := doctor(*root, *notes)
-	failed := false
-	for _, ch := range checks {
-		if ch.Status == "fail" {
-			failed = true
-		}
-	}
-	if *asJSON {
-		emit(stdout, map[string]any{"ok": !failed, "checks": checks})
-	} else {
-		for _, ch := range checks {
-			fmt.Fprintf(stdout, "%-4s %-10s %s\n", ch.Status, ch.Name, ch.Detail)
-		}
-	}
-	if failed {
-		return exitFail
-	}
-	return exitOK
-}
-
-// doctor runs the readiness checks in dependency order and stops at the
-// first failure that makes the later checks meaningless.
-func doctor(rootFlag string, notes bool) []check {
-	var out []check
-	add := func(name, status, detail string) {
-		out = append(out, check{Name: name, Status: status, Detail: detail})
-	}
-
-	if _, err := exec.LookPath("git"); err != nil {
-		add("git", "fail", "git not found on PATH")
-		return out
-	}
-	add("git", "ok", "on PATH")
-
-	root := ""
-	if rootFlag != "" {
-		root = config.ExpandHome(rootFlag)
-		add("config", "ok", "skipped: --root given")
-	} else {
-		cfg, err := config.Load()
-		switch {
-		case err != nil:
-			add("config", "fail", err.Error())
-			return out
-		case cfg.Root == "":
-			add("config", "fail", "no root declared in "+config.Path())
-			return out
-		}
-		add("config", "ok", config.Path())
-		root = cfg.Root
-	}
-
-	s, err := store.Open(root)
-	if err != nil {
-		add("root", "fail", err.Error())
-		return out
-	}
-	add("root", "ok", s.Root)
-
-	if out, err := exec.Command("git", "-C", s.Root, "var", "GIT_COMMITTER_IDENT").Output(); err != nil {
-		add("identity", "fail", "git cannot resolve user.name / user.email for the root")
-	} else {
-		ident := strings.TrimSpace(string(out))
-		if i := strings.LastIndex(ident, ">"); i >= 0 {
-			ident = ident[:i+1]
-		}
-		add("identity", "ok", ident)
-	}
-
-	if out, err := exec.Command("git", "-C", s.Root, "status", "--porcelain").Output(); err != nil {
-		add("worktree", "fail", err.Error())
-	} else if n := len(strings.Split(strings.TrimSpace(string(out)), "\n")); len(strings.TrimSpace(string(out))) > 0 {
-		add("worktree", "warn", fmt.Sprintf("%d uncommitted change(s); nabu commits only the file it writes", n))
-	} else {
-		add("worktree", "ok", "clean")
-	}
-
-	if notes {
-		findings, err := s.Lint()
-		switch {
-		case err != nil:
-			add("notes", "fail", err.Error())
-		case len(findings) == 0:
-			add("notes", "ok", "filenames are kebab-case, every note has a title, tasks sit in status folders")
-		default:
-			for _, f := range findings {
-				add("notes", "warn", fmt.Sprintf("%s: %s (%s)", f.Path, f.Detail, f.Rule))
-			}
-		}
-	}
-	return out
 }
 
 func runNote(args []string, stdin io.Reader, stdout, stderr io.Writer) int {

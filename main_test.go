@@ -81,35 +81,6 @@ func TestNoRootExits2(t *testing.T) {
 	}
 }
 
-func TestDoctorReportsMissingConfig(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	var out, errb bytes.Buffer
-	if code := run([]string{"doctor"}, strings.NewReader(""), &out, &errb); code != exitFail {
-		t.Fatalf("exit %d", code)
-	}
-	if !strings.Contains(out.String(), "fail config") {
-		t.Fatalf("stdout=%q", out.String())
-	}
-}
-
-func TestDoctorPassesOnRepo(t *testing.T) {
-	_, nabu := newRoot(t)
-	if got := nabu(exitOK, "", "doctor", "--json"); !strings.Contains(got, `"ok": true`) {
-		t.Fatalf("stdout=%q", got)
-	}
-}
-
-func TestDoctorNotesWarns(t *testing.T) {
-	dir, nabu := newRoot(t)
-	if err := os.WriteFile(filepath.Join(dir, "Bad Name.md"), []byte("x\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	got := nabu(exitOK, "", "doctor", "--notes")
-	if !strings.Contains(got, "warn notes") || !strings.Contains(got, "Bad Name.md") {
-		t.Fatalf("stdout=%q", got)
-	}
-}
-
 func TestMvOfUntrackedNoteCommits(t *testing.T) {
 	dir, nabu := newRoot(t)
 	// A note dropped into the root by hand is on disk but not in the index.
@@ -520,4 +491,37 @@ func TestTaskShape(t *testing.T) {
 	if got := nabu(exitUsage, head+"- [ ] "+strings.Repeat("あ", 31)+tail, "task", "new", "bad"); got != "" {
 		t.Fatalf("stdout on refusal: %q", got)
 	}
+}
+
+func TestTaskValidateViaCLI(t *testing.T) {
+	dir, nabu := newRoot(t)
+	nabu(exitOK, shaped("Ok", ""), "task", "new", "ok")
+	if err := os.MkdirAll(filepath.Join(dir, "tasks", "doing"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "tasks", "doing"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "tasks", "doing", "old.md"), []byte("# Old\n\n- [ ] x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := nabu(exitOK, "", "task", "validate", "ok"); got != "ok    tasks/inbox/ok.md\n" {
+		t.Fatalf("one: %q", got)
+	}
+	var out, errb bytes.Buffer
+	if code := run([]string{"task", "validate", "--root", dir}, strings.NewReader(""), &out, &errb); code != exitFail {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if got := out.String(); got != "bad   tasks/doing/old.md: body has no \"## For Human\" section\nok    tasks/inbox/ok.md\n" {
+		t.Fatalf("all: %q", got)
+	}
+	out.Reset()
+	if code := run([]string{"task", "validate", "old", "--json", "--root", dir}, strings.NewReader(""), &out, &errb); code != exitFail {
+		t.Fatalf("exit %d", code)
+	}
+	if !strings.Contains(out.String(), `"error": "body has no`) {
+		t.Fatalf("json: %q", out.String())
+	}
+	nabu(exitFail, "", "task", "validate", "missing")
+	nabu(exitUsage, "", "task", "validate", "Bad Slug")
 }

@@ -23,7 +23,7 @@ nabu task rename <slug> <new-slug>           # new slug, same status and content
 nabu task ls [status] [--json]               # what exists; waiting shows who holds the ball
 nabu task read <slug>                        # a task's content, any status
 nabu task grep <query> [--json]              # where something is written in tasks
-nabu doctor --notes                          # warn on tasks outside a status folder
+nabu task validate [slug]                    # which tasks are out of shape; nothing written
 ```
 
 ## How to work
@@ -99,5 +99,5 @@ Ordinary notes are the `nabu:note` skill.
   redirection. Only nabu touches the root.
 - Run git inside the notes root. nabu commits each change itself; `nabu
   push` only when the user asks.
-- Guess the root. If nabu exits 2 with "no root declared", run `nabu doctor`
-  and show the user its output; it tells them what to fix.
+- Guess the root. If nabu exits 2 with "no root declared", show the user
+  the message; it tells them what to fix.
