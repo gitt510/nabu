@@ -15,7 +15,7 @@ import (
 	"github.com/gitt510/nabu/internal/store"
 )
 
-const taskUsage = `usage: nabu task <new|replace|set|mv|rename|read|ls|grep> [flags] [args]
+const taskUsage = `usage: nabu task <new|replace|set|mv|rename|read|ls|grep|validate|view> [flags] [args]
 
   new     <slug>           create tasks/inbox/<slug>.md
   replace <slug>           replace a task's body, keeping its frontmatter
@@ -26,6 +26,7 @@ const taskUsage = `usage: nabu task <new|replace|set|mv|rename|read|ls|grep> [fl
   ls      [status]         list tasks with status, title, and frontmatter
   grep    <query>          find lines containing query in tasks (case-insensitive)
   validate [slug]          check one task, or every task, against the task shape
+  view                     render every task into one HTML page and open it
 
 See "nabu task <command> -h".
 `
@@ -144,6 +145,8 @@ func runTask(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runTaskGrep(args[1:], stdout, stderr)
 	case "validate":
 		return runTaskValidate(args[1:], stdout, stderr)
+	case "view":
+		return runTaskView(args[1:], stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "unknown task command: %s\n\n%s", args[0], taskUsage)
 	return exitUsage
@@ -364,24 +367,11 @@ type taskMeta struct {
 	Tickets   []string `json:"tickets,omitempty"`
 }
 
-func runTaskLs(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("task ls", "nabu task ls [status] [--json]\n\nlists every task, or those in one status folder; a task outside every folder shows as stray.\nprints status, slug, title, and waiting; --json adds path, the frontmatter, and the body")
-	root := bindRoot(fs)
-	asJSON := fs.Bool("json", false, "print the result as JSON")
-	if ok, code := parse(fs, args, 0, 1, stdout, stderr); !ok {
-		return code
-	}
-	status := fs.Arg(0)
-	if status != "" && !store.TaskStatus(status) {
-		return fail(stderr, fmt.Errorf("status must be one of %s: %s", strings.Join(store.TaskStatuses, ", "), status), exitUsage)
-	}
-	s, err := openStore(*root)
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
+// listTasks reads every task, or those in one status folder, as ls rows.
+func listTasks(s *store.Store, status string) ([]taskEntry, error) {
 	entries, err := s.List(path.Join("tasks", status))
 	if err != nil {
-		return fail(stderr, err, exitFail)
+		return nil, err
 	}
 	rows := []taskEntry{}
 	for _, e := range entries {
@@ -398,6 +388,28 @@ func runTaskLs(args []string, stdout, stderr io.Writer) int {
 			}
 		}
 		rows = append(rows, row)
+	}
+	return rows, nil
+}
+
+func runTaskLs(args []string, stdout, stderr io.Writer) int {
+	fs := newFlagSet("task ls", "nabu task ls [status] [--json]\n\nlists every task, or those in one status folder; a task outside every folder shows as stray.\nprints status, slug, title, and waiting; --json adds path, the frontmatter, and the body")
+	root := bindRoot(fs)
+	asJSON := fs.Bool("json", false, "print the result as JSON")
+	if ok, code := parse(fs, args, 0, 1, stdout, stderr); !ok {
+		return code
+	}
+	status := fs.Arg(0)
+	if status != "" && !store.TaskStatus(status) {
+		return fail(stderr, fmt.Errorf("status must be one of %s: %s", strings.Join(store.TaskStatuses, ", "), status), exitUsage)
+	}
+	s, err := openStore(*root)
+	if err != nil {
+		return fail(stderr, err, exitFail)
+	}
+	rows, err := listTasks(s, status)
+	if err != nil {
+		return fail(stderr, err, exitFail)
 	}
 	if *asJSON {
 		return emit(stdout, rows)

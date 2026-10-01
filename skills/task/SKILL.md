@@ -23,6 +23,7 @@ nabu task rename <slug> <new-slug>           # new slug, same status and content
 nabu task ls [status] [--json]               # what exists; waiting shows who holds the ball
 nabu task read <slug>                        # a task's content, any status
 nabu task grep <query> [--json]              # where something is written in tasks
+nabu task view                               # one HTML page of every task, opened in the browser
 nabu task validate [slug]                    # which tasks are out of shape; nothing written
 ```
 
