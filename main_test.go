@@ -411,7 +411,9 @@ func TestTaskShape(t *testing.T) {
 	head := "# T\n\n## For Human\n\n"
 	tail := "\n---\n\n## AI memo\n\nfree *prose*, any length, --- lines too\n---\n"
 	for i, body := range []string{
-		head + "### Now\n\n- 鍵は 1Password agent 経由、disk に無い\n\n### Next\n\n- [ ] 蓋を閉じても tailnet で届く sleep 設定にする\n- [x] " + strings.Repeat("あ", 30) + tail,
+		head + "### Now\n\n- 鍵は 1Password 経由、disk に無い\n\n### Next\n\n- [ ] 蓋を閉じても tailnet で届く設定\n- [x] " + strings.Repeat("あ", 24) + tail,
+		head + "a sentence outside a bullet" + tail,
+		head + "## Now\n" + tail,
 		"# T\n## For Human\n---\n## AI memo\n",
 		head + tail + "\n## For Human\n",
 	} {
@@ -422,15 +424,14 @@ func TestTaskShape(t *testing.T) {
 		head + "- x\n",
 		"# T\n\n## AI memo\n\n---\n\n## For Human\n\n- x\n",
 		head + "- x\n\n## AI memo\n",
-		head + "- " + strings.Repeat("あ", 31) + tail,
-		head + "- [ ] " + strings.Repeat("a", 31) + tail,
-		head + "a sentence outside a bullet" + tail,
-		head + "## Now\n" + tail,
+		head + strings.Repeat("あ", 31) + tail,
+		head + "- [ ] " + strings.Repeat("a", 25) + tail,
+		head + "### " + strings.Repeat("a", 27) + tail,
 	} {
 		nabu(exitUsage, body, "task", "new", "bad")
 		nabu(exitUsage, body, "task", "replace", "ok0")
 	}
-	if got := nabu(exitUsage, head+"- [ ] "+strings.Repeat("あ", 31)+tail, "task", "new", "bad"); got != "" {
+	if got := nabu(exitUsage, head+strings.Repeat("あ", 31)+tail, "task", "new", "bad"); got != "" {
 		t.Fatalf("stdout on refusal: %q", got)
 	}
 }

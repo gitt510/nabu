@@ -6,14 +6,14 @@ import (
 	"unicode/utf8"
 )
 
-// humanLimit is the most runes a For Human bullet may carry: one fact a
+// humanLimit is the most runes a For Human line may carry: one fact a
 // reader takes in at a glance, not a summary of the memo below.
 const humanLimit = 30
 
 // checkTaskShape enforces the body shape every task is written in:
 //
 //	# <title>
-//	## For Human      bullets only (plus ### headings), each ≤ humanLimit runes
+//	## For Human      every line at most humanLimit runes
 //	---
 //	## AI memo        free markdown
 //
@@ -49,20 +49,8 @@ func checkTaskShape(body []byte) error {
 	}
 	for i := human; i < rule-1; i++ {
 		l := strings.TrimRight(lines[i], " \t")
-		t := strings.TrimLeft(l, " \t")
-		switch {
-		case t == "" || strings.HasPrefix(t, "### "):
-			continue
-		case strings.HasPrefix(t, "- "):
-			text := strings.TrimPrefix(t, "- ")
-			for _, box := range []string{"[ ] ", "[x] ", "[X] "} {
-				text = strings.TrimPrefix(text, box)
-			}
-			if n := utf8.RuneCountInString(text); n > humanLimit {
-				return fmt.Errorf("line %d: For Human bullet is %d characters, the limit is %d: %s", i+1, n, humanLimit, text)
-			}
-		default:
-			return fmt.Errorf("line %d: For Human holds only bullets and ### headings: %s", i+1, l)
+		if n := utf8.RuneCountInString(l); n > humanLimit {
+			return fmt.Errorf("line %d: For Human line is %d characters, the limit is %d: %s", i+1, n, humanLimit, l)
 		}
 	}
 	return nil

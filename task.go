@@ -151,7 +151,7 @@ func runTask(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var tk tickets
-	fs := newFlagSet("task new", "nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]... [--content <text>]\n\ncreates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (bullets and ### headings only, each bullet at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline")
+	fs := newFlagSet("task new", "nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]... [--content <text>]\n\ncreates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (every line at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline")
 	root := bindRoot(fs)
 	content := fs.String("content", "", "task body; stdin is read when omitted")
 	scheduled := fs.String("scheduled", "", "planned work time, RFC3339 with offset (2026-09-15T18:00:00+09:00)")
@@ -190,7 +190,7 @@ func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func runTaskReplace(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	fs := newFlagSet("task replace", "nabu task replace <slug> [--content <text>]\n\nreplaces the body of a task in any status folder; its frontmatter is kept as is (see task set).\nthe body is read from stdin unless --content is given and must not carry a frontmatter block.\nit is in the same shape task new requires: \"## For Human\" (bullets of at most 30 characters), ---, \"## AI memo\"")
+	fs := newFlagSet("task replace", "nabu task replace <slug> [--content <text>]\n\nreplaces the body of a task in any status folder; its frontmatter is kept as is (see task set).\nthe body is read from stdin unless --content is given and must not carry a frontmatter block.\nit is in the same shape task new requires: \"## For Human\" (every line at most 30 characters), ---, \"## AI memo\"")
 	root := bindRoot(fs)
 	content := fs.String("content", "", "new body; stdin is read when omitted")
 	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
@@ -511,7 +511,7 @@ type verdict struct {
 }
 
 func runTaskValidate(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("task validate", "nabu task validate [slug] [--json]\n\nchecks a task's body against the shape task new and task replace require: \"## For Human\" (bullets of at most 30 characters), ---, \"## AI memo\".\nwithout a slug every task is checked. prints one line per task; exit 1 when any task is out of shape.\nnothing is written")
+	fs := newFlagSet("task validate", "nabu task validate [slug] [--json]\n\nchecks a task's body against the shape task new and task replace require: \"## For Human\" (every line at most 30 characters), ---, \"## AI memo\".\nwithout a slug every task is checked. prints one line per task; exit 1 when any task is out of shape.\nnothing is written")
 	root := bindRoot(fs)
 	asJSON := fs.Bool("json", false, "print the result as JSON")
 	if ok, code := parse(fs, args, 0, 1, stdout, stderr); !ok {
