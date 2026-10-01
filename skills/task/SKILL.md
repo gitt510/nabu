@@ -58,12 +58,11 @@ nabu task validate [slug]                    # which tasks are out of shape; not
    ```
 
    `For Human` is what the user reads to know where the task stands and
-   what comes next; it holds only bullets and `###` headings, and every
-   bullet is one fact in at most 30 characters (counted in runes; the
-   `- [ ] ` prefix is free). A fact that does not fit goes to `AI memo`,
-   with a shorter line here. Checkboxes live in `Next` only, never in `AI
-   memo`, so a task has one place that says what is done. `AI memo` is free
-   markdown for the agent: as dense as the work needs.
+   what comes next; every line in it is at most 30 characters (counted
+   in runes, prefix included). A fact that does not fit goes to `AI
+   memo`, with a shorter line here. Checkboxes live in `Next` only, never
+   in `AI memo`, so a task has one place that says what is done. `AI
+   memo` is free markdown for the agent: as dense as the work needs.
 3. **Move with `task mv`.** Run `nabu task mv <slug> doing` when work
    starts and `... done` when it ends. Never write a status into the body or
    frontmatter; the folder is the status.
