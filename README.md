@@ -23,7 +23,6 @@ nabu init
 ```
 user:  この PR のレビュー待ち、task にしといて
 agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
-
 → tasks/inbox/review-pr-68.md
 ```
 
@@ -52,11 +51,31 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 
 ## Canvas
 
+### Use case
+
+```
+user:  PR #68 のコメント、一緒に書きたい
+agent: nabu canvas open 
+→ CANVAS.md を editor で開いてください
+
+(user edits CANVAS.md by hand)
+
+user:  直した、添削して
+agent: nabu canvas diff        # reads your edits first
+       nabu canvas write
+
+user:  いいね。保存しておいて
+agent: nabu canvas save pr68-comment --ticket https://github.com/o/r/pull/68
+→ writing/pr68-comment.md
+```
+
+### Overview
+
 - `CANVAS.md` at the root holds one draft at a time and is never committed
-- `canvas open` refuses a non-empty canvas; `canvas read`, `write`, `diff`, and `save` refuse an empty one
-- `canvas diff` prints exactly the user's hand edits since the agent last wrote; a canvas started by hand diffs in full
-- `canvas save <slug>` writes `writing/<slug>.md` with a `created` timestamp and any `--ticket` URLs as frontmatter, commits it, and empties the canvas
-- `canvas save` and `canvas drop` leave an empty `CANVAS.md` in place rather than deleting it
+- You edit `CANVAS.md` in your editor; the agent revises it through the CLI
+- Every hand edit is yours: the agent reads it before revising and never reverts it
+- When the draft is final, ask the agent to save it
+	- it lands in `writing/<slug>.md` and the canvas is emptied
 
 ## Behavior
 
