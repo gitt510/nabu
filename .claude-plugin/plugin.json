@@ -1,6 +1,6 @@
 {
   "name": "nabu",
-  "description": "Agent skills for the nabu notes CLI: note (memo, append, read, grep), task (tasks/ with status folders), and canvas (co-write a draft in CANVAS.md). Every read and write of the notes repository goes through nabu.",
+  "description": "Agent skills for the nabu task CLI: task (tasks/ with status folders) and canvas (co-write a draft in CANVAS.md). Every read and write of the repository goes through nabu.",
   "author": {
     "name": "Taichi Goto",
     "url": "https://github.com/gitt510"
@@ -8,9 +8,7 @@
   "repository": "https://github.com/gitt510/nabu",
   "license": "MIT",
   "keywords": [
-    "notes",
     "markdown",
-    "memo",
     "task",
     "canvas",
     "cli"

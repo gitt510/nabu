@@ -1,7 +1,7 @@
-// nabu is the scribe for a notes repository. It reads, writes, appends,
-// lists, and greps markdown notes under one declared root and records each
-// write as a git commit, so an agent (or a human) never edits the root by
-// hand.
+// nabu keeps one markdown repository for tasks and drafts. Every task lives
+// under tasks/ and every write is a git commit, so an agent (or a human)
+// never edits the root by hand. One file, CANVAS.md, is the exception: a
+// draft the user edits by hand and the agent revises through nabu.
 package main
 
 import (
@@ -12,7 +12,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/gitt510/nabu/internal/config"
 	"github.com/gitt510/nabu/internal/store"
@@ -20,17 +19,11 @@ import (
 
 const usage = `usage: nabu <command> [args]
 
-  note write   <path>      create a note (refuses to overwrite)
-  note replace <path>      replace the body of an existing note
-  note append  <path>      append to a note, creating it when absent
-  note mv      <from> <to> rename a note (refuses to overwrite)
-  note read    <path>      print a note
-  note ls      [dir]       list notes under dir (root when omitted), tasks/ left out
-  note grep    <query>     find lines containing query (case-insensitive), tasks/ left out
   task new     <slug>      create tasks/inbox/<slug>.md with optional --scheduled / --ticket frontmatter
   task replace <slug>      replace a task's body, keeping its frontmatter
   task set     <slug>      change a task's frontmatter (--scheduled, --waiting, --ticket, --clear-*)
   task mv      <slug> <st> move a task to tasks/<st>/ (inbox, doing, done)
+  task rename  <slug> <new> give a task a new slug, keeping its status and content
   task read    <slug>      print a task, whatever its status
   task ls      [st]        list tasks with status, title, and waiting (--json adds the rest)
   task grep    <query>     find lines containing query under tasks/
@@ -41,23 +34,16 @@ const usage = `usage: nabu <command> [args]
   canvas drop              empty the draft
   push                     git push the root to its upstream
   init                     create the root declared in the config as a git repository
-  help, -h             print this usage
+  help, -h                 print this usage
 
-Paths are relative to the root, must stay inside it, and end in .md.
-tasks/ belongs to the task commands: the note commands refuse a path under
-it and leave it out of ls and grep.
 The root is a git repository; every change is committed as it is made.
-Commands that change the root report the result as JSON; read, canvas read,
-and canvas diff print raw text; ls, grep, and task validate print text unless --json.
-CANVAS.md is ignored by git and is not a note.
+Commands that change the root report the result as JSON; task read, canvas
+read, and canvas diff print raw text; task ls, task grep, and task validate
+print text unless --json.
+CANVAS.md is ignored by git.
 
 The root comes from --root <dir>, or else from root in ` + "%s" + `
 See "nabu <command> -h" for the flags of each command.
-`
-
-const noteUsage = `usage: nabu note <write|replace|append|mv|read|ls|grep> [flags] [args]
-
-See "nabu note <command> -h".
 `
 
 // exit codes: 0 ok, 1 the operation failed, 2 the invocation was wrong
@@ -88,8 +74,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runTask(args[1:], stdin, stdout, stderr)
 	case "canvas":
 		return runCanvas(args[1:], stdin, stdout, stderr)
-	case "note":
-		return runNote(args[1:], stdin, stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "unknown command: %s\n\n%s", args[0], rootUsage())
 	return exitUsage
@@ -106,7 +90,7 @@ func setupMessage() string {
 
 // bindRoot adds the --root flag every command takes.
 func bindRoot(fs *flag.FlagSet) *string {
-	return fs.String("root", "", "notes root (overrides the config file)")
+	return fs.String("root", "", "repository root (overrides the config file)")
 }
 
 // resolveRoot applies flag > config.
@@ -165,9 +149,9 @@ func parse(fs *flag.FlagSet, args []string, minArgs, maxArgs int, stdout, stderr
 	return true, exitOK
 }
 
-// parseInterspersed lets flags follow positional args ("note write a.md
-// --root x"), which the flag package does not do on its own. Positionals are
-// collected in order and restored through fs.Args after the last pass.
+// parseInterspersed lets flags follow positional args ("task new a
+// --root x"), which the flag package does not do on its own. Positionals
+// are collected in order and restored through fs.Args after the last pass.
 func parseInterspersed(fs *flag.FlagSet, args []string) error {
 	var positional []string
 	for {
@@ -218,33 +202,7 @@ func runPush(args []string, stdout, stderr io.Writer) int {
 	return emit(stdout, map[string]string{"action": "push", "upstream": upstream})
 }
 
-func runNote(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	if len(args) == 0 {
-		fmt.Fprint(stderr, noteUsage)
-		return exitUsage
-	}
-	switch args[0] {
-	case "-h", "--help", "help":
-		fmt.Fprint(stdout, noteUsage)
-		return exitOK
-	case "write", "replace":
-		return runWrite(args[1:], args[0], stdin, stdout, stderr)
-	case "mv":
-		return runMv(args[1:], stdout, stderr)
-	case "append":
-		return runAppend(args[1:], stdin, stdout, stderr)
-	case "read":
-		return runRead(args[1:], stdout, stderr)
-	case "ls":
-		return runLs(args[1:], stdout, stderr)
-	case "grep":
-		return runGrep(args[1:], stdout, stderr)
-	}
-	fmt.Fprintf(stderr, "unknown note command: %s\n\n%s", args[0], noteUsage)
-	return exitUsage
-}
-
-// writeResult is the JSON document of every command that writes a note.
+// writeResult is the JSON document of every command that writes a file.
 type writeResult struct {
 	Path      string `json:"path"`
 	Action    string `json:"action"`
@@ -252,110 +210,7 @@ type writeResult struct {
 	Committed bool   `json:"committed"`
 }
 
-// runWrite is note write and note replace: the same body command, differing
-// only in whether the note must be absent or present.
-func runWrite(args []string, action string, stdin io.Reader, stdout, stderr io.Writer) int {
-	synopsis := map[string]string{
-		"write":   "nabu note write <path> [--content <text>]\n\ncontent is read from stdin unless --content is given; the note must not exist yet (see note replace).\na path under tasks/ is refused: tasks are written by nabu task",
-		"replace": "nabu note replace <path> [--content <text>]\n\nreplaces the whole body of an existing note; content is read from stdin unless --content is given.\na path under tasks/ is refused: tasks are written by nabu task",
-	}[action]
-	fs := newFlagSet("note "+action, synopsis)
-	root := bindRoot(fs)
-	content := fs.String("content", "", "note body; stdin is read when omitted")
-	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
-		return code
-	}
-	if isTaskPath(fs.Arg(0)) {
-		return fail(stderr, fmt.Errorf("%s %w", fs.Arg(0), errTaskPath), exitUsage)
-	}
-	body, err := readBody(*content, stdin)
-	if err != nil {
-		return fail(stderr, err, exitUsage)
-	}
-	s, err := openStore(*root)
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	var rel string
-	if action == "write" {
-		rel, err = s.Write(fs.Arg(0), body)
-	} else {
-		rel, err = s.Replace(fs.Arg(0), body)
-	}
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	return finishWrite(s, rel, action, len(body), stdout, stderr)
-}
-
-// mvResult is the JSON document of mv.
-type mvResult struct {
-	From      string `json:"from"`
-	To        string `json:"to"`
-	Action    string `json:"action"`
-	Committed bool   `json:"committed"`
-}
-
-func runMv(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("note mv", "nabu note mv <from> <to>\n\nrenames a note; the destination must not exist")
-	root := bindRoot(fs)
-	if ok, code := parse(fs, args, 2, 2, stdout, stderr); !ok {
-		return code
-	}
-	for _, p := range fs.Args() {
-		if isTaskPath(p) {
-			return fail(stderr, fmt.Errorf("%s %w", p, errTaskPath), exitUsage)
-		}
-	}
-	s, err := openStore(*root)
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	from, to, err := s.Move(fs.Arg(0), fs.Arg(1))
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	return finishMv(s, from, to, "mv", stdout, stderr)
-}
-
-func finishMv(s *store.Store, from, to, action string, stdout, stderr io.Writer) int {
-	committed, err := s.Commit(fmt.Sprintf("nabu: %s %s -> %s", action, from, to), from, to)
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	return emit(stdout, mvResult{From: from, To: to, Action: action, Committed: committed})
-}
-
-func runAppend(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	fs := newFlagSet("note append", "nabu note append <path> [--content <text>] [--heading <line>]\n\ncontent is read from stdin unless --content is given")
-	root := bindRoot(fs)
-	content := fs.String("content", "", "text to append; stdin is read when omitted")
-	heading := fs.String("heading", "", "markdown heading to append under (written once per run of appends, e.g. \"## 2026-09-03\")")
-	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
-		return code
-	}
-	if *heading != "" && !strings.HasPrefix(*heading, "#") {
-		return fail(stderr, errors.New("--heading must start with #"), exitUsage)
-	}
-	if isTaskPath(fs.Arg(0)) {
-		return fail(stderr, fmt.Errorf("%s %w", fs.Arg(0), errTaskPath), exitUsage)
-	}
-	body, err := readBody(*content, stdin)
-	if err != nil {
-		return fail(stderr, err, exitUsage)
-	}
-	s, err := openStore(*root)
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	rel, err := s.Append(fs.Arg(0), body, *heading)
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	return finishWrite(s, rel, "append", len(body), stdout, stderr)
-}
-
-// finishWrite commits the written note as "nabu: <action> <path>" and
+// finishWrite commits the written file as "nabu: <action> <path>" and
 // reports it.
 func finishWrite(s *store.Store, rel, action string, n int, stdout, stderr io.Writer) int {
 	committed, err := s.Commit(fmt.Sprintf("nabu: %s %s", action, rel), rel)
@@ -365,95 +220,22 @@ func finishWrite(s *store.Store, rel, action string, n int, stdout, stderr io.Wr
 	return emit(stdout, writeResult{Path: rel, Action: action, Bytes: n, Committed: committed})
 }
 
-func runRead(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("note read", "nabu note read <path>\n\na path under tasks/ is refused: see nabu task read")
-	root := bindRoot(fs)
-	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
-		return code
-	}
-	if isTaskPath(fs.Arg(0)) {
-		return fail(stderr, fmt.Errorf("%s %w", fs.Arg(0), errTaskPath), exitUsage)
-	}
-	s, err := openStore(*root)
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	b, err := s.Read(fs.Arg(0))
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	_, _ = stdout.Write(b)
-	return exitOK
+// mvResult is the JSON document of every command that moves a file.
+type mvResult struct {
+	From      string `json:"from"`
+	To        string `json:"to"`
+	Action    string `json:"action"`
+	Committed bool   `json:"committed"`
 }
 
-func runLs(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("note ls", "nabu note ls [dir] [--json]\n\nprints path and title per note; --json adds modified and bytes.\ntasks/ is left out: see nabu task ls")
-	root := bindRoot(fs)
-	asJSON := fs.Bool("json", false, "print the result as JSON")
-	if ok, code := parse(fs, args, 0, 1, stdout, stderr); !ok {
-		return code
-	}
-	if isTaskPath(fs.Arg(0)) {
-		return fail(stderr, fmt.Errorf("%s %w", fs.Arg(0), errTaskPath), exitUsage)
-	}
-	s, err := openStore(*root)
+// finishMv commits the move as "nabu: <action> <from> -> <to>" and
+// reports it.
+func finishMv(s *store.Store, from, to, action string, stdout, stderr io.Writer) int {
+	committed, err := s.Commit(fmt.Sprintf("nabu: %s %s -> %s", action, from, to), from, to)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	all, err := s.List(fs.Arg(0))
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	entries := []store.Entry{}
-	for _, e := range all {
-		if !isTaskPath(e.Path) {
-			entries = append(entries, e)
-		}
-	}
-	if *asJSON {
-		return emit(stdout, entries)
-	}
-	tw := tabwriter.NewWriter(stdout, 0, 0, 2, ' ', 0)
-	for _, e := range entries {
-		fmt.Fprintf(tw, "%s\t%s\n", e.Path, e.Title)
-	}
-	_ = tw.Flush()
-	return exitOK
-}
-
-func runGrep(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("note grep", "nabu note grep <query> [--json]\n\ntasks/ is left out: see nabu task grep")
-	root := bindRoot(fs)
-	asJSON := fs.Bool("json", false, "print the result as JSON")
-	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
-		return code
-	}
-	s, err := openStore(*root)
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	matches, err := s.Grep(fs.Arg(0))
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	return printMatches(stdout, matches, *asJSON, func(p string) bool { return !isTaskPath(p) })
-}
-
-// printMatches prints the grep hits whose path passes keep, as text or JSON.
-func printMatches(stdout io.Writer, matches []store.Match, asJSON bool, keep func(string) bool) int {
-	kept := []store.Match{}
-	for _, m := range matches {
-		if keep(m.Path) {
-			kept = append(kept, m)
-		}
-	}
-	if asJSON {
-		return emit(stdout, kept)
-	}
-	for _, m := range kept {
-		fmt.Fprintf(stdout, "%s:%d: %s\n", m.Path, m.Line, m.Text)
-	}
-	return exitOK
+	return emit(stdout, mvResult{From: from, To: to, Action: action, Committed: committed})
 }
 
 // readBody returns --content when given, otherwise all of stdin.
@@ -469,6 +251,11 @@ func readBody(content string, stdin io.Reader) ([]byte, error) {
 		return nil, errors.New("empty body: pass --content or pipe text on stdin")
 	}
 	return b, nil
+}
+
+// hasFrontmatter reports whether a body opens with a YAML block of its own.
+func hasFrontmatter(body []byte) bool {
+	return strings.HasPrefix(strings.TrimLeft(string(body), "\n"), "---")
 }
 
 func emit(w io.Writer, v any) int {

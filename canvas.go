@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gitt510/nabu/internal/store"
@@ -164,4 +166,32 @@ func runCanvasDrop(args []string, stdout, stderr io.Writer) int {
 		return fail(stderr, err, exitFail)
 	}
 	return emit(stdout, canvasResult{Path: store.CanvasFile, File: s.CanvasPath(), Action: "drop"})
+}
+
+// field is one scalar frontmatter entry; an empty value is left out.
+type field struct{ key, value string }
+
+// frontmatter renders the YAML block for the given field and tickets, or ""
+// when both are empty so a plain draft stays a plain file.
+func frontmatter(f field, tk tickets) (string, error) {
+	if f.value == "" && len(tk) == 0 {
+		return "", nil
+	}
+	var b strings.Builder
+	b.WriteString("---\n")
+	if f.value != "" {
+		fmt.Fprintf(&b, "%s: %q\n", f.key, f.value)
+	}
+	if len(tk) > 0 {
+		b.WriteString("tickets:\n")
+		for _, t := range tk {
+			u, err := url.Parse(t)
+			if err != nil || u.Scheme != "https" || u.Host == "" {
+				return "", fmt.Errorf("--ticket must be a full https URL: %s", t)
+			}
+			fmt.Fprintf(&b, "  - %q\n", t)
+		}
+	}
+	b.WriteString("---\n")
+	return b.String(), nil
 }

@@ -11,8 +11,8 @@ import (
 )
 
 // CanvasFile is the one draft the user edits by hand while the agent
-// revises it through the CLI. It sits at the root, is never committed, and
-// is not a note: List skips it and Resolve refuses it.
+// revises it through the CLI. It sits at the root and is never committed:
+// List skips it and Resolve refuses it.
 const CanvasFile = "CANVAS.md"
 
 // canvasSnapshot is the body as the agent last wrote it, kept next to the

@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-// newRoot returns an initialized notes root with a git identity, plus a
+// newRoot returns an initialized root with a git identity, plus a
 // runner that invokes nabu against it and fails the test on the wrong
 // exit code. The returned string is stdout.
 func newRoot(t *testing.T) (string, func(want int, stdin string, args ...string) string) {
@@ -55,10 +55,10 @@ func TestParseInterspersed(t *testing.T) {
 
 func TestHelpGoesToStdout(t *testing.T) {
 	var out, errb bytes.Buffer
-	if code := run([]string{"note", "write", "-h"}, strings.NewReader(""), &out, &errb); code != exitOK {
+	if code := run([]string{"task", "new", "-h"}, strings.NewReader(""), &out, &errb); code != exitOK {
 		t.Fatalf("exit %d", code)
 	}
-	if !strings.HasPrefix(out.String(), "usage: nabu note write") || errb.Len() != 0 {
+	if !strings.HasPrefix(out.String(), "usage: nabu task new") || errb.Len() != 0 {
 		t.Fatalf("stdout=%q stderr=%q", out.String(), errb.String())
 	}
 }
@@ -73,45 +73,12 @@ func TestUnknownCommandExits2(t *testing.T) {
 func TestNoRootExits2(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	var out, errb bytes.Buffer
-	if code := run([]string{"note", "ls"}, strings.NewReader(""), &out, &errb); code != exitUsage {
+	if code := run([]string{"task", "ls"}, strings.NewReader(""), &out, &errb); code != exitUsage {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
 	if !strings.Contains(errb.String(), "no root declared") {
 		t.Fatalf("stderr=%q", errb.String())
 	}
-}
-
-func TestMvOfUntrackedNoteCommits(t *testing.T) {
-	dir, nabu := newRoot(t)
-	// A note dropped into the root by hand is on disk but not in the index.
-	if err := os.WriteFile(filepath.Join(dir, "Bad Name.md"), []byte("# x\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if got := nabu(exitOK, "", "note", "mv", "Bad Name.md", "bad-name.md"); !strings.Contains(got, `"committed": true`) {
-		t.Fatalf("stdout=%q", got)
-	}
-	gitClean(t, dir)
-}
-
-func TestNoteWriteReplaceMvLs(t *testing.T) {
-	dir, nabu := newRoot(t)
-	nabu(exitFail, "", "note", "replace", "a.md", "--content", "x")
-	nabu(exitOK, "", "note", "write", "a.md", "--content", "# One\n\nbody")
-	nabu(exitFail, "", "note", "write", "a.md", "--content", "again")
-	if got := nabu(exitOK, "", "note", "replace", "a.md", "--content", "# Two"); !strings.Contains(got, `"action": "replace"`) {
-		t.Fatalf("stdout=%q", got)
-	}
-	if got := nabu(exitOK, "", "note", "mv", "a.md", "b.md"); !strings.Contains(got, `"committed": true`) {
-		t.Fatalf("stdout=%q", got)
-	}
-	if got := nabu(exitOK, "", "note", "read", "b.md"); got != "# Two\n" {
-		t.Fatalf("read=%q", got)
-	}
-	if got := nabu(exitOK, "", "note", "ls"); !strings.HasPrefix(got, "b.md") || !strings.Contains(got, "Two") {
-		t.Fatalf("ls=%q", got)
-	}
-	nabu(exitUsage, "", "note", "ls", "a", "b")
-	gitClean(t, dir)
 }
 
 func TestTaskNewViaCLI(t *testing.T) {
@@ -230,13 +197,8 @@ func TestCanvasFlowViaCLI(t *testing.T) {
 	if got := nabu(exitOK, "", "canvas", "diff"); got != "" {
 		t.Fatalf("diff before edit=%q", got)
 	}
-	// a second open refuses; the canvas is not a note
+	// a second open refuses
 	nabu(exitFail, "", "canvas", "open", "--content", "again")
-	nabu(exitFail, "", "note", "write", "CANVAS.md", "--content", "x")
-	nabu(exitFail, "", "note", "read", "CANVAS.md")
-	if got := nabu(exitOK, "", "note", "ls"); strings.Contains(got, "CANVAS") {
-		t.Fatalf("ls shows canvas: %q", got)
-	}
 
 	// the user edits by hand; diff shows it
 	if err := os.WriteFile(filepath.Join(dir, "CANVAS.md"), []byte("# Draft\n\nfirst, edited\n"), 0o644); err != nil {
@@ -318,18 +280,18 @@ func TestPushViaCLI(t *testing.T) {
 			t.Fatalf("git %v: %s", args, out)
 		}
 	}
-	nabu(0, "hello", "note", "write", "a.md")
+	nabu(0, shaped("A", ""), "task", "new", "a")
 	if out, err := exec.Command("git", "-C", dir, "push", "-q", "-u", "origin", "main").CombinedOutput(); err != nil {
 		t.Fatalf("git push -u: %s", out)
 	}
 
-	nabu(0, "world", "note", "append", "a.md")
+	nabu(0, "", "task", "mv", "a", "doing")
 	out := nabu(0, "", "push")
 	if !strings.Contains(out, `"upstream": "origin/main"`) {
 		t.Fatalf("push output: %s", out)
 	}
 	log, _ := exec.Command("git", "-C", bare, "log", "--format=%s", "main").Output()
-	if !strings.Contains(string(log), "nabu: append a.md") {
+	if !strings.Contains(string(log), "nabu: task mv tasks/inbox/a.md -> tasks/doing/a.md") {
 		t.Fatalf("remote log: %s", log)
 	}
 }
@@ -379,38 +341,10 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 	nabu(exitFail, shaped("Wait", ""), "task", "replace", "wait")
 }
 
-func TestNoteRefusesTasksDir(t *testing.T) {
+func TestTaskStray(t *testing.T) {
 	dir, nabu := newRoot(t)
 	nabu(exitOK, shaped("Wait", ""), "task", "new", "wait")
-	nabu(exitOK, "", "note", "write", "work/free.md", "--content", "# Free\n")
-	for _, args := range [][]string{
-		{"note", "write", "tasks/inbox/x.md", "--content", "# x"},
-		{"note", "replace", "tasks/inbox/wait.md", "--content", "# x"},
-		{"note", "append", "tasks/inbox/wait.md", "--content", "more"},
-		{"note", "append", "tasks/x.md", "--content", "more"},
-		{"note", "mv", "tasks/inbox/wait.md", "tasks/doing/wait.md"},
-		{"note", "mv", "work/free.md", "tasks/inbox/free.md"},
-		{"note", "mv", "tasks/inbox/wait.md", "work/wait.md"},
-		{"note", "write", "./tasks/inbox/x.md", "--content", "# x"},
-	} {
-		nabu(exitUsage, "", args...)
-	}
-	for _, args := range [][]string{
-		{"note", "read", "tasks/inbox/wait.md"},
-		{"note", "ls", "tasks"},
-		{"note", "ls", "tasks/inbox"},
-	} {
-		nabu(exitUsage, "", args...)
-	}
-	if got := nabu(exitOK, "", "note", "ls"); strings.Contains(got, "tasks/") || !strings.Contains(got, "work/free.md") {
-		t.Fatalf("note ls leaks tasks: %q", got)
-	}
-	if got := nabu(exitOK, "", "note", "grep", "Wait"); got != "" {
-		t.Fatalf("note grep leaks tasks: %q", got)
-	}
-	if got := nabu(exitOK, "", "note", "grep", "Wait", "--json"); strings.TrimSpace(got) != "[]" {
-		t.Fatalf("note grep --json: %q", got)
-	}
+	// a task dropped into tasks/ by hand is on disk but not in the index
 	if err := os.WriteFile(filepath.Join(dir, "tasks", "stray.md"), []byte("# Stray\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -418,18 +352,26 @@ func TestNoteRefusesTasksDir(t *testing.T) {
 	if got := nabu(exitOK, "", "task", "ls"); !strings.Contains(got, "stray  stray  Stray") {
 		t.Fatalf("task ls stray: %q", got)
 	}
-	if got := nabu(exitOK, "", "task", "mv", "stray", "inbox"); !strings.Contains(got, `"from": "tasks/stray.md"`) {
+	got := nabu(exitOK, "", "task", "mv", "stray", "inbox")
+	if !strings.Contains(got, `"from": "tasks/stray.md"`) || !strings.Contains(got, `"committed": true`) {
 		t.Fatalf("stray mv: %s", got)
 	}
+	gitClean(t, dir)
 }
 
 func TestTaskReadLsGrepViaCLI(t *testing.T) {
-	_, nabu := newRoot(t)
+	dir, nabu := newRoot(t)
 	nabu(exitOK, shaped("Wait", "ping them\n"), "task", "new", "wait", "--ticket", "https://example.com/1")
 	nabu(exitOK, shaped("Other", ""), "task", "new", "other")
 	nabu(exitOK, "", "task", "mv", "wait", "doing")
 	nabu(exitOK, "", "task", "set", "wait", "--waiting", "their reply")
-	nabu(exitOK, "", "note", "write", "work/free.md", "--content", "# Free\n\nping them\n")
+	// a file outside tasks/ is not a task and stays out of task grep
+	if err := os.MkdirAll(filepath.Join(dir, "work"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "work", "free.md"), []byte("# Free\n\nping them\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if got := nabu(exitOK, "", "task", "read", "wait"); got != "---\nwaiting: \"their reply\"\ntickets:\n  - \"https://example.com/1\"\n---\n"+shaped("Wait", "ping them\n") {
 		t.Fatalf("read: %q", got)
 	}
@@ -453,8 +395,8 @@ func TestTaskReadLsGrepViaCLI(t *testing.T) {
 	if got := nabu(exitOK, "", "task", "grep", "PING"); got != "tasks/doing/wait.md:14: ping them\n" {
 		t.Fatalf("grep: %q", got)
 	}
-	if got := nabu(exitOK, "", "note", "grep", "PING"); got != "work/free.md:3: ping them\n" {
-		t.Fatalf("note grep: %q", got)
+	if got := nabu(exitOK, "", "task", "grep", "nothing-here", "--json"); strings.TrimSpace(got) != "[]" {
+		t.Fatalf("task grep --json: %q", got)
 	}
 }
 

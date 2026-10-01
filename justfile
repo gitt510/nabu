@@ -1,7 +1,7 @@
 _default:
     @just --list --unsorted
 
-# Run from source; extra args pass through (e.g. just run note ls)
+# Run from source; extra args pass through (e.g. just run task ls)
 run *args:
     go run . {{args}}
 

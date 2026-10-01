@@ -1,11 +1,11 @@
 ---
 name: task
-description: File and move the user's tasks as markdown notes under tasks/ in their notes repository through the `nabu` CLI. Use when the user wants a task recorded, started, or finished in their notes — "add a task", "file this as a task", "I started X", "X is done", "what am I working on" — including Japanese phrasings such as 「タスクにして」「タスク登録」「着手した」「完了にして」「今やってるタスク」. Never edit the notes repository directly; every read and write goes through nabu.
+description: File and move the user's tasks as markdown files under tasks/ in their nabu repository through the `nabu` CLI. Use when the user wants a task recorded, started, or finished — "add a task", "file this as a task", "I started X", "X is done", "what am I working on" — including Japanese phrasings such as 「タスクにして」「タスク登録」「着手した」「完了にして」「今やってるタスク」. Never edit the repository directly; every read and write goes through nabu.
 ---
 
 # nabu task
 
-A task is a note under `tasks/` in the user's notes repository, and its
+A task is a markdown file under `tasks/` in the user's nabu repository, and its
 status is the folder it sits in: `tasks/inbox/` (new), `tasks/doing/`
 (started), `tasks/done/` (finished). `nabu task -h` is the source of truth
 for the contract; this file only says how to use it well.
@@ -28,11 +28,8 @@ nabu task validate [slug]                    # which tasks are out of shape; not
 
 ## How to work
 
-1. **Read the conventions first.** `nabu note read README.md` gives the
-   rules of this particular root; they win over any default here. Check
-   `nabu task ls --json` before filing so a task is not filed twice. The
-   `note` commands do not see `tasks/`; every task read and write is a
-   `task` command.
+1. **Check what exists first.** `nabu task ls --json` before filing so a
+   task is not filed twice. Every task read and write is a `task` command.
 2. **File with `task new`.** The slug is the filename (lowercase
    kebab-case); the body (stdin) is markdown in the task shape below, and
    nabu refuses any other. Metadata goes through flags, never hand-written
@@ -70,8 +67,7 @@ nabu task validate [slug]                    # which tasks are out of shape; not
 3. **Move with `task mv`.** Run `nabu task mv <slug> doing` when work
    starts and `... done` when it ends. Never write a status into the body or
    frontmatter; the folder is the status.
-4. **Revise with `task replace` and `task set`.** `tasks/` belongs to
-   `task`; `note write`, `replace`, `append`, and `mv` refuse it. `task
+4. **Revise with `task replace` and `task set`.** `task
    replace` takes the new body on stdin, in the same shape `task new`
    requires, and keeps the frontmatter; `task set` changes the frontmatter
    and keeps the body. Never write a frontmatter block by hand: a body
@@ -91,13 +87,11 @@ nabu task validate [slug]                    # which tasks are out of shape; not
    frontmatter refused by `task set` or `task replace` was edited by hand;
    tell the user and let them fix the file.
 
-Ordinary notes are the `nabu:note` skill.
-
 ## Do not
 
-- Read or edit files under the notes root with Read / Edit / Write / shell
+- Read or edit files under the root with Read / Edit / Write / shell
   redirection. Only nabu touches the root.
-- Run git inside the notes root. nabu commits each change itself; `nabu
+- Run git inside the root. nabu commits each change itself; `nabu
   push` only when the user asks.
 - Guess the root. If nabu exits 2 with "no root declared", show the user
   the message; it tells them what to fix.

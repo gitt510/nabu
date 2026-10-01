@@ -27,7 +27,6 @@ const taskUsage = `usage: nabu task <new|replace|set|mv|rename|read|ls|grep> [fl
   grep    <query>          find lines containing query in tasks (case-insensitive)
   validate [slug]          check one task, or every task, against the task shape
 
-tasks/ belongs to task; the note commands do not see it.
 See "nabu task <command> -h".
 `
 
@@ -46,7 +45,7 @@ type meta struct {
 }
 
 // render writes the YAML block, or "" when every field is empty so a plain
-// task stays a plain note. Only this function writes task frontmatter.
+// task stays a plain file. Only this function writes task frontmatter.
 func (m meta) render() string {
 	if m.scheduled == "" && m.waiting == "" && len(m.tickets) == 0 {
 		return ""
@@ -152,9 +151,9 @@ func runTask(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var tk tickets
-	fs := newFlagSet("task new", "nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]... [--content <text>]\n\ncreates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the note's frontmatter; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (bullets and ### headings only, each bullet at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline")
+	fs := newFlagSet("task new", "nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]... [--content <text>]\n\ncreates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (bullets and ### headings only, each bullet at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline")
 	root := bindRoot(fs)
-	content := fs.String("content", "", "note body; stdin is read when omitted")
+	content := fs.String("content", "", "task body; stdin is read when omitted")
 	scheduled := fs.String("scheduled", "", "planned work time, RFC3339 with offset (2026-09-15T18:00:00+09:00)")
 	fs.Var(&tk, "ticket", "related issue URL (https); repeatable")
 	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
@@ -345,7 +344,7 @@ func runTaskRead(args []string, stdout, stderr io.Writer) int {
 	return exitOK
 }
 
-// taskEntry is one row of task ls: the note plus its frontmatter. Status
+// taskEntry is one row of task ls: the file plus its frontmatter. Status
 // is the folder, or "stray" for a tasks/<slug>.md outside every folder.
 type taskEntry struct {
 	Path      string   `json:"path"`
@@ -423,11 +422,17 @@ func runTaskGrep(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	matches, err := s.Grep(fs.Arg(0))
+	matches, err := s.Grep("tasks", fs.Arg(0))
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	return printMatches(stdout, matches, *asJSON, isTaskPath)
+	if *asJSON {
+		return emit(stdout, matches)
+	}
+	for _, m := range matches {
+		fmt.Fprintf(stdout, "%s:%d: %s\n", m.Path, m.Line, m.Text)
+	}
+	return exitOK
 }
 
 // openTask finds the task by slug and splits it. On failure it has already
@@ -497,49 +502,6 @@ func readTaskBody(content string, stdin io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	return body, nil
-}
-
-// hasFrontmatter reports whether a body opens with a YAML block of its own.
-func hasFrontmatter(body []byte) bool {
-	return strings.HasPrefix(strings.TrimLeft(string(body), "\n"), "---")
-}
-
-// isTaskPath reports whether a note path is under tasks/, which only the
-// task commands see.
-func isTaskPath(p string) bool {
-	clean := path.Clean(strings.ReplaceAll(p, "\\", "/"))
-	return clean == "tasks" || strings.HasPrefix(clean, "tasks/")
-}
-
-// errTaskPath is what the note commands return for a path under tasks/.
-var errTaskPath = errors.New("is under tasks/, which belongs to nabu task")
-
-// field is one scalar frontmatter entry; an empty value is left out.
-type field struct{ key, value string }
-
-// frontmatter renders the YAML block for the given field and tickets, or ""
-// when both are empty so a plain note stays a plain note.
-func frontmatter(f field, tk tickets) (string, error) {
-	if f.value == "" && len(tk) == 0 {
-		return "", nil
-	}
-	var b strings.Builder
-	b.WriteString("---\n")
-	if f.value != "" {
-		fmt.Fprintf(&b, "%s: %q\n", f.key, f.value)
-	}
-	if len(tk) > 0 {
-		b.WriteString("tickets:\n")
-		for _, t := range tk {
-			u, err := url.Parse(t)
-			if err != nil || u.Scheme != "https" || u.Host == "" {
-				return "", fmt.Errorf("--ticket must be a full https URL: %s", t)
-			}
-			fmt.Fprintf(&b, "  - %q\n", t)
-		}
-	}
-	b.WriteString("---\n")
-	return b.String(), nil
 }
 
 // verdict is one task validate result; Error is empty when the task is in shape.
