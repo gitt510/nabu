@@ -34,18 +34,49 @@ nabu doctor --notes                          # warn on tasks outside a status fo
    `note` commands do not see `tasks/`; every task read and write is a
    `task` command.
 2. **File with `task new`.** The slug is the filename (lowercase
-   kebab-case); the body (stdin) is ordinary markdown starting with a `# `
-   title. Metadata goes through flags, never hand-written in the body:
-   `--scheduled` is the time the work is planned to happen (RFC3339 with
-   offset, not a deadline), `--ticket` is a full `https` issue URL, repeatable.
+   kebab-case); the body (stdin) is markdown in the task shape below, and
+   nabu refuses any other. Metadata goes through flags, never hand-written
+   in the body: `--scheduled` is the time the work is planned to happen
+   (RFC3339 with offset, not a deadline), `--ticket` is a full `https`
+   issue URL, repeatable.
+
+   ```markdown
+   # <title>
+
+   ## For Human
+
+   ### Now
+
+   - <one fact about the current state, at most 30 characters>
+
+   ### Next
+
+   - [ ] <one action, at most 30 characters, ends in a verb>
+
+   ---
+
+   ## AI memo
+
+   <everything else: config facts, commands, candidates, rejected ideas>
+   ```
+
+   `For Human` is what the user reads to know where the task stands and
+   what comes next; it holds only bullets and `###` headings, and every
+   bullet is one fact in at most 30 characters (counted in runes; the
+   `- [ ] ` prefix is free). A fact that does not fit goes to `AI memo`,
+   with a shorter line here. Checkboxes live in `Next` only, never in `AI
+   memo`, so a task has one place that says what is done. `AI memo` is free
+   markdown for the agent: as dense as the work needs.
 3. **Move with `task mv`.** Run `nabu task mv <slug> doing` when work
    starts and `... done` when it ends. Never write a status into the body or
    frontmatter; the folder is the status.
 4. **Revise with `task replace` and `task set`.** `tasks/` belongs to
    `task`; `note write`, `replace`, `append`, and `mv` refuse it. `task
-   replace` takes the new body on stdin and keeps the frontmatter; `task
-   set` changes the frontmatter and keeps the body. Never write a
-   frontmatter block by hand: a body that starts with `---` is refused.
+   replace` takes the new body on stdin, in the same shape `task new`
+   requires, and keeps the frontmatter; `task set` changes the frontmatter
+   and keeps the body. Never write a frontmatter block by hand: a body
+   that starts with `---` is refused. Rewrite `Now` as state ("password
+   auth is off"), not as a log of what was done.
 5. **Mark a wait with `task set --waiting`.** When the user has done their
    part and waits on someone else (a reply, a review), keep the task in
    `doing/` and run `nabu task set <slug> --waiting "<who or what>"`;
