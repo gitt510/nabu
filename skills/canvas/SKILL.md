@@ -49,5 +49,5 @@ nabu canvas drop                             # empty the canvas
   redirection. Only nabu touches the root.
 - Run git inside the notes root. nabu commits each change itself; `nabu
   push` only when the user asks.
-- Guess the root. If nabu exits 2 with "no root declared", run `nabu doctor`
-  and show the user its output; it tells them what to fix.
+- Guess the root. If nabu exits 2 with "no root declared", show the user
+  the message; it tells them what to fix.

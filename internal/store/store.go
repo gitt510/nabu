@@ -369,40 +369,6 @@ func (s *Store) Push() (string, error) {
 	return upstream, nil
 }
 
-// Finding is one convention warning from Lint.
-type Finding struct {
-	Path   string `json:"path"`
-	Rule   string `json:"rule"`
-	Detail string `json:"detail"`
-}
-
-// Lint walks every note and reports the ones that break the naming
-// conventions: a filename that is not lowercase kebab-case, a body with no
-// "# " title, or a note under tasks/ outside a status folder. It changes
-// nothing; repairs go through Move and Replace.
-func (s *Store) Lint() ([]Finding, error) {
-	entries, err := s.List("")
-	if err != nil {
-		return nil, err
-	}
-	var out []Finding
-	for _, e := range entries {
-		if e.Path == "README.md" {
-			continue
-		}
-		if !kebabPath(e.Path) {
-			out = append(out, Finding{Path: e.Path, Rule: "filename", Detail: "not lowercase kebab-case (a-z, 0-9, -)"})
-		}
-		if e.Title == "" {
-			out = append(out, Finding{Path: e.Path, Rule: "title", Detail: "no \"# \" heading"})
-		}
-		if !taskFolderOK(e.Path) {
-			out = append(out, Finding{Path: e.Path, Rule: "task", Detail: "not in a status folder tasks/<" + strings.Join(TaskStatuses, "|") + ">/"})
-		}
-	}
-	return out, nil
-}
-
 // Slug reports whether s is a single lowercase kebab-case filename segment
 // without a directory or extension.
 func Slug(s string) bool {
@@ -439,17 +405,6 @@ func taskPaths(slug string) []string {
 		out = append(out, TaskPath(st, slug))
 	}
 	return out
-}
-
-// taskFolderOK reports whether a note under tasks/ sits directly in a
-// status folder. Notes outside tasks/ always pass.
-func taskFolderOK(p string) bool {
-	rest, ok := strings.CutPrefix(p, "tasks/")
-	if !ok {
-		return true
-	}
-	dir, _, ok := strings.Cut(rest, "/")
-	return ok && TaskStatus(dir) && !strings.Contains(rest[len(dir)+1:], "/")
 }
 
 // kebabPath reports whether every segment of a slash path is lowercase

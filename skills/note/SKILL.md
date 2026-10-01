@@ -20,7 +20,6 @@ nabu note append <path> --heading "## YYYY-MM-DD" --content "<text>"
 nabu note write <path> --content "<text>"    # new note only; refuses to overwrite
 nabu note replace <path> --content "<text>"  # existing note only; whole-body revise
 nabu note mv <from> <to>                     # rename; never overwrites
-nabu doctor --notes                          # warn on non-kebab filenames / missing titles
 nabu push                                    # git push the root; only when the user asks
 ```
 
@@ -52,9 +51,9 @@ EOF
    facts; tidy into bullets or short paragraphs. Do not add commentary.
 5. **Report the path.** After a write, tell the user the relative path nabu
    printed (every write prints JSON with `path`, `action`, `bytes`, `committed`).
-6. **Repair conventions with `mv`.** When `doctor --notes` or the README
-   flags a filename, rename with `nabu note mv` and grep for references
-   first; fix a missing title with `replace`.
+6. **Repair conventions with `mv`.** When the README flags a filename,
+   rename with `nabu note mv` and grep for references first; fix a missing
+   title with `replace`.
 
 Tasks under `tasks/` are the `nabu:task` skill: no `note` command sees
 that directory, and `ls` and `grep` leave it out. A draft the user shapes
@@ -68,5 +67,5 @@ with you over rounds is the `nabu:canvas` skill.
 - `nabu push` unprompted. Run it only when the user asks to push (「push
   して」), and report its `upstream`; a rejected push or a missing upstream
   is shown to the user as is, never fixed with git.
-- Guess the root. If nabu exits 2 with "no root declared", run `nabu doctor`
-  and show the user its output; it tells them what to fix.
+- Guess the root. If nabu exits 2 with "no root declared", show the user
+  the message; it tells them what to fix.
