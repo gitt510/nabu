@@ -1,14 +1,8 @@
 # nabu
 
-nabu keeps one markdown repository for tasks and drafts. Tasks live under
-`tasks/` with their status as the folder, every change is a git commit, and
-`CANVAS.md` is the one draft the user edits by hand while an agent revises it
-through nabu.
-
-## Requirements
-
-- `git` on PATH
-- Go 1.26+ to build (`mise install` provides it)
+nabu is an agent-integrated task manager: tasks are markdown files in one git
+repository, written and moved by an agent through the CLI, and read by the user
+as plain files.
 
 ## Setup
 
@@ -19,6 +13,8 @@ echo '{"root": "~/ghq/github.com/you/notes"}' > ~/.config/nabu/config.json
 nabu init
 ```
 
+- `git` on PATH
+- Go 1.26+ to build (`mise install` provides it)
 - The config file is `$XDG_CONFIG_HOME/nabu/config.json`, falling back to `~/.config/nabu/config.json`
 - `root` is the only key; `~` expands to the home directory
 - `--root <dir>` overrides the config file for one invocation
@@ -26,9 +22,7 @@ nabu init
 - A root initialized before the canvas existed needs `CANVAS.md` and `.CANVAS.agent.md` added to its `.gitignore` by hand
 - `nabu -h` and `nabu <command> -h` print the full contract of every command
 
-## Behavior
-
-### Tasks
+## Tasks
 
 - A task is `tasks/<status>/<slug>.md`; the folder is its only status: `inbox`, `doing`, `done`
 - A slug is lowercase kebab-case and is unique across every status folder
@@ -43,7 +37,7 @@ nabu init
 - `task ls` shows a `tasks/<slug>.md` outside every status folder as `stray`; `task mv <slug> inbox` puts it away
 - `task validate` writes nothing and exits 1 when any task is out of shape
 
-### Canvas
+## Canvas
 
 - `CANVAS.md` at the root holds one draft at a time and is never committed
 - `canvas open` refuses a non-empty canvas; `canvas read`, `write`, `diff`, and `save` refuse an empty one
@@ -51,14 +45,12 @@ nabu init
 - `canvas save <slug>` writes `writing/<slug>.md` with a `created` timestamp and any `--ticket` URLs as frontmatter, commits it, and empties the canvas
 - `canvas save` and `canvas drop` leave an empty `CANVAS.md` in place rather than deleting it
 
-### Git
+## Behavior
 
 - Every command that changes the root commits that change; there is no way to leave one uncommitted
 - A commit message names the command and the path, as `nabu: task mv tasks/inbox/a.md -> tasks/doing/a.md`
 - Nothing pushes on its own; `nabu push` pushes the current branch to its upstream and never pulls or rebases
 - `nabu push` fails when the branch has no upstream
-
-### Output
 
 - Commands that change the root print JSON
 - `task read`, `canvas read`, and `canvas diff` print raw text
