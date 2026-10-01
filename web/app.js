@@ -26,23 +26,63 @@ const el = (tag, attrs = {}, ...kids) => {
   return e;
 };
 
-// ---- tree -----------------------------------------------------------------
+// ---- sections -------------------------------------------------------------
+// The sidebar is curated by use, not by folder. A task may sit in more than
+// one section (a doing task with a date is in Now and in Scheduled).
+const open_ = (t) => t.status !== "done";
+const bySchedule = (a, b) => (a.frontmatter.scheduled < b.frontmatter.scheduled ? -1 : 1);
+const SECTIONS = [
+  { id: "now", label: "Now", pick: (t) => t.status === "doing" },
+  { id: "scheduled", label: "Scheduled", pick: (t) => open_(t) && t.frontmatter.scheduled, sort: bySchedule },
+  { id: "waiting", label: "Waiting", pick: (t) => open_(t) && t.frontmatter.waiting },
+  { id: "inbox", label: "Inbox", pick: (t) => t.status === "inbox" && !t.frontmatter.scheduled && !t.frontmatter.waiting },
+  { id: "done", label: "Done", pick: (t) => t.status === "done", closed: true },
+];
+const today = new Date().toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
+const dayOf = (iso) => new Date(iso).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
+const isLate = (iso) => new Date(iso) < new Date() && dayOf(iso) !== today;
+
+function fileButton(t) {
+  const fm = t.frontmatter;
+  const b = el("button", { class: "file", "data-slug": t.slug, type: "button", tabindex: "-1", title: t.slug, onclick: () => select(t.slug) }, t.title);
+  if (fm.scheduled) b.append(el("span", { class: `flag${isLate(fm.scheduled) ? " late" : ""}` }, fmt(fm.scheduled).split(" ")[0]));
+  else if (fm.waiting) b.append(el("span", { class: "flag" }, "⏳"));
+  return b;
+}
+
 function renderTree() {
   tree.replaceChildren();
-  for (const st of STATUS) {
-    const files = tasks.filter((t) => t.status === st);
-    const dir = el("li", { class: `dir ${st}${st === "done" ? " closed" : ""}` });
-    const name = el("div", { class: "dir-name", onclick: () => dir.classList.toggle("closed") }, `${st}/`, el("span", { class: "n" }, String(files.length)));
+  tree.append(el("li", { class: "dir home" }, el("ul", { class: "files" }, el("li", {}, el("button", { class: "file", "data-slug": "", type: "button", tabindex: "-1", onclick: () => select("") }, "Home")))));
+  for (const sec of SECTIONS) {
+    const files = tasks.filter(sec.pick);
+    if (sec.sort) files.sort(sec.sort);
+    const dir = el("li", { class: `dir ${sec.id}${sec.closed ? " closed" : ""}` });
+    const name = el("div", { class: "dir-name", onclick: () => dir.classList.toggle("closed") }, sec.label, el("span", { class: "n" }, String(files.length)));
     const ul = el("ul", { class: "files" });
-    for (const t of files) {
-      const fm = t.frontmatter, flag = fm.waiting ? "⏳" : fm.scheduled ? fmt(fm.scheduled).split(" ")[0] : "";
-      const b = el("button", { class: "file", "data-slug": t.slug, type: "button", tabindex: "-1", title: t.slug, onclick: () => select(t.slug) }, t.title);
-      if (flag) b.append(el("span", { class: "flag" }, flag));
-      ul.append(el("li", {}, b));
-    }
+    for (const t of files) ul.append(el("li", {}, fileButton(t)));
     dir.append(name, ul);
     tree.append(dir);
   }
+}
+
+// ---- home -------------------------------------------------------------------
+function renderHome() {
+  const link = (t) => el("li", {}, el("a", { href: `#${t.slug}`, onclick: (e) => { e.preventDefault(); select(t.slug); } }, t.title), t.frontmatter.scheduled ? el("span", { class: `flag${isLate(t.frontmatter.scheduled) ? " late" : ""}` }, fmt(t.frontmatter.scheduled)) : "");
+  const list = (items, empty) => (items.length ? el("ul", { class: "home-list" }, ...items.map(link)) : el("p", { class: "empty" }, empty));
+  const now = tasks.filter((t) => t.status === "doing");
+  const dated = tasks.filter((t) => open_(t) && t.frontmatter.scheduled).sort(bySchedule);
+  const due = dated.filter((t) => isLate(t.frontmatter.scheduled) || dayOf(t.frontmatter.scheduled) === today);
+  const next = dated.filter((t) => !due.includes(t)).slice(0, 3);
+  const waiting = tasks.filter((t) => open_(t) && t.frontmatter.waiting).length;
+  const inbox = tasks.filter(SECTIONS[3].pick).length;
+  doc.replaceChildren(
+    el("p", { class: "crumb" }, today),
+    el("h1", {}, "Home"),
+    el("h2", {}, "Now"), list(now, "手を付けているものはない"),
+    el("h2", {}, "Due"), list(due, "今日までのものはない"),
+    el("h2", {}, "Next"), list(next, "予定はない"),
+    el("p", { class: "home-counts" }, `waiting ${waiting} · inbox ${inbox}`),
+  );
 }
 
 // Visible file buttons, in order. Closed folders count as hidden.
@@ -65,10 +105,17 @@ function focusFile(delta) {
 }
 
 function select(slug, push = true) {
+  for (const b of tree.querySelectorAll(".file")) b.classList.toggle("active", b.dataset.slug === slug);
+  if (slug === "") {
+    renderHome();
+    if (push) history.replaceState(null, "", location.pathname);
+    main.scrollTop = 0;
+    if (push) closeSide();
+    return;
+  }
   const t = byId[slug];
   if (!t) return;
-  for (const b of tree.querySelectorAll(".file")) b.classList.toggle("active", b.dataset.slug === slug);
-  tree.querySelector(`.dir.${t.status}`).classList.remove("closed");
+  tree.querySelector(`.file.active`)?.closest(".dir")?.classList.remove("closed");
   const meta = el("dl", { class: "meta" });
   const fm = t.frontmatter;
   if (fm.scheduled) meta.append(el("div", {}, el("dt", {}, "期日"), el("dd", {}, fmt(fm.scheduled))));
@@ -106,17 +153,18 @@ const inTextField = (e) => ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tag
 const shortcuts = [
   { group: "移動" },
   { key: "/", label: "検索にフォーカス", run: () => q.focus() },
-  { key: "h", label: "file tree にフォーカス", run: () => focusFile(0) },
+  { key: "h", label: "一覧にフォーカス", run: () => focusFile(0) },
+  { key: "H", label: "Home を開く", run: () => select("") },
   { key: "n", label: "次のタスクを開く", run: () => step(1) },
   { key: "p", label: "前のタスクを開く", run: () => step(-1) },
   { key: "j", label: "本文をスクロール", run: () => main.scrollBy({ top: 80 }) },
   { key: "k", label: "本文をスクロール", run: () => main.scrollBy({ top: -80 }) },
-  { group: "tree 内" },
+  { group: "一覧内" },
   { key: "j / ↓", label: "下へ", tree: true },
   { key: "k / ↑", label: "上へ", tree: true },
   { key: "gg / G", label: "先頭 / 末尾", tree: true },
   { key: "l / Enter", label: "開く（移動しただけでも切り替わる）", tree: true },
-  { key: "Esc", label: "tree から抜ける", tree: true },
+  { key: "Esc", label: "一覧から抜ける", tree: true },
   { group: "その他" },
   { key: "?", label: "この一覧", run: () => toggle($("help")) },
   { key: ",", label: "設定", run: () => toggle($("settings")) },
@@ -194,5 +242,4 @@ renderTree();
 main.tabIndex = -1;
 q.addEventListener("input", filter);
 window.addEventListener("hashchange", () => select(location.hash.slice(1), false));
-const first = location.hash.slice(1) || tasks.find((t) => t.status === "doing")?.slug || tasks[0]?.slug;
-if (first) select(first, false);
+select(location.hash.slice(1), false);
