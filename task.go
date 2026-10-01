@@ -25,6 +25,7 @@ const taskUsage = `usage: nabu task <new|replace|set|mv|rename|read|ls|grep> [fl
   read    <slug>           print a task, whatever its status
   ls      [status]         list tasks with status, title, and frontmatter
   grep    <query>          find lines containing query in tasks (case-insensitive)
+  validate [slug]          check one task, or every task, against the task shape
 
 tasks/ belongs to task; the note commands do not see it.
 See "nabu task <command> -h".
@@ -142,6 +143,8 @@ func runTask(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runTaskLs(args[1:], stdout, stderr)
 	case "grep":
 		return runTaskGrep(args[1:], stdout, stderr)
+	case "validate":
+		return runTaskValidate(args[1:], stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "unknown task command: %s\n\n%s", args[0], taskUsage)
 	return exitUsage
@@ -537,4 +540,74 @@ func frontmatter(f field, tk tickets) (string, error) {
 	}
 	b.WriteString("---\n")
 	return b.String(), nil
+}
+
+// verdict is one task validate result; Error is empty when the task is in shape.
+type verdict struct {
+	Path  string `json:"path"`
+	Error string `json:"error,omitempty"`
+}
+
+func runTaskValidate(args []string, stdout, stderr io.Writer) int {
+	fs := newFlagSet("task validate", "nabu task validate [slug] [--json]\n\nchecks a task's body against the shape task new and task replace require: \"## For Human\" (bullets of at most 30 characters), ---, \"## AI memo\".\nwithout a slug every task is checked. prints one line per task; exit 1 when any task is out of shape.\nnothing is written")
+	root := bindRoot(fs)
+	asJSON := fs.Bool("json", false, "print the result as JSON")
+	if ok, code := parse(fs, args, 0, 1, stdout, stderr); !ok {
+		return code
+	}
+	s, err := openStore(*root)
+	if err != nil {
+		return fail(stderr, err, exitFail)
+	}
+	var paths []string
+	if slug := fs.Arg(0); slug != "" {
+		if !store.Slug(slug) {
+			return fail(stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
+		}
+		rel := s.FindTask(slug)
+		if rel == "" {
+			return fail(stderr, fmt.Errorf("no task %s under tasks/", slug), exitFail)
+		}
+		paths = []string{rel}
+	} else {
+		entries, err := s.List("tasks")
+		if err != nil {
+			return fail(stderr, err, exitFail)
+		}
+		for _, e := range entries {
+			paths = append(paths, e.Path)
+		}
+	}
+	rows := []verdict{}
+	bad := false
+	for _, rel := range paths {
+		v := verdict{Path: rel}
+		doc, err := s.Read(rel)
+		if err != nil {
+			v.Error = err.Error()
+		} else if _, body, err := splitMeta(doc); err != nil {
+			v.Error = err.Error() + " (not written by nabu; fix it by hand)"
+		} else if err := checkTaskShape(body); err != nil {
+			v.Error = err.Error()
+		}
+		if v.Error != "" {
+			bad = true
+		}
+		rows = append(rows, v)
+	}
+	if *asJSON {
+		emit(stdout, rows)
+	} else {
+		for _, v := range rows {
+			if v.Error == "" {
+				fmt.Fprintf(stdout, "ok    %s\n", v.Path)
+			} else {
+				fmt.Fprintf(stdout, "bad   %s: %s\n", v.Path, v.Error)
+			}
+		}
+	}
+	if bad {
+		return exitFail
+	}
+	return exitOK
 }
