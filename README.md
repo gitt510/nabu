@@ -1,8 +1,6 @@
 # nabu
 
-nabu is an agent-integrated task manager: tasks are markdown files in one git
-repository, written and moved by an agent through the CLI, and read by the user
-as plain files.
+nabu is an agent-integrated task manager
 
 ## Setup
 
@@ -16,26 +14,41 @@ nabu init
 - `git` on PATH
 - Go 1.26+ to build (`mise install` provides it)
 - The config file is `$XDG_CONFIG_HOME/nabu/config.json`, falling back to `~/.config/nabu/config.json`
-- `root` is the only key; `~` expands to the home directory
-- `--root <dir>` overrides the config file for one invocation
-- `nabu init` creates the root as a git repository on `main` with a first commit; rerunning it changes nothing
-- A root initialized before the canvas existed needs `CANVAS.md` and `.CANVAS.agent.md` added to its `.gitignore` by hand
 - `nabu -h` and `nabu <command> -h` print the full contract of every command
 
 ## Tasks
 
-- A task is `tasks/<status>/<slug>.md`; the folder is its only status: `inbox`, `doing`, `done`
-- A slug is lowercase kebab-case and is unique across every status folder
-- A task body is `# <title>`, a `## For Human` section, a `---` line, then a `## AI memo` section
-- `For Human` holds only blank lines, `### ` headings, and `- ` bullets of at most 30 characters after the `- `, `- [ ] `, or `- [x] ` prefix
-- `AI memo` is free markdown
-- A body in any other shape is refused and nothing is written
-- Frontmatter comes only from flags: `scheduled` (RFC3339 with offset, the planned work time), `waiting` (who or what the next action waits on), `tickets` (full `https` URLs)
-- A body that starts with `---` is refused
-- `task set` changes frontmatter and keeps the body; `task replace` changes the body and keeps the frontmatter
-- A task whose frontmatter was edited by hand is refused by `task set` and `task replace` until fixed by hand
-- `task ls` shows a `tasks/<slug>.md` outside every status folder as `stray`; `task mv <slug> inbox` puts it away
-- `task validate` writes nothing and exits 1 when any task is out of shape
+### Use case
+
+```
+user:  この PR のレビュー待ち、task にしといて
+agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
+
+→ tasks/inbox/review-pr-68.md
+```
+
+### Overview
+
+- A task is one file, `tasks/<status>/<slug>.md`
+- The folder is the status: `inbox`, `doing`, `done`
+- The body has two sections: `## For Human` for the user, `## AI memo` for the agent
+
+### Frontmatter
+
+| key | meaning | format |
+| --- | --- | --- |
+| `scheduled` | when the work is planned to happen | RFC3339 with offset |
+| `waiting` | who or what the next action waits on | free text |
+| `tickets` | related issues or PRs | full `https` URLs |
+
+- Frontmatter is set only through flags (`--scheduled`, `--waiting`, `--ticket`, `--clear-*`)
+- A body that carries its own `---` block is refused
+
+### Validation
+
+- A slug is lowercase kebab-case and unique across every status folder
+- The body is `# <title>`, `## For Human`, a `---` line, `## AI memo`, in that order
+- Every line in `For Human` section is at most 30 characters
 
 ## Canvas
 
