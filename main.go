@@ -30,7 +30,7 @@ const usage = `usage: nabu <command> [args]
   task validate [slug]     check one task, or every task, against the task shape
   canvas open              start a draft in CANVAS.md for the user to edit by hand
   canvas read|write|diff   read, revise, or see the user's edits to the draft
-  canvas save  <slug>      move the draft to writing/<slug>.md and commit
+  canvas save  <slug>      move the draft to gallery/<slug>.md and commit
   canvas drop              empty the draft
   push                     git push the root to its upstream
   init                     create the root declared in the config as a git repository

@@ -65,7 +65,7 @@ agent: nabu canvas diff        # reads your edits first
 
 user:  いいね。保存しておいて
 agent: nabu canvas save pr68-comment --ticket https://github.com/o/r/pull/68
-→ writing/pr68-comment.md
+→ gallery/pr68-comment.md
 ```
 
 ### Overview
@@ -74,7 +74,7 @@ agent: nabu canvas save pr68-comment --ticket https://github.com/o/r/pull/68
 - You edit `CANVAS.md` in your editor; the agent revises it through the CLI
 - Every hand edit is yours: the agent reads it before revising and never reverts it
 - When the draft is final, ask the agent to save it
-  - it lands in `writing/<slug>.md` and the canvas is emptied
+  - it hangs in `gallery/<slug>.md` and the canvas is emptied
 
 ## Agent skill
 
