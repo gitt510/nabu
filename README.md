@@ -1,6 +1,6 @@
 # nabu
 
-nabu is an agent-integrated task manager
+nabu is an agent-integrated task manager.
 
 ## Setup
 
@@ -11,9 +11,7 @@ echo '{"root": "~/ghq/github.com/you/notes"}' > ~/.config/nabu/config.json
 nabu init
 ```
 
-- `git` on PATH
 - Go 1.26+ to build (`mise install` provides it)
-- The config file is `$XDG_CONFIG_HOME/nabu/config.json`, falling back to `~/.config/nabu/config.json`
 - `nabu -h` and `nabu <command> -h` print the full contract of every command
 
 ## Tasks
@@ -31,6 +29,7 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 - A task is one file, `tasks/<status>/<slug>.md`
 - The folder is the status: `inbox`, `doing`, `done`
 - The body has two sections: `## For Human` for the user, `## AI memo` for the agent
+- Every change is a git commit; nothing is pushed until you ask for `nabu push`
 
 ### Frontmatter
 
@@ -55,7 +54,7 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 
 ```
 user:  PR #68 のコメント、一緒に書きたい
-agent: nabu canvas open 
+agent: nabu canvas open
 → CANVAS.md を editor で開いてください
 
 (user edits CANVAS.md by hand)
@@ -75,26 +74,7 @@ agent: nabu canvas save pr68-comment --ticket https://github.com/o/r/pull/68
 - You edit `CANVAS.md` in your editor; the agent revises it through the CLI
 - Every hand edit is yours: the agent reads it before revising and never reverts it
 - When the draft is final, ask the agent to save it
-	- it lands in `writing/<slug>.md` and the canvas is emptied
-
-## Behavior
-
-- Every command that changes the root commits that change; there is no way to leave one uncommitted
-- A commit message names the command and the path, as `nabu: task mv tasks/inbox/a.md -> tasks/doing/a.md`
-- Nothing pushes on its own; `nabu push` pushes the current branch to its upstream and never pulls or rebases
-- `nabu push` fails when the branch has no upstream
-
-- Commands that change the root print JSON
-- `task read`, `canvas read`, and `canvas diff` print raw text
-- `task ls`, `task grep`, and `task validate` print text unless `--json`
-- `--content` may be omitted; the body is then read from stdin
-- Flags may come before or after the positional arguments
-
-| exit | meaning |
-| --- | --- |
-| 0 | success (help included) |
-| 1 | the operation failed (missing task, existing task, git error) |
-| 2 | wrong invocation or no root declared |
+  - it lands in `writing/<slug>.md` and the canvas is emptied
 
 ## Agent skill
 
@@ -115,5 +95,3 @@ just test     # go test ./...
 just check    # gofmt, go vet, golangci-lint
 just run ...  # go run . <args>
 ```
-
-- User-facing strings are English; Japanese is allowed in comments and tests (enforced by `gosmopolitan`)
