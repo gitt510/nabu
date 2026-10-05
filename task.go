@@ -20,7 +20,7 @@ const taskUsage = `usage: nabu task <new|replace|set|mv|rename|read|ls|grep|vali
   new     <slug>           create tasks/inbox/<slug>.md
   replace <slug>           replace a task's body, keeping its frontmatter
   set     <slug>           change a task's frontmatter (scheduled, waiting, tickets, prs, links)
-  mv      <slug> <status>  move a task to tasks/<status>/ (inbox, doing, done)
+  mv      <slug> <status>  move a task to tasks/<status>/ (inbox, doing, done, dropped)
   rename  <slug> <new>     give a task a new slug, keeping its status and content
   read    <slug>           print a task, whatever its status
   ls      [status]         list tasks with status, title, and frontmatter
@@ -196,7 +196,7 @@ func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if err := m.check(); err != nil {
 		return fail(stderr, err, exitUsage)
 	}
-	body, err := readTaskBody(*content, stdin)
+	body, err := readTaskBody("inbox", *content, stdin)
 	if err != nil {
 		return fail(stderr, err, exitUsage)
 	}
@@ -222,13 +222,13 @@ func runTaskReplace(args []string, stdin io.Reader, stdout, stderr io.Writer) in
 	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
 		return code
 	}
-	body, err := readTaskBody(*content, stdin)
-	if err != nil {
-		return fail(stderr, err, exitUsage)
-	}
 	s, rel, m, _, code := openTask(*root, fs.Arg(0), stderr)
 	if code != exitOK {
 		return code
+	}
+	body, err := readTaskBody(store.TaskStatusOf(rel), *content, stdin)
+	if err != nil {
+		return fail(stderr, err, exitUsage)
 	}
 	doc := append([]byte(m.render()), body...)
 	if _, err := s.Replace(rel, doc); err != nil {
@@ -299,7 +299,7 @@ func runTaskSet(args []string, stdout, stderr io.Writer) int {
 }
 
 func runTaskMv(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("task mv", "nabu task mv <slug> <"+strings.Join(store.TaskStatuses, "|")+">\n\nmoves tasks/<current>/<slug>.md to tasks/<status>/<slug>.md; the folder is the task's only status")
+	fs := newFlagSet("task mv", "nabu task mv <slug> <"+strings.Join(store.TaskStatuses, "|")+">\n\nmoves tasks/<current>/<slug>.md to tasks/<status>/<slug>.md; the folder is the task's only status.\ndone is finished work; dropped is work decided against, and is refused until the body carries \"### Why dropped\" under For Human (see task replace)")
 	root := bindRoot(fs)
 	if ok, code := parse(fs, args, 2, 2, stdout, stderr); !ok {
 		return code
@@ -322,6 +322,19 @@ func runTaskMv(args []string, stdout, stderr io.Writer) int {
 	to := store.TaskPath(status, slug)
 	if from == to {
 		return fail(stderr, fmt.Errorf("%s is already %s", slug, status), exitFail)
+	}
+	if status == "dropped" {
+		doc, err := s.Read(from)
+		if err != nil {
+			return fail(stderr, err, exitFail)
+		}
+		_, body, err := splitMeta(doc)
+		if err != nil {
+			return fail(stderr, fmt.Errorf("%s: %w (not written by nabu; fix it by hand)", from, err), exitFail)
+		}
+		if err := checkTaskShape(status, body); err != nil {
+			return fail(stderr, fmt.Errorf("%s: %w (write it with task replace first)", from, err), exitUsage)
+		}
 	}
 	if _, _, err := s.Move(from, to); err != nil {
 		return fail(stderr, err, exitFail)
@@ -556,8 +569,8 @@ func (m meta) check() error {
 
 // readTaskBody reads a body and refuses one that opens with a frontmatter
 // block (task metadata comes from flags only) or that is not in the task
-// shape (see checkTaskShape).
-func readTaskBody(content string, stdin io.Reader) ([]byte, error) {
+// shape for the status it will sit in (see checkTaskShape).
+func readTaskBody(status, content string, stdin io.Reader) ([]byte, error) {
 	body, err := readBody(content, stdin)
 	if err != nil {
 		return nil, err
@@ -565,7 +578,7 @@ func readTaskBody(content string, stdin io.Reader) ([]byte, error) {
 	if hasFrontmatter(body) {
 		return nil, errors.New("body starts with a frontmatter block; task metadata comes from flags (see task set)")
 	}
-	if err := checkTaskShape(body); err != nil {
+	if err := checkTaskShape(status, body); err != nil {
 		return nil, err
 	}
 	return body, nil
@@ -578,7 +591,7 @@ type verdict struct {
 }
 
 func runTaskValidate(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("task validate", "nabu task validate [slug] [--json]\n\nchecks a task's body against the shape task new and task replace require: \"## For Human\" (every line at most 30 characters), ---, \"## AI memo\".\nwithout a slug every task is checked. prints one line per task; exit 1 when any task is out of shape.\nnothing is written")
+	fs := newFlagSet("task validate", "nabu task validate [slug] [--json]\n\nchecks a task's body against the shape task new and task replace require: \"## For Human\" (every line at most 30 characters), ---, \"## AI memo\"; a task in dropped/ must also carry \"### Why dropped\" under For Human.\nwithout a slug every task is checked. prints one line per task; exit 1 when any task is out of shape.\nnothing is written")
 	root := bindRoot(fs)
 	asJSON := fs.Bool("json", false, "print the result as JSON")
 	if ok, code := parse(fs, args, 0, 1, stdout, stderr); !ok {
@@ -616,7 +629,7 @@ func runTaskValidate(args []string, stdout, stderr io.Writer) int {
 			v.Error = err.Error()
 		} else if _, body, err := splitMeta(doc); err != nil {
 			v.Error = err.Error() + " (not written by nabu; fix it by hand)"
-		} else if err := checkTaskShape(body); err != nil {
+		} else if err := checkTaskShape(store.TaskStatusOf(rel), body); err != nil {
 			v.Error = err.Error()
 		}
 		if v.Error != "" {

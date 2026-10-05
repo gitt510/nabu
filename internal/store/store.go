@@ -332,8 +332,20 @@ func Slug(s string) bool {
 }
 
 // TaskStatuses are the folders under tasks/, in workflow order. A task's
-// status is its folder; nothing else records it.
-var TaskStatuses = []string{"inbox", "doing", "done"}
+// status is its folder; nothing else records it. done is finished work;
+// dropped is work decided against, and its body says why.
+var TaskStatuses = []string{"inbox", "doing", "done", "dropped"}
+
+// TaskStatusOf returns the status folder of a task path, or "" for a
+// path outside every status folder.
+func TaskStatusOf(rel string) string {
+	for _, st := range TaskStatuses {
+		if strings.HasPrefix(rel, "tasks/"+st+"/") {
+			return st
+		}
+	}
+	return ""
+}
 
 // TaskStatus reports whether status names one of the task folders.
 func TaskStatus(status string) bool { return slices.Contains(TaskStatuses, status) }
