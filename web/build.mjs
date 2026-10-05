@@ -6,8 +6,9 @@ const here = (name) => new URL(name, import.meta.url);
 const read = (name) => readFileSync(here(name), "utf8");
 
 const order = { doing: 0, inbox: 1, done: 2, stray: 3 };
-// scheduled tasks first, by instant (RFC3339 with any offset), then the rest by slug
-const key = (t) => (t.frontmatter.scheduled ? "0" + String(Date.parse(t.frontmatter.scheduled)).padStart(15, "0") : "1" + t.slug);
+// scheduled tasks first, by instant (RFC3339 with any offset; a date alone is the start of that day in Asia/Tokyo), then the rest by slug
+const instant = (s) => Date.parse(/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T00:00:00+09:00` : s);
+const key = (t) => (t.frontmatter.scheduled ? "0" + String(instant(t.frontmatter.scheduled)).padStart(15, "0") : "1" + t.slug);
 
 const tasks = JSON.parse(read("data.json")).map((r) => {
   const frontmatter = r.frontmatter ?? {};
