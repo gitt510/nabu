@@ -120,7 +120,9 @@ function select(slug, push = true) {
   const fm = t.frontmatter;
   if (fm.scheduled) meta.append(el("div", {}, el("dt", {}, "期日"), el("dd", {}, fmt(fm.scheduled))));
   if (fm.waiting) meta.append(el("div", {}, el("dt", {}, "待ち"), el("dd", {}, fm.waiting)));
-  if (fm.tickets?.length) meta.append(el("div", {}, el("dt", {}, "ticket"), el("dd", {}, ...fm.tickets.map((u) => el("a", { href: u, target: "_blank", rel: "noopener" }, ticket(u))))));
+  for (const [key, label] of [["tickets", "ticket"], ["prs", "pr"], ["links", "link"]]) {
+    if (fm[key]?.length) meta.append(el("div", {}, el("dt", {}, label), el("dd", {}, ...fm[key].map((u) => el("a", { href: u, target: "_blank", rel: "noopener" }, ticket(u))))));
+  }
   const body = el("div", { class: "body" });
   body.innerHTML = t.html;
   doc.replaceChildren(el("p", { class: "crumb" }, t.path), el("h1", {}, t.title), meta, body);

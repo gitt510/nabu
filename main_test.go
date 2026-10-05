@@ -89,6 +89,8 @@ func TestTaskNewViaCLI(t *testing.T) {
 		{"task", "new", "ok", "--content", "# x", "--scheduled", "2026-09-15T18:00"},
 		{"task", "new", "ok", "--content", "# x", "--ticket", "#7"},
 		{"task", "new", "ok", "--content", "# x", "--ticket", "http://example.com/1"},
+		{"task", "new", "ok", "--content", "# x", "--pr", "http://example.com/1"},
+		{"task", "new", "ok", "--content", "# x", "--link", "example.com"},
 		{"task", "new", "ok", "--content", "---\na: b\n---\n# x", "--ticket", "https://example.com/1"},
 	} {
 		nabu(exitUsage, "", args...)
@@ -96,7 +98,8 @@ func TestTaskNewViaCLI(t *testing.T) {
 	body := shaped("Retire legacy domain", "- [ ] delete it\n")
 	args := []string{"task", "new", "retire-legacy",
 		"--scheduled", "2026-09-15T18:00:00+09:00",
-		"--ticket", "https://github.com/o/r/issues/7", "--ticket", "https://github.com/o/r/issues/8"}
+		"--ticket", "https://github.com/o/r/issues/7", "--ticket", "https://github.com/o/r/issues/8",
+		"--link", "https://example.com/doc", "--pr", "https://github.com/o/r/pull/9"}
 	got := nabu(exitOK, body, args...)
 	if !strings.Contains(got, `"path": "tasks/inbox/retire-legacy.md"`) || !strings.Contains(got, `"committed": true`) {
 		t.Fatalf("stdout=%q", got)
@@ -105,7 +108,7 @@ func TestTaskNewViaCLI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "---\nscheduled: \"2026-09-15T18:00:00+09:00\"\ntickets:\n  - \"https://github.com/o/r/issues/7\"\n  - \"https://github.com/o/r/issues/8\"\n---\n" + body
+	want := "---\nscheduled: \"2026-09-15T18:00:00+09:00\"\ntickets:\n  - \"https://github.com/o/r/issues/7\"\n  - \"https://github.com/o/r/issues/8\"\nprs:\n  - \"https://github.com/o/r/pull/9\"\nlinks:\n  - \"https://example.com/doc\"\n---\n" + body
 	if string(saved) != want {
 		t.Fatalf("got:\n%s\nwant:\n%s", saved, want)
 	}
@@ -307,8 +310,8 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 		return string(b)
 	}
 	nabu(exitOK, shaped("Wait", "- [ ] send\n"), "task", "new", "wait", "--ticket", "https://example.com/1")
-	nabu(exitOK, "", "task", "set", "wait", "--waiting", "担当者からの LINE 返信", "--scheduled", "2026-10-02T10:00:00+09:00", "--ticket", "https://example.com/2", "--ticket", "https://example.com/1")
-	want := "---\nscheduled: \"2026-10-02T10:00:00+09:00\"\nwaiting: \"担当者からの LINE 返信\"\ntickets:\n  - \"https://example.com/1\"\n  - \"https://example.com/2\"\n---\n" + shaped("Wait", "- [ ] send\n")
+	nabu(exitOK, "", "task", "set", "wait", "--waiting", "担当者からの LINE 返信", "--scheduled", "2026-10-02T10:00:00+09:00", "--ticket", "https://example.com/2", "--ticket", "https://example.com/1", "--pr", "https://example.com/pull/3", "--link", "https://example.com/4")
+	want := "---\nscheduled: \"2026-10-02T10:00:00+09:00\"\nwaiting: \"担当者からの LINE 返信\"\ntickets:\n  - \"https://example.com/1\"\n  - \"https://example.com/2\"\nprs:\n  - \"https://example.com/pull/3\"\nlinks:\n  - \"https://example.com/4\"\n---\n" + shaped("Wait", "- [ ] send\n")
 	if got := read(); got != want {
 		t.Fatalf("after set:\n%s\nwant:\n%s", got, want)
 	}
@@ -317,7 +320,11 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 	if got := read(); got != want {
 		t.Fatalf("after replace:\n%s\nwant:\n%s", got, want)
 	}
-	nabu(exitOK, "", "task", "set", "wait", "--clear-waiting", "--clear-scheduled", "--clear-tickets")
+	nabu(exitOK, "", "task", "set", "wait", "--clear-tickets", "--clear-links")
+	if got := read(); got != "---\nscheduled: \"2026-10-02T10:00:00+09:00\"\nwaiting: \"担当者からの LINE 返信\"\nprs:\n  - \"https://example.com/pull/3\"\n---\n"+shaped("Wait", "- [x] send\n") {
+		t.Fatalf("after clearing two lists:\n%s", got)
+	}
+	nabu(exitOK, "", "task", "set", "wait", "--clear-waiting", "--clear-scheduled", "--clear-prs")
 	if got := read(); got != shaped("Wait", "- [x] send\n") {
 		t.Fatalf("after clear: %q", got)
 	}
@@ -327,6 +334,8 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 		{"task", "set", "wait", "--waiting", "  "},
 		{"task", "set", "wait", "--scheduled", "2026-10-02"},
 		{"task", "set", "wait", "--ticket", "http://example.com/1"},
+		{"task", "set", "wait", "--pr", "http://example.com/1"},
+		{"task", "set", "wait", "--link", "ftp://example.com/1"},
 		{"task", "replace", "wait", "--content", "---\nwaiting: \"x\"\n---\n# Wait\n"},
 		{"task", "new", "other", "--content", "---\nwaiting: \"x\"\n---\n# Other\n"},
 	} {
