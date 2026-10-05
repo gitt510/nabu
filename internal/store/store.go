@@ -239,7 +239,7 @@ func (s *Store) List(dir string) ([]Entry, error) {
 		return nil
 	})
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("no such dir: %s", dir)
+		return nil, fmt.Errorf("no such dir: %s: %w", dir, err)
 	}
 	if err != nil {
 		return nil, err

@@ -391,6 +391,12 @@ func TestTaskReadLsGrepViaCLI(t *testing.T) {
 	if got := nabu(exitOK, "", "task", "ls", "inbox"); got != "inbox  other  Other\n" {
 		t.Fatalf("ls inbox: %q", got)
 	}
+	if got := nabu(exitOK, "", "task", "ls", "dropped"); got != "" {
+		t.Fatalf("ls of a status with no folder yet: %q", got)
+	}
+	if got := nabu(exitOK, "", "task", "ls", "dropped", "--json"); got != "[]\n" {
+		t.Fatalf("ls --json of a status with no folder yet: %q", got)
+	}
 	nabu(exitUsage, "", "task", "ls", "later")
 	got := nabu(exitOK, "", "task", "ls", "doing", "--json")
 	for _, want := range []string{`"slug": "wait"`, `"status": "doing"`, `"frontmatter": {`, `"waiting": "their reply"`, `"https://example.com/1"`, `"body": "# Wait`} {
