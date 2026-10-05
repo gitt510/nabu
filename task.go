@@ -19,7 +19,7 @@ const taskUsage = `usage: nabu task <new|replace|set|mv|rename|read|ls|grep|vali
 
   new     <slug>           create tasks/inbox/<slug>.md
   replace <slug>           replace a task's body, keeping its frontmatter
-  set     <slug>           change a task's frontmatter (scheduled, waiting, tickets)
+  set     <slug>           change a task's frontmatter (scheduled, waiting, tickets, prs, links)
   mv      <slug> <status>  move a task to tasks/<status>/ (inbox, doing, done)
   rename  <slug> <new>     give a task a new slug, keeping its status and content
   read    <slug>           print a task, whatever its status
@@ -30,7 +30,7 @@ const taskUsage = `usage: nabu task <new|replace|set|mv|rename|read|ls|grep|vali
 See "nabu task <command> -h".
 `
 
-// tickets collects repeated --ticket flags.
+// tickets collects a repeated URL flag (--ticket, --pr, --link).
 type tickets []string
 
 func (t *tickets) String() string     { return strings.Join(*t, ",") }
@@ -38,16 +38,31 @@ func (t *tickets) Set(v string) error { *t = append(*t, v); return nil }
 
 // meta is a task's frontmatter. scheduled is the time the work is planned
 // to happen, waiting names who or what the next action waits on (while it
-// is set the ball is with someone else), tickets are related issue URLs.
+// is set the ball is with someone else). The three URL lists are told
+// apart by the URL's role in this task, not by what it points at: tickets
+// are what the task answers to (an issue, a Wrike task, a PR to review),
+// prs are what the task produced, links are reading with no state of
+// their own (a repo, an article, a post).
 type meta struct {
-	scheduled, waiting string
-	tickets            []string
+	scheduled, waiting  string
+	tickets, prs, links []string
+}
+
+// lists names the URL lists in the order render writes them.
+func (m *meta) lists() []struct {
+	key string
+	v   *[]string
+} {
+	return []struct {
+		key string
+		v   *[]string
+	}{{"tickets", &m.tickets}, {"prs", &m.prs}, {"links", &m.links}}
 }
 
 // render writes the YAML block, or "" when every field is empty so a plain
 // task stays a plain file. Only this function writes task frontmatter.
 func (m meta) render() string {
-	if m.scheduled == "" && m.waiting == "" && len(m.tickets) == 0 {
+	if m.scheduled == "" && m.waiting == "" && len(m.tickets) == 0 && len(m.prs) == 0 && len(m.links) == 0 {
 		return ""
 	}
 	var b strings.Builder
@@ -58,9 +73,12 @@ func (m meta) render() string {
 	if m.waiting != "" {
 		fmt.Fprintf(&b, "waiting: %q\n", m.waiting)
 	}
-	if len(m.tickets) > 0 {
-		b.WriteString("tickets:\n")
-		for _, t := range m.tickets {
+	for _, l := range m.lists() {
+		if len(*l.v) == 0 {
+			continue
+		}
+		b.WriteString(l.key + ":\n")
+		for _, t := range *l.v {
 			fmt.Fprintf(&b, "  - %q\n", t)
 		}
 	}
@@ -78,7 +96,7 @@ func splitMeta(doc []byte) (meta, []byte, error) {
 		return m, doc, nil
 	}
 	rest := text[len("---\n"):]
-	inTickets := false
+	var inList *[]string
 	for {
 		line, after, ok := strings.Cut(rest, "\n")
 		if !ok {
@@ -88,19 +106,26 @@ func splitMeta(doc []byte) (meta, []byte, error) {
 		if line == "---" {
 			return m, []byte(rest), nil
 		}
-		if item, ok := strings.CutPrefix(line, "  - "); ok && inTickets {
+		if item, ok := strings.CutPrefix(line, "  - "); ok && inList != nil {
 			v, err := strconv.Unquote(item)
 			if err != nil {
-				return m, nil, fmt.Errorf("frontmatter: unreadable ticket: %s", line)
+				return m, nil, fmt.Errorf("frontmatter: unreadable list item: %s", line)
 			}
-			m.tickets = append(m.tickets, v)
+			*inList = append(*inList, v)
 			continue
 		}
-		inTickets = false
+		inList = nil
 		key, raw, ok := strings.Cut(line, ": ")
-		if !ok && line == "tickets:" {
-			inTickets = true
-			continue
+		if !ok {
+			for _, l := range m.lists() {
+				if line == l.key+":" {
+					inList = l.v
+					break
+				}
+			}
+			if inList != nil {
+				continue
+			}
 		}
 		v, err := strconv.Unquote(raw)
 		if !ok || err != nil {
@@ -150,12 +175,14 @@ func runTask(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	var tk tickets
-	fs := newFlagSet("task new", "nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]... [--content <text>]\n\ncreates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (every line at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline")
+	var tk, pr, ln tickets
+	fs := newFlagSet("task new", "nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]... [--pr <https-url>]... [--link <https-url>]... [--content <text>]\n\ncreates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (every line at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline.\n"+urlFlagsHelp)
 	root := bindRoot(fs)
 	content := fs.String("content", "", "task body; stdin is read when omitted")
 	scheduled := fs.String("scheduled", "", "planned work time, RFC3339 with offset (2026-09-15T18:00:00+09:00)")
-	fs.Var(&tk, "ticket", "related issue URL (https); repeatable")
+	fs.Var(&tk, "ticket", "URL this task answers to (https); repeatable")
+	fs.Var(&pr, "pr", "URL of a PR this task produced (https); repeatable")
+	fs.Var(&ln, "link", "URL to read, with no state of its own (https); repeatable")
 	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
 		return code
 	}
@@ -164,7 +191,7 @@ func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return fail(stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
 	}
 	m := meta{scheduled: *scheduled}
-	if err := m.add(tk); err != nil {
+	if err := m.add(tk, pr, ln); err != nil {
 		return fail(stderr, err, exitUsage)
 	}
 	if err := m.check(); err != nil {
@@ -212,19 +239,23 @@ func runTaskReplace(args []string, stdin io.Reader, stdout, stderr io.Writer) in
 }
 
 func runTaskSet(args []string, stdout, stderr io.Writer) int {
-	var tk tickets
-	fs := newFlagSet("task set", "nabu task set <slug> [--scheduled <RFC3339> | --clear-scheduled] [--waiting <text> | --clear-waiting] [--ticket <https-url>]... [--clear-tickets]\n\nrewrites the frontmatter of a task in any status folder; the body is kept as is (see task replace).\n--waiting names who or what the next action waits on: while it is set the ball is with someone else, so the task stays in doing/.\n--ticket adds to the list; --clear-tickets empties it first")
+	var tk, pr, ln tickets
+	fs := newFlagSet("task set", "nabu task set <slug> [--scheduled <RFC3339> | --clear-scheduled] [--waiting <text> | --clear-waiting] [--ticket <https-url>]... [--clear-tickets] [--pr <https-url>]... [--clear-prs] [--link <https-url>]... [--clear-links]\n\nrewrites the frontmatter of a task in any status folder; the body is kept as is (see task replace).\n--waiting names who or what the next action waits on: while it is set the ball is with someone else, so the task stays in doing/.\n--ticket, --pr and --link add to their list; the matching --clear-* empties it first.\n"+urlFlagsHelp)
 	root := bindRoot(fs)
 	scheduled := fs.String("scheduled", "", "planned work time, RFC3339 with offset")
 	clearScheduled := fs.Bool("clear-scheduled", false, "drop scheduled")
 	waiting := fs.String("waiting", "", "who or what the next action waits on")
 	clearWaiting := fs.Bool("clear-waiting", false, "drop waiting: the ball is back")
-	fs.Var(&tk, "ticket", "related issue URL (https) to add; repeatable")
+	fs.Var(&tk, "ticket", "URL this task answers to (https) to add; repeatable")
 	clearTickets := fs.Bool("clear-tickets", false, "drop every ticket")
+	fs.Var(&pr, "pr", "URL of a PR this task produced (https) to add; repeatable")
+	clearPrs := fs.Bool("clear-prs", false, "drop every pr")
+	fs.Var(&ln, "link", "URL to read (https) to add; repeatable")
+	clearLinks := fs.Bool("clear-links", false, "drop every link")
 	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
 		return code
 	}
-	if *scheduled == "" && !*clearScheduled && *waiting == "" && !*clearWaiting && len(tk) == 0 && !*clearTickets {
+	if *scheduled == "" && !*clearScheduled && *waiting == "" && !*clearWaiting && len(tk) == 0 && !*clearTickets && len(pr) == 0 && !*clearPrs && len(ln) == 0 && !*clearLinks {
 		return fail(stderr, errors.New("nothing to set: pass at least one frontmatter flag"), exitUsage)
 	}
 	if (*scheduled != "" && *clearScheduled) || (*waiting != "" && *clearWaiting) {
@@ -249,7 +280,13 @@ func runTaskSet(args []string, stdout, stderr io.Writer) int {
 	if *clearTickets {
 		m.tickets = nil
 	}
-	if err := m.add(tk); err != nil {
+	if *clearPrs {
+		m.prs = nil
+	}
+	if *clearLinks {
+		m.links = nil
+	}
+	if err := m.add(tk, pr, ln); err != nil {
 		return fail(stderr, err, exitUsage)
 	}
 	if err := m.check(); err != nil {
@@ -362,6 +399,8 @@ type taskMeta struct {
 	Scheduled string   `json:"scheduled,omitempty"`
 	Waiting   string   `json:"waiting,omitempty"`
 	Tickets   []string `json:"tickets,omitempty"`
+	Prs       []string `json:"prs,omitempty"`
+	Links     []string `json:"links,omitempty"`
 }
 
 // listTasks reads every task, or those in one status folder, as ls rows.
@@ -380,7 +419,7 @@ func listTasks(s *store.Store, status string) ([]taskEntry, error) {
 		row := taskEntry{Path: e.Path, Slug: strings.TrimSuffix(file, ".md"), Status: st, Title: e.Title}
 		if doc, err := s.Read(e.Path); err == nil {
 			if m, body, err := splitMeta(doc); err == nil {
-				row.Frontmatter = taskMeta{m.scheduled, m.waiting, m.tickets}
+				row.Frontmatter = taskMeta{m.scheduled, m.waiting, m.tickets, m.prs, m.links}
 				row.Body = string(body)
 			}
 		}
@@ -479,14 +518,25 @@ func openTask(root, slug string, stderr io.Writer) (*store.Store, string, meta, 
 }
 
 // add appends tickets, each a full https URL, skipping ones already there.
-func (m *meta) add(tk tickets) error {
-	for _, t := range tk {
-		u, err := url.Parse(t)
-		if err != nil || u.Scheme != "https" || u.Host == "" {
-			return fmt.Errorf("--ticket must be a full https URL: %s", t)
-		}
-		if !slices.Contains(m.tickets, t) {
-			m.tickets = append(m.tickets, t)
+// urlFlagsHelp says how the three URL lists are told apart.
+const urlFlagsHelp = "a URL goes by its role in this task, not by what it points at: --ticket is what the task answers to (an issue, a Wrike task, a PR to review), --pr is a PR the task produced, --link is reading with no state of its own (a repo, an article, a post); when in doubt, --link"
+
+// add appends the URLs given by flag to their lists, in order and without
+// duplicates; each must be a full https URL.
+func (m *meta) add(tk, pr, ln tickets) error {
+	for _, in := range []struct {
+		flag string
+		vals tickets
+		dst  *[]string
+	}{{"ticket", tk, &m.tickets}, {"pr", pr, &m.prs}, {"link", ln, &m.links}} {
+		for _, t := range in.vals {
+			u, err := url.Parse(t)
+			if err != nil || u.Scheme != "https" || u.Host == "" {
+				return fmt.Errorf("--%s must be a full https URL: %s", in.flag, t)
+			}
+			if !slices.Contains(*in.dst, t) {
+				*in.dst = append(*in.dst, t)
+			}
 		}
 	}
 	return nil

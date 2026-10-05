@@ -13,11 +13,11 @@ for the contract; this file only says how to use it well.
 ## Commands
 
 ```bash
-nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]...  # tasks/inbox/<slug>.md, body on stdin
+nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]... [--pr <https-url>]... [--link <https-url>]...  # tasks/inbox/<slug>.md, body on stdin
 nabu task replace <slug>                     # new body on stdin; frontmatter is kept
 nabu task set <slug> --waiting "<who/what>"  # the ball is with someone else
 nabu task set <slug> --clear-waiting         # the ball is back
-nabu task set <slug> --scheduled <RFC3339> --ticket <https-url>   # other metadata; --clear-* drops
+nabu task set <slug> --scheduled <RFC3339> --ticket <https-url> --pr <https-url> --link <https-url>   # other metadata; --clear-* drops
 nabu task mv <slug> <inbox|doing|done>       # move a task to its status folder
 nabu task rename <slug> <new-slug>           # new slug, same status and content
 nabu task ls [status] [--json]               # what exists; waiting shows who holds the ball
@@ -34,8 +34,12 @@ nabu task validate [slug]                    # which tasks are out of shape; not
    kebab-case); the body (stdin) is markdown in the task shape below, and
    nabu refuses any other. Metadata goes through flags, never hand-written
    in the body: `--scheduled` is the time the work is planned to happen
-   (RFC3339 with offset, not a deadline), `--ticket` is a full `https`
-   issue URL, repeatable.
+   (RFC3339 with offset, not a deadline). URLs are full `https` and
+   repeatable, sorted by their role in this task, not by what they point
+   at: `--ticket` is what the task answers to (an issue, a Wrike task, a
+   PR to review), `--pr` is a PR the task produced, `--link` is reading
+   with no state of its own (a repo, an article, a post). When in doubt,
+   `--link`.
 
    ```markdown
    # <title>

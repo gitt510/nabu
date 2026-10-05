@@ -37,9 +37,12 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 | --- | --- | --- |
 | `scheduled` | when the work is planned to happen | RFC3339 with offset |
 | `waiting` | who or what the next action waits on | free text |
-| `tickets` | related issues or PRs | full `https` URLs |
+| `tickets` | what the task answers to: an issue, a Wrike task, a PR to review | full `https` URLs |
+| `prs` | PRs the task produced | full `https` URLs |
+| `links` | reading with no state of its own: a repo, an article, a post | full `https` URLs |
 
-- Frontmatter is set only through flags (`--scheduled`, `--waiting`, `--ticket`, `--clear-*`)
+- A URL goes by its role in this task, not by what it points at; when in doubt, `links`
+- Frontmatter is set only through flags (`--scheduled`, `--waiting`, `--ticket`, `--pr`, `--link`, `--clear-*`)
 - A body that carries its own `---` block is refused
 
 ### Validation
