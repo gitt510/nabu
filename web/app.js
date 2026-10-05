@@ -7,9 +7,14 @@ const doc = $("doc");
 const q = $("q");
 const main = document.querySelector(".main");
 
+// scheduled is RFC3339 with an offset, or a date alone (YYYY-MM-DD) for the whole day in Asia/Tokyo
+const dateOnly = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
+const instant = (s) => new Date(dateOnly(s) ? `${s}T00:00:00+09:00` : s);
 const fmt = (iso) => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  const d = instant(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const day = { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric" };
+  return dateOnly(iso) ? d.toLocaleDateString("ja-JP", day) : d.toLocaleString("ja-JP", { ...day, hour: "2-digit", minute: "2-digit" });
 };
 const ticket = (u) => {
   try {
@@ -30,7 +35,7 @@ const el = (tag, attrs = {}, ...kids) => {
 // The sidebar is curated by use, not by folder. A task may sit in more than
 // one section (a doing task with a date is in Now and in Scheduled).
 const open_ = (t) => t.status !== "done" && t.status !== "dropped";
-const bySchedule = (a, b) => (a.frontmatter.scheduled < b.frontmatter.scheduled ? -1 : 1);
+const bySchedule = (a, b) => instant(a.frontmatter.scheduled) - instant(b.frontmatter.scheduled);
 const SECTIONS = [
   { id: "now", label: "Now", pick: (t) => t.status === "doing" },
   { id: "scheduled", label: "Scheduled", pick: (t) => open_(t) && t.frontmatter.scheduled, sort: bySchedule },
@@ -40,8 +45,8 @@ const SECTIONS = [
   { id: "dropped", label: "Dropped", pick: (t) => t.status === "dropped", closed: true },
 ];
 const today = new Date().toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
-const dayOf = (iso) => new Date(iso).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
-const isLate = (iso) => new Date(iso) < new Date() && dayOf(iso) !== today;
+const dayOf = (iso) => instant(iso).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
+const isLate = (iso) => instant(iso) < new Date() && dayOf(iso) !== today;
 
 function fileButton(t) {
   const fm = t.frontmatter;

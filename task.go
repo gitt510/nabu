@@ -176,10 +176,10 @@ func runTask(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var tk, pr, ln tickets
-	fs := newFlagSet("task new", "nabu task new <slug> [--scheduled <RFC3339>] [--ticket <https-url>]... [--pr <https-url>]... [--link <https-url>]... [--content <text>]\n\ncreates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (every line at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline.\n"+urlFlagsHelp)
+	fs := newFlagSet("task new", "nabu task new <slug> [--scheduled <RFC3339|YYYY-MM-DD>] [--ticket <https-url>]... [--pr <https-url>]... [--link <https-url>]... [--content <text>]\n\ncreates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (every line at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline: RFC3339 with an offset, or a date (YYYY-MM-DD) for the whole day.\n"+urlFlagsHelp)
 	root := bindRoot(fs)
 	content := fs.String("content", "", "task body; stdin is read when omitted")
-	scheduled := fs.String("scheduled", "", "planned work time, RFC3339 with offset (2026-09-15T18:00:00+09:00)")
+	scheduled := fs.String("scheduled", "", "planned work time, RFC3339 with offset (2026-09-15T18:00:00+09:00) or a date for the whole day (2026-09-15)")
 	fs.Var(&tk, "ticket", "work item URL: issue, Wrike, Zendesk (https); repeatable")
 	fs.Var(&pr, "pr", "pull request URL (https); repeatable")
 	fs.Var(&ln, "link", "any other URL: repo, article, post (https); repeatable")
@@ -240,9 +240,9 @@ func runTaskReplace(args []string, stdin io.Reader, stdout, stderr io.Writer) in
 
 func runTaskSet(args []string, stdout, stderr io.Writer) int {
 	var tk, pr, ln tickets
-	fs := newFlagSet("task set", "nabu task set <slug> [--scheduled <RFC3339> | --clear-scheduled] [--waiting <text> | --clear-waiting] [--ticket <https-url>]... [--clear-tickets] [--pr <https-url>]... [--clear-prs] [--link <https-url>]... [--clear-links]\n\nrewrites the frontmatter of a task in any status folder; the body is kept as is (see task replace).\n--waiting names who or what the next action waits on: while it is set the ball is with someone else, so the task stays in doing/.\n--ticket, --pr and --link add to their list; the matching --clear-* empties it first.\n"+urlFlagsHelp)
+	fs := newFlagSet("task set", "nabu task set <slug> [--scheduled <RFC3339|YYYY-MM-DD> | --clear-scheduled] [--waiting <text> | --clear-waiting] [--ticket <https-url>]... [--clear-tickets] [--pr <https-url>]... [--clear-prs] [--link <https-url>]... [--clear-links]\n\nrewrites the frontmatter of a task in any status folder; the body is kept as is (see task replace).\n--waiting names who or what the next action waits on: while it is set the ball is with someone else, so the task stays in doing/.\n--ticket, --pr and --link add to their list; the matching --clear-* empties it first.\n"+urlFlagsHelp)
 	root := bindRoot(fs)
-	scheduled := fs.String("scheduled", "", "planned work time, RFC3339 with offset")
+	scheduled := fs.String("scheduled", "", "planned work time, RFC3339 with offset or a date for the whole day")
 	clearScheduled := fs.Bool("clear-scheduled", false, "drop scheduled")
 	waiting := fs.String("waiting", "", "who or what the next action waits on")
 	clearWaiting := fs.Bool("clear-waiting", false, "drop waiting: the ball is back")
@@ -563,8 +563,11 @@ func (m *meta) add(tk, pr, ln tickets) error {
 // check validates the scalar fields set from flags.
 func (m meta) check() error {
 	if m.scheduled != "" {
-		if _, err := time.Parse(time.RFC3339, m.scheduled); err != nil {
-			return fmt.Errorf("--scheduled must be RFC3339 with an offset, e.g. 2026-09-15T18:00:00+09:00: %s", m.scheduled)
+		// a date alone means the whole day; a time must carry its offset so the instant is not guessed
+		_, errTime := time.Parse(time.RFC3339, m.scheduled)
+		_, errDate := time.Parse(time.DateOnly, m.scheduled)
+		if errTime != nil && errDate != nil {
+			return fmt.Errorf("--scheduled must be RFC3339 with an offset (2026-09-15T18:00:00+09:00) or a date (2026-09-15): %s", m.scheduled)
 		}
 	}
 	if m.waiting != "" && strings.TrimSpace(m.waiting) == "" {

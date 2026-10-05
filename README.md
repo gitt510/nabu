@@ -36,7 +36,7 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 
 | key | meaning | format |
 | --- | --- | --- |
-| `scheduled` | when the work is planned to happen | RFC3339 with offset |
+| `scheduled` | when the work is planned to happen | RFC3339 with offset, or `YYYY-MM-DD` for the whole day |
 | `waiting` | who or what the next action waits on | free text |
 | `tickets` | work items: an issue, a Wrike task, a Zendesk request | full `https` URLs |
 | `prs` | pull requests | full `https` URLs |

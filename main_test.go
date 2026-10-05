@@ -324,6 +324,11 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 	if got := read(); got != "---\nscheduled: \"2026-10-02T10:00:00+09:00\"\nwaiting: \"担当者からの LINE 返信\"\nprs:\n  - \"https://example.com/pull/3\"\n---\n"+shaped("Wait", "- [x] send\n") {
 		t.Fatalf("after clearing two lists:\n%s", got)
 	}
+	// a date alone is the whole day; it is kept as written
+	nabu(exitOK, "", "task", "set", "wait", "--scheduled", "2026-10-06")
+	if got := read(); got != "---\nscheduled: \"2026-10-06\"\nwaiting: \"担当者からの LINE 返信\"\nprs:\n  - \"https://example.com/pull/3\"\n---\n"+shaped("Wait", "- [x] send\n") {
+		t.Fatalf("after a date-only scheduled:\n%s", got)
+	}
 	nabu(exitOK, "", "task", "set", "wait", "--clear-waiting", "--clear-scheduled", "--clear-prs")
 	if got := read(); got != shaped("Wait", "- [x] send\n") {
 		t.Fatalf("after clear: %q", got)
@@ -332,7 +337,8 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 		{"task", "set", "wait"},
 		{"task", "set", "wait", "--waiting", "x", "--clear-waiting"},
 		{"task", "set", "wait", "--waiting", "  "},
-		{"task", "set", "wait", "--scheduled", "2026-10-02"},
+		{"task", "set", "wait", "--scheduled", "2026-10-02T10:00"},
+		{"task", "set", "wait", "--scheduled", "2026-10-2"},
 		{"task", "set", "wait", "--ticket", "http://example.com/1"},
 		{"task", "set", "wait", "--pr", "http://example.com/1"},
 		{"task", "set", "wait", "--link", "ftp://example.com/1"},
