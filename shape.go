@@ -10,6 +10,10 @@ import (
 // reader takes in at a glance, not a summary of the memo below.
 const humanLimit = 30
 
+// whyHeading is the For Human heading a dropped task must carry: the
+// reason the work was decided against, where the user reads state.
+const whyHeading = "### Why dropped"
+
 // checkTaskShape enforces the body shape every task is written in:
 //
 //	# <title>
@@ -17,15 +21,21 @@ const humanLimit = 30
 //	---
 //	## AI memo        free markdown
 //
-// It returns the first violation, with a 1-based line number.
-func checkTaskShape(body []byte) error {
+// A task in dropped/ must also carry whyHeading inside For Human with at
+// least one line under it. It returns the first violation, with a 1-based
+// line number.
+func checkTaskShape(status string, body []byte) error {
 	lines := strings.Split(strings.TrimRight(string(body), "\n"), "\n")
-	human, rule, memo := 0, 0, 0
+	human, rule, memo, why := 0, 0, 0, 0
 	for i, l := range lines {
 		switch strings.TrimRight(l, " \t") {
 		case "## For Human":
 			if human == 0 {
 				human = i + 1
+			}
+		case whyHeading:
+			if human > 0 && rule == 0 && why == 0 {
+				why = i + 1
 			}
 		case "---":
 			if human > 0 && rule == 0 {
@@ -51,6 +61,19 @@ func checkTaskShape(body []byte) error {
 		l := strings.TrimRight(lines[i], " \t")
 		if n := utf8.RuneCountInString(l); n > humanLimit {
 			return fmt.Errorf("line %d: For Human line is %d characters, the limit is %d: %s", i+1, n, humanLimit, l)
+		}
+	}
+	if status == "dropped" {
+		if why == 0 {
+			return fmt.Errorf("a dropped task needs a %q heading under For Human", whyHeading)
+		}
+		reason := false
+		for i := why; i < rule-1 && !reason; i++ {
+			l := strings.TrimSpace(lines[i])
+			reason = l != "" && !strings.HasPrefix(l, "#")
+		}
+		if !reason {
+			return fmt.Errorf("line %d: %q has no line under it", why, whyHeading)
 		}
 	}
 	return nil

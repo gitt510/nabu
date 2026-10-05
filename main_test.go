@@ -477,3 +477,53 @@ func TestTaskValidateViaCLI(t *testing.T) {
 	nabu(exitFail, "", "task", "validate", "missing")
 	nabu(exitUsage, "", "task", "validate", "Bad Slug")
 }
+
+func TestTaskDroppedViaCLI(t *testing.T) {
+	dir, nabu := newRoot(t)
+	head := "# T\n\n## For Human\n\n"
+	tail := "\n---\n\n## AI memo\n\nlong story\n"
+	why := head + "### Why dropped\n\n- 主導権が自分にない\n" + tail
+	nabu(exitOK, shaped("T", ""), "task", "new", "t")
+
+	// mv to dropped is refused until the body says why
+	var out, errb bytes.Buffer
+	if code := run([]string{"task", "mv", "t", "dropped", "--root", dir}, strings.NewReader(""), &out, &errb); code != exitUsage {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(errb.String(), `needs a "### Why dropped" heading`) || !strings.Contains(errb.String(), "task replace first") {
+		t.Fatalf("stderr: %q", errb.String())
+	}
+	if _, err := os.Stat(filepath.Join(dir, "tasks", "inbox", "t.md")); err != nil {
+		t.Fatalf("task moved despite refusal: %v", err)
+	}
+
+	// a heading with nothing under it is not a reason
+	nabu(exitOK, head+"### Why dropped\n"+tail, "task", "replace", "t")
+	if code := run([]string{"task", "mv", "t", "dropped", "--root", dir}, strings.NewReader(""), &out, &errb); code != exitUsage {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+
+	nabu(exitOK, why, "task", "replace", "t")
+	got := nabu(exitOK, "", "task", "mv", "t", "dropped")
+	if !strings.Contains(got, `"to": "tasks/dropped/t.md"`) {
+		t.Fatalf("mv: %q", got)
+	}
+	if got := nabu(exitOK, "", "task", "ls", "dropped"); got != "dropped  t  T\n" {
+		t.Fatalf("ls: %q", got)
+	}
+
+	// once dropped, a body without the reason is refused by replace and reported by validate
+	nabu(exitUsage, shaped("T", ""), "task", "replace", "t")
+	if got := nabu(exitOK, "", "task", "validate", "t"); got != "ok    tasks/dropped/t.md\n" {
+		t.Fatalf("validate: %q", got)
+	}
+
+	// the heading is allowed, not required, in any other status
+	nabu(exitOK, why, "task", "new", "u")
+	gitClean(t, dir)
+
+	if err := os.WriteFile(filepath.Join(dir, "tasks", "dropped", "t.md"), []byte(shaped("T", "")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	nabu(exitFail, "", "task", "validate", "t")
+}

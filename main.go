@@ -22,7 +22,7 @@ const usage = `usage: nabu <command> [args]
   task new     <slug>      create tasks/inbox/<slug>.md with optional --scheduled / --ticket frontmatter
   task replace <slug>      replace a task's body, keeping its frontmatter
   task set     <slug>      change a task's frontmatter (--scheduled, --waiting, --ticket, --clear-*)
-  task mv      <slug> <st> move a task to tasks/<st>/ (inbox, doing, done)
+  task mv      <slug> <st> move a task to tasks/<st>/ (inbox, doing, done, dropped)
   task rename  <slug> <new> give a task a new slug, keeping its status and content
   task read    <slug>      print a task, whatever its status
   task ls      [st]        list tasks with status, title, and waiting (--json adds the rest)

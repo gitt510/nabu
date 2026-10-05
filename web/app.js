@@ -1,6 +1,6 @@
 const tasks = JSON.parse(document.getElementById("data").textContent);
 const byId = Object.fromEntries(tasks.map((t) => [t.slug, t]));
-const STATUS = ["doing", "inbox", "done"];
+const STATUS = ["doing", "inbox", "done", "dropped"];
 const $ = (id) => document.getElementById(id);
 const tree = $("tree");
 const doc = $("doc");
@@ -29,7 +29,7 @@ const el = (tag, attrs = {}, ...kids) => {
 // ---- sections -------------------------------------------------------------
 // The sidebar is curated by use, not by folder. A task may sit in more than
 // one section (a doing task with a date is in Now and in Scheduled).
-const open_ = (t) => t.status !== "done";
+const open_ = (t) => t.status !== "done" && t.status !== "dropped";
 const bySchedule = (a, b) => (a.frontmatter.scheduled < b.frontmatter.scheduled ? -1 : 1);
 const SECTIONS = [
   { id: "now", label: "Now", pick: (t) => t.status === "doing" },
@@ -37,6 +37,7 @@ const SECTIONS = [
   { id: "waiting", label: "Waiting", pick: (t) => open_(t) && t.frontmatter.waiting },
   { id: "inbox", label: "Inbox", pick: (t) => t.status === "inbox" && !t.frontmatter.scheduled && !t.frontmatter.waiting },
   { id: "done", label: "Done", pick: (t) => t.status === "done", closed: true },
+  { id: "dropped", label: "Dropped", pick: (t) => t.status === "dropped", closed: true },
 ];
 const today = new Date().toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
 const dayOf = (iso) => new Date(iso).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });

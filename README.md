@@ -27,7 +27,8 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 ### Overview
 
 - A task is one file, `tasks/<status>/<slug>.md`
-- The folder is the status: `inbox`, `doing`, `done`
+- The folder is the status: `inbox`, `doing`, `done`, `dropped`
+- `done` is finished work; `dropped` is work decided against, and its `For Human` says why
 - The body has two sections: `## For Human` for the user, `## AI memo` for the agent
 - Every change is a git commit; nothing is pushed until you ask for `nabu push`
 
@@ -50,6 +51,7 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 - A slug is lowercase kebab-case and unique across every status folder
 - The body is `# <title>`, `## For Human`, a `---` line, `## AI memo`, in that order
 - Every line in `For Human` section is at most 30 characters
+- A task in `dropped/` carries `### Why dropped` under `For Human` with at least one line; `task mv ... dropped` is refused without it
 
 ## Canvas
 
