@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/url"
 	"path"
 	"slices"
@@ -419,6 +420,11 @@ type taskMeta struct {
 func listTasks(s *store.Store, status string) ([]taskEntry, error) {
 	entries, err := s.List(path.Join("tasks", status))
 	if err != nil {
+		// a status folder appears with the first task moved into it;
+		// until then the status is simply empty
+		if status != "" && errors.Is(err, fs.ErrNotExist) {
+			return []taskEntry{}, nil
+		}
 		return nil, err
 	}
 	rows := []taskEntry{}
