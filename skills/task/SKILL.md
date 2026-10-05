@@ -35,11 +35,10 @@ nabu task validate [slug]                    # which tasks are out of shape; not
    nabu refuses any other. Metadata goes through flags, never hand-written
    in the body: `--scheduled` is the time the work is planned to happen
    (RFC3339 with offset, not a deadline). URLs are full `https` and
-   repeatable, sorted by their role in this task, not by what they point
-   at: `--ticket` is what the task answers to (an issue, a Wrike task, a
-   PR to review), `--pr` is a PR the task produced, `--link` is reading
-   with no state of its own (a repo, an article, a post). When in doubt,
-   `--link`.
+   repeatable, sorted by what they point at, whoever opened them and
+   whatever they are to this task: `--ticket` is a work item (an issue,
+   a Wrike task, a Zendesk request), `--pr` is a pull request, `--link`
+   is everything else (a repo, an article, a post).
 
    ```markdown
    # <title>
