@@ -39,10 +39,9 @@ func (t *tickets) Set(v string) error { *t = append(*t, v); return nil }
 // meta is a task's frontmatter. scheduled is the time the work is planned
 // to happen, waiting names who or what the next action waits on (while it
 // is set the ball is with someone else). The three URL lists are told
-// apart by the URL's role in this task, not by what it points at: tickets
-// are what the task answers to (an issue, a Wrike task, a PR to review),
-// prs are what the task produced, links are reading with no state of
-// their own (a repo, an article, a post).
+// apart by what the URL points at, so the choice is mechanical: tickets
+// are work items (an issue, a Wrike task, a Zendesk request), prs are
+// pull requests, links are everything else (a repo, an article, a post).
 type meta struct {
 	scheduled, waiting  string
 	tickets, prs, links []string
@@ -180,9 +179,9 @@ func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	root := bindRoot(fs)
 	content := fs.String("content", "", "task body; stdin is read when omitted")
 	scheduled := fs.String("scheduled", "", "planned work time, RFC3339 with offset (2026-09-15T18:00:00+09:00)")
-	fs.Var(&tk, "ticket", "URL this task answers to (https); repeatable")
-	fs.Var(&pr, "pr", "URL of a PR this task produced (https); repeatable")
-	fs.Var(&ln, "link", "URL to read, with no state of its own (https); repeatable")
+	fs.Var(&tk, "ticket", "work item URL: issue, Wrike, Zendesk (https); repeatable")
+	fs.Var(&pr, "pr", "pull request URL (https); repeatable")
+	fs.Var(&ln, "link", "any other URL: repo, article, post (https); repeatable")
 	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
 		return code
 	}
@@ -246,11 +245,11 @@ func runTaskSet(args []string, stdout, stderr io.Writer) int {
 	clearScheduled := fs.Bool("clear-scheduled", false, "drop scheduled")
 	waiting := fs.String("waiting", "", "who or what the next action waits on")
 	clearWaiting := fs.Bool("clear-waiting", false, "drop waiting: the ball is back")
-	fs.Var(&tk, "ticket", "URL this task answers to (https) to add; repeatable")
+	fs.Var(&tk, "ticket", "work item URL: issue, Wrike, Zendesk (https) to add; repeatable")
 	clearTickets := fs.Bool("clear-tickets", false, "drop every ticket")
-	fs.Var(&pr, "pr", "URL of a PR this task produced (https) to add; repeatable")
+	fs.Var(&pr, "pr", "pull request URL (https) to add; repeatable")
 	clearPrs := fs.Bool("clear-prs", false, "drop every pr")
-	fs.Var(&ln, "link", "URL to read (https) to add; repeatable")
+	fs.Var(&ln, "link", "any other URL: repo, article, post (https) to add; repeatable")
 	clearLinks := fs.Bool("clear-links", false, "drop every link")
 	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
 		return code
@@ -519,7 +518,7 @@ func openTask(root, slug string, stderr io.Writer) (*store.Store, string, meta, 
 
 // add appends tickets, each a full https URL, skipping ones already there.
 // urlFlagsHelp says how the three URL lists are told apart.
-const urlFlagsHelp = "a URL goes by its role in this task, not by what it points at: --ticket is what the task answers to (an issue, a Wrike task, a PR to review), --pr is a PR the task produced, --link is reading with no state of its own (a repo, an article, a post); when in doubt, --link"
+const urlFlagsHelp = "a URL goes by what it points at, whoever opened it and whatever it is to this task: --ticket is a work item (an issue, a Wrike task, a Zendesk request), --pr is a pull request, --link is everything else (a repo, an article, a post)"
 
 // add appends the URLs given by flag to their lists, in order and without
 // duplicates; each must be a full https URL.
