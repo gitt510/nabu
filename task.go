@@ -37,16 +37,20 @@ type tickets []string
 func (t *tickets) String() string     { return strings.Join(*t, ",") }
 func (t *tickets) Set(v string) error { *t = append(*t, v); return nil }
 
-// meta is a task's frontmatter. scheduled is the time the work is planned
-// to happen, waiting names who or what the next action waits on (while it
+// meta is a task's frontmatter. created is when task new filed the task,
+// stamped by nabu and never changed; scheduled is the time the work is
+// planned to happen, waiting names who or what the next action waits on (while it
 // is set the ball is with someone else). The three URL lists are told
 // apart by what the URL points at, so the choice is mechanical: tickets
 // are work items (an issue, a Wrike task, a Zendesk request), prs are
 // pull requests, links are everything else (a repo, an article, a post).
 type meta struct {
-	scheduled, waiting  string
-	tickets, prs, links []string
+	created, scheduled, waiting string
+	tickets, prs, links         []string
 }
+
+// now is the clock task new stamps created with; tests pin it.
+var now = time.Now
 
 // lists names the URL lists in the order render writes them.
 func (m *meta) lists() []struct {
@@ -62,11 +66,14 @@ func (m *meta) lists() []struct {
 // render writes the YAML block, or "" when every field is empty so a plain
 // task stays a plain file. Only this function writes task frontmatter.
 func (m meta) render() string {
-	if m.scheduled == "" && m.waiting == "" && len(m.tickets) == 0 && len(m.prs) == 0 && len(m.links) == 0 {
+	if m.created == "" && m.scheduled == "" && m.waiting == "" && len(m.tickets) == 0 && len(m.prs) == 0 && len(m.links) == 0 {
 		return ""
 	}
 	var b strings.Builder
 	b.WriteString("---\n")
+	if m.created != "" {
+		fmt.Fprintf(&b, "created: %q\n", m.created)
+	}
 	if m.scheduled != "" {
 		fmt.Fprintf(&b, "scheduled: %q\n", m.scheduled)
 	}
@@ -132,6 +139,8 @@ func splitMeta(doc []byte) (meta, []byte, error) {
 			return m, nil, fmt.Errorf("frontmatter: unreadable line: %s", line)
 		}
 		switch key {
+		case "created":
+			m.created = v
 		case "scheduled":
 			m.scheduled = v
 		case "waiting":
@@ -176,7 +185,7 @@ func runTask(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var tk, pr, ln tickets
-	fs := newFlagSet("task new", "nabu task new <slug> [--scheduled <RFC3339|YYYY-MM-DD>] [--ticket <https-url>]... [--pr <https-url>]... [--link <https-url>]... [--content <text>]\n\ncreates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (every line at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline: RFC3339 with an offset, or a date (YYYY-MM-DD) for the whole day.\n"+urlFlagsHelp)
+	fs := newFlagSet("task new", "nabu task new <slug> [--scheduled <RFC3339|YYYY-MM-DD>] [--ticket <https-url>]... [--pr <https-url>]... [--link <https-url>]... [--content <text>]\n\ncreates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter, with created stamped as now; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (every line at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline: RFC3339 with an offset, or a date (YYYY-MM-DD) for the whole day.\n"+urlFlagsHelp)
 	root := bindRoot(fs)
 	content := fs.String("content", "", "task body; stdin is read when omitted")
 	scheduled := fs.String("scheduled", "", "planned work time, RFC3339 with offset (2026-09-15T18:00:00+09:00) or a date for the whole day (2026-09-15)")
@@ -190,7 +199,7 @@ func runTaskNew(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if !store.Slug(slug) {
 		return fail(stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
 	}
-	m := meta{scheduled: *scheduled}
+	m := meta{created: now().Format(time.RFC3339), scheduled: *scheduled}
 	if err := m.add(tk, pr, ln); err != nil {
 		return fail(stderr, err, exitUsage)
 	}
@@ -409,6 +418,7 @@ type taskEntry struct {
 
 // taskMeta is meta as task ls --json prints it.
 type taskMeta struct {
+	Created   string   `json:"created,omitempty"`
 	Scheduled string   `json:"scheduled,omitempty"`
 	Waiting   string   `json:"waiting,omitempty"`
 	Tickets   []string `json:"tickets,omitempty"`
@@ -437,7 +447,7 @@ func listTasks(s *store.Store, status string) ([]taskEntry, error) {
 		row := taskEntry{Path: e.Path, Slug: strings.TrimSuffix(file, ".md"), Status: st, Title: e.Title}
 		if doc, err := s.Read(e.Path); err == nil {
 			if m, body, err := splitMeta(doc); err == nil {
-				row.Frontmatter = taskMeta{m.scheduled, m.waiting, m.tickets, m.prs, m.links}
+				row.Frontmatter = taskMeta{m.created, m.scheduled, m.waiting, m.tickets, m.prs, m.links}
 				row.Body = string(body)
 			}
 		}

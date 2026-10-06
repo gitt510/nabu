@@ -130,7 +130,7 @@ func runCanvasSave(args []string, stdout, stderr io.Writer) int {
 	if !store.Slug(slug) {
 		return fail(stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
 	}
-	fm, err := frontmatter(field{"created", time.Now().Format(time.RFC3339)}, tk)
+	fm, err := frontmatter(field{"created", now().Format(time.RFC3339)}, tk)
 	if err != nil {
 		return fail(stderr, err, exitUsage)
 	}
