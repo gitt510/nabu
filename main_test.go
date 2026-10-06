@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -51,15 +50,31 @@ func gitClean(t *testing.T, dir string) {
 	}
 }
 
-func TestParseInterspersed(t *testing.T) {
-	fs := flag.NewFlagSet("t", flag.ContinueOnError)
-	j := fs.Bool("json", false, "")
-	c := fs.String("content", "", "")
-	if err := parseInterspersed(fs, []string{"a.md", "--json", "--content", "x y", "b"}); err != nil {
-		t.Fatal(err)
+func TestTaskHelpGroupsCommands(t *testing.T) {
+	var out, errb bytes.Buffer
+	if code := run([]string{"task", "-h"}, strings.NewReader(""), &out, &errb); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errb.String())
 	}
-	if !*j || *c != "x y" || strings.Join(fs.Args(), ",") != "a.md,b" {
-		t.Fatalf("json=%v content=%q args=%v", *j, *c, fs.Args())
+	got := out.String()
+	at := func(s string) int {
+		i := strings.Index(got, s)
+		if i < 0 {
+			t.Fatalf("task -h lacks %q:\n%s", s, got)
+		}
+		return i
+	}
+	if !(at("Browse and check:") < at("  ls ") && at("  ls ") < at("Read content:") &&
+		at("Read content:") < at("  read ") && at("  read ") < at("Create and update:") && at("Create and update:") < at("  new ")) {
+		t.Fatalf("commands are not under their groups:\n%s", got)
+	}
+}
+
+func TestGroupAloneExits2(t *testing.T) {
+	for _, args := range [][]string{{}, {"task"}, {"canvas"}, {"task", "bogus"}, {"task", "ls", "--nope"}, {"task", "read"}} {
+		var out, errb bytes.Buffer
+		if code := run(args, strings.NewReader(""), &out, &errb); code != exitUsage || out.Len() != 0 || !strings.Contains(errb.String(), "Usage:") {
+			t.Fatalf("%v: exit %d stdout=%q stderr=%q", args, code, out.String(), errb.String())
+		}
 	}
 }
 
@@ -68,7 +83,7 @@ func TestHelpGoesToStdout(t *testing.T) {
 	if code := run([]string{"task", "new", "-h"}, strings.NewReader(""), &out, &errb); code != exitOK {
 		t.Fatalf("exit %d", code)
 	}
-	if !strings.HasPrefix(out.String(), "usage: nabu task new") || errb.Len() != 0 {
+	if !strings.Contains(out.String(), "nabu task new <slug> [flags]") || errb.Len() != 0 {
 		t.Fatalf("stdout=%q stderr=%q", out.String(), errb.String())
 	}
 }
