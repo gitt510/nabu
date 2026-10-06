@@ -9,7 +9,11 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
+
+// created is the created line task new stamps under the clock newRoot pins.
+const created = "created: \"2026-10-06T09:00:00+09:00\"\n"
 
 // newRoot returns an initialized root with a git identity, plus a
 // runner that invokes nabu against it and fails the test on the wrong
@@ -17,6 +21,8 @@ import (
 func newRoot(t *testing.T) (string, func(want int, stdin string, args ...string) string) {
 	t.Helper()
 	dir := t.TempDir()
+	now = func() time.Time { return time.Date(2026, 10, 6, 9, 0, 0, 0, time.FixedZone("JST", 9*60*60)) }
+	t.Cleanup(func() { now = time.Now })
 	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.email", "t@x"}, {"config", "user.name", "t"}} {
 		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %s", args, out)
@@ -108,14 +114,14 @@ func TestTaskNewViaCLI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "---\nscheduled: \"2026-09-15T18:00:00+09:00\"\ntickets:\n  - \"https://github.com/o/r/issues/7\"\n  - \"https://github.com/o/r/issues/8\"\nprs:\n  - \"https://github.com/o/r/pull/9\"\nlinks:\n  - \"https://example.com/doc\"\n---\n" + body
+	want := "---\n" + created + "scheduled: \"2026-09-15T18:00:00+09:00\"\ntickets:\n  - \"https://github.com/o/r/issues/7\"\n  - \"https://github.com/o/r/issues/8\"\nprs:\n  - \"https://github.com/o/r/pull/9\"\nlinks:\n  - \"https://example.com/doc\"\n---\n" + body
 	if string(saved) != want {
 		t.Fatalf("got:\n%s\nwant:\n%s", saved, want)
 	}
 	nabu(exitFail, body, args...)
 	nabu(exitOK, "", "task", "new", "plain", "--content", shaped("Plain", ""))
-	if saved, _ := os.ReadFile(filepath.Join(dir, "tasks", "inbox", "plain.md")); string(saved) != shaped("Plain", "") {
-		t.Fatalf("plain task got frontmatter: %q", saved)
+	if saved, _ := os.ReadFile(filepath.Join(dir, "tasks", "inbox", "plain.md")); string(saved) != "---\n"+created+"---\n"+shaped("Plain", "") {
+		t.Fatalf("task without flags: %q", saved)
 	}
 	if got := nabu(exitOK, "", "task", "ls", "--json"); !strings.Contains(got, `"title": "Retire legacy domain"`) {
 		t.Fatalf("frontmatter broke title extraction: %s", got)
@@ -311,7 +317,7 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 	}
 	nabu(exitOK, shaped("Wait", "- [ ] send\n"), "task", "new", "wait", "--ticket", "https://example.com/1")
 	nabu(exitOK, "", "task", "set", "wait", "--waiting", "担当者からの LINE 返信", "--scheduled", "2026-10-02T10:00:00+09:00", "--ticket", "https://example.com/2", "--ticket", "https://example.com/1", "--pr", "https://example.com/pull/3", "--link", "https://example.com/4")
-	want := "---\nscheduled: \"2026-10-02T10:00:00+09:00\"\nwaiting: \"担当者からの LINE 返信\"\ntickets:\n  - \"https://example.com/1\"\n  - \"https://example.com/2\"\nprs:\n  - \"https://example.com/pull/3\"\nlinks:\n  - \"https://example.com/4\"\n---\n" + shaped("Wait", "- [ ] send\n")
+	want := "---\n" + created + "scheduled: \"2026-10-02T10:00:00+09:00\"\nwaiting: \"担当者からの LINE 返信\"\ntickets:\n  - \"https://example.com/1\"\n  - \"https://example.com/2\"\nprs:\n  - \"https://example.com/pull/3\"\nlinks:\n  - \"https://example.com/4\"\n---\n" + shaped("Wait", "- [ ] send\n")
 	if got := read(); got != want {
 		t.Fatalf("after set:\n%s\nwant:\n%s", got, want)
 	}
@@ -321,16 +327,17 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 		t.Fatalf("after replace:\n%s\nwant:\n%s", got, want)
 	}
 	nabu(exitOK, "", "task", "set", "wait", "--clear-tickets", "--clear-links")
-	if got := read(); got != "---\nscheduled: \"2026-10-02T10:00:00+09:00\"\nwaiting: \"担当者からの LINE 返信\"\nprs:\n  - \"https://example.com/pull/3\"\n---\n"+shaped("Wait", "- [x] send\n") {
+	if got := read(); got != "---\n"+created+"scheduled: \"2026-10-02T10:00:00+09:00\"\nwaiting: \"担当者からの LINE 返信\"\nprs:\n  - \"https://example.com/pull/3\"\n---\n"+shaped("Wait", "- [x] send\n") {
 		t.Fatalf("after clearing two lists:\n%s", got)
 	}
 	// a date alone is the whole day; it is kept as written
 	nabu(exitOK, "", "task", "set", "wait", "--scheduled", "2026-10-06")
-	if got := read(); got != "---\nscheduled: \"2026-10-06\"\nwaiting: \"担当者からの LINE 返信\"\nprs:\n  - \"https://example.com/pull/3\"\n---\n"+shaped("Wait", "- [x] send\n") {
+	if got := read(); got != "---\n"+created+"scheduled: \"2026-10-06\"\nwaiting: \"担当者からの LINE 返信\"\nprs:\n  - \"https://example.com/pull/3\"\n---\n"+shaped("Wait", "- [x] send\n") {
 		t.Fatalf("after a date-only scheduled:\n%s", got)
 	}
 	nabu(exitOK, "", "task", "set", "wait", "--clear-waiting", "--clear-scheduled", "--clear-prs")
-	if got := read(); got != shaped("Wait", "- [x] send\n") {
+	// created is not a flag, so clearing every flag leaves it
+	if got := read(); got != "---\n"+created+"---\n"+shaped("Wait", "- [x] send\n") {
 		t.Fatalf("after clear: %q", got)
 	}
 	for _, args := range [][]string{
@@ -387,7 +394,7 @@ func TestTaskReadLsGrepViaCLI(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "work", "free.md"), []byte("# Free\n\nping them\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := nabu(exitOK, "", "task", "read", "wait"); got != "---\nwaiting: \"their reply\"\ntickets:\n  - \"https://example.com/1\"\n---\n"+shaped("Wait", "ping them\n") {
+	if got := nabu(exitOK, "", "task", "read", "wait"); got != "---\n"+created+"waiting: \"their reply\"\ntickets:\n  - \"https://example.com/1\"\n---\n"+shaped("Wait", "ping them\n") {
 		t.Fatalf("read: %q", got)
 	}
 	nabu(exitFail, "", "task", "read", "missing")
@@ -413,7 +420,7 @@ func TestTaskReadLsGrepViaCLI(t *testing.T) {
 	if strings.Contains(got, `"scheduled"`) {
 		t.Fatalf("ls --json prints empty scheduled: %s", got)
 	}
-	if got := nabu(exitOK, "", "task", "grep", "PING"); got != "tasks/doing/wait.md:14: ping them\n" {
+	if got := nabu(exitOK, "", "task", "grep", "PING"); got != "tasks/doing/wait.md:15: ping them\n" {
 		t.Fatalf("grep: %q", got)
 	}
 	if got := nabu(exitOK, "", "task", "grep", "nothing-here", "--json"); strings.TrimSpace(got) != "[]" {
