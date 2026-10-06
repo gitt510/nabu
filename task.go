@@ -10,8 +10,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 	"time"
+
+	"charm.land/lipgloss/v2"
 
 	"github.com/gitt510/nabu/internal/store"
 )
@@ -439,12 +440,7 @@ func listTasks(s *store.Store, status string) ([]taskEntry, error) {
 	}
 	rows := []taskEntry{}
 	for _, e := range entries {
-		rest := strings.TrimPrefix(e.Path, "tasks/")
-		st, file, ok := strings.Cut(rest, "/")
-		if !ok {
-			st, file = "stray", rest
-		}
-		row := taskEntry{Path: e.Path, Slug: strings.TrimSuffix(file, ".md"), Status: st, Title: e.Title}
+		row := taskEntry{Path: e.Path, Slug: taskSlug(e.Path), Status: taskStatusOrStray(e.Path), Title: e.Title}
 		if doc, err := s.Read(e.Path); err == nil {
 			if m, body, err := splitMeta(doc); err == nil {
 				row.Frontmatter = taskMeta{m.created, m.scheduled, m.waiting, m.tickets, m.prs, m.links}
@@ -453,11 +449,12 @@ func listTasks(s *store.Store, status string) ([]taskEntry, error) {
 		}
 		rows = append(rows, row)
 	}
+	slices.SortStableFunc(rows, func(a, b taskEntry) int { return byWorkflow(a.Path, b.Path) })
 	return rows, nil
 }
 
 func runTaskLs(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("task ls", "nabu task ls [status] [--json]\n\nlists every task, or those in one status folder; a task outside every folder shows as stray.\nprints status, slug, title, and waiting; --json adds path, the frontmatter, and the body")
+	fs := newFlagSet("task ls", "nabu task ls [status] [--json]\n\nlists every task in workflow order (inbox, doing, done, dropped), or those in one status folder; a task outside every folder shows as stray, last.\non a terminal prints a table of status, title, and created (its date), colored by status;\npiped, prints the same columns tab-separated without a header or color; --json adds path, slug, the frontmatter, and the body")
 	root := bindRoot(fs)
 	asJSON := fs.Bool("json", false, "print the result as JSON")
 	if ok, code := parse(fs, args, 0, 1, stdout, stderr); !ok {
@@ -478,26 +475,49 @@ func runTaskLs(args []string, stdout, stderr io.Writer) int {
 	if *asJSON {
 		return emit(stdout, rows)
 	}
-	var buf strings.Builder
-	tw := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
-	for _, r := range rows {
-		w := ""
-		if r.Frontmatter.Waiting != "" {
-			w = "waiting: " + r.Frontmatter.Waiting
-		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", r.Status, r.Slug, r.Title, w)
+	if len(rows) == 0 {
+		return exitOK
 	}
-	_ = tw.Flush()
-	for _, line := range strings.Split(strings.TrimSuffix(buf.String(), "\n"), "\n") {
-		if line != "" {
-			fmt.Fprintln(stdout, strings.TrimRight(line, " "))
+	width, tty := terminal(stdout)
+	if !tty {
+		for _, r := range rows {
+			fmt.Fprintf(stdout, "%s\t%s\t%s\n", r.Status, r.Title, createdDate(r.Frontmatter.Created))
 		}
+		return exitOK
 	}
+	_, _ = lipgloss.Fprintln(stdout, taskTable(rows, width))
 	return exitOK
 }
 
+// taskTable renders task ls rows for a terminal width wide (0 for no limit).
+func taskTable(rows []taskEntry, width int) string {
+	cells := make([][]string, len(rows))
+	for i, r := range rows {
+		cells[i] = []string{r.Status, r.Title, createdDate(r.Frontmatter.Created)}
+	}
+	return drawTable([]string{"STATUS", "TITLE", "CREATED"}, cells, width, func(row, col int) lipgloss.Style {
+		switch col {
+		case 0:
+			return statusStyle(rows[row].Status)
+		case 2:
+			return cellStyle.Faint(true)
+		}
+		return cellStyle
+	})
+}
+
+// createdDate shows the date created was stamped on, in the offset it was
+// stamped with, or "-" for a task filed before nabu stamped one.
+func createdDate(created string) string {
+	t, err := time.Parse(time.RFC3339, created)
+	if err != nil {
+		return "-"
+	}
+	return t.Format(time.DateOnly)
+}
+
 func runTaskGrep(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("task grep", "nabu task grep <query> [--json]\n\nfinds lines containing query under tasks/, case-insensitive")
+	fs := newFlagSet("task grep", "nabu task grep <query> [--json]\n\nfinds lines containing query under tasks/, case-insensitive, in workflow order.\non a terminal prints a table of status, task, line, and text with the query highlighted;\npiped, prints path:line: text")
 	root := bindRoot(fs)
 	asJSON := fs.Bool("json", false, "print the result as JSON")
 	if ok, code := parse(fs, args, 1, 1, stdout, stderr); !ok {
@@ -511,13 +531,62 @@ func runTaskGrep(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
+	slices.SortStableFunc(matches, func(a, b store.Match) int { return byWorkflow(a.Path, b.Path) })
 	if *asJSON {
 		return emit(stdout, matches)
 	}
-	for _, m := range matches {
-		fmt.Fprintf(stdout, "%s:%d: %s\n", m.Path, m.Line, m.Text)
+	width, tty := terminal(stdout)
+	if !tty {
+		for _, m := range matches {
+			fmt.Fprintf(stdout, "%s:%d: %s\n", m.Path, m.Line, m.Text)
+		}
+		return exitOK
+	}
+	if len(matches) > 0 {
+		_, _ = lipgloss.Fprintln(stdout, grepTable(matches, fs.Arg(0), width))
 	}
 	return exitOK
+}
+
+// grepTable renders task grep matches for a terminal, with the query
+// highlighted in each line.
+func grepTable(matches []store.Match, query string, width int) string {
+	cells := make([][]string, len(matches))
+	statuses := make([]string, len(matches))
+	for i, m := range matches {
+		statuses[i] = taskStatusOrStray(m.Path)
+		cells[i] = []string{statuses[i], taskSlug(m.Path), strconv.Itoa(m.Line), highlight(m.Text, query)}
+	}
+	return drawTable([]string{"STATUS", "TASK", "LINE", "TEXT"}, cells, width, func(row, col int) lipgloss.Style {
+		switch col {
+		case 0:
+			return statusStyle(statuses[row])
+		case 2:
+			return cellStyle.Faint(true).Align(lipgloss.Right)
+		}
+		return cellStyle
+	})
+}
+
+// highlight marks every case-insensitive occurrence of query in text.
+func highlight(text, query string) string {
+	lower, q := strings.ToLower(text), strings.ToLower(query)
+	// lowering can change byte lengths outside ASCII; then offsets would not line up
+	if len(lower) != len(text) || q == "" {
+		return text
+	}
+	mark := lipgloss.NewStyle().Bold(true).Underline(true)
+	var b strings.Builder
+	for {
+		i := strings.Index(lower, q)
+		if i < 0 {
+			b.WriteString(text)
+			return b.String()
+		}
+		b.WriteString(text[:i])
+		b.WriteString(mark.Render(text[i : i+len(q)]))
+		text, lower = text[i+len(q):], lower[i+len(q):]
+	}
 }
 
 // openTask finds the task by slug and splits it. On failure it has already
@@ -610,7 +679,7 @@ type verdict struct {
 }
 
 func runTaskValidate(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("task validate", "nabu task validate [slug] [--json]\n\nchecks a task's body against the shape task new and task replace require: \"## For Human\" (every line at most 30 characters), ---, \"## AI memo\"; a task in dropped/ must also carry \"### Why dropped\" under For Human.\nwithout a slug every task is checked. prints one line per task; exit 1 when any task is out of shape.\nnothing is written")
+	fs := newFlagSet("task validate", "nabu task validate [slug] [--json]\n\nchecks a task's body against the shape task new and task replace require: \"## For Human\" (every line at most 30 characters), ---, \"## AI memo\"; a task in dropped/ must also carry \"### Why dropped\" under For Human.\nwithout a slug every task is checked. prints one line per task (a colored table on a terminal); exit 1 when any task is out of shape.\nnothing is written")
 	root := bindRoot(fs)
 	asJSON := fs.Bool("json", false, "print the result as JSON")
 	if ok, code := parse(fs, args, 0, 1, stdout, stderr); !ok {
@@ -638,6 +707,7 @@ func runTaskValidate(args []string, stdout, stderr io.Writer) int {
 		for _, e := range entries {
 			paths = append(paths, e.Path)
 		}
+		slices.SortStableFunc(paths, byWorkflow)
 	}
 	rows := []verdict{}
 	bad := false
@@ -656,9 +726,13 @@ func runTaskValidate(args []string, stdout, stderr io.Writer) int {
 		}
 		rows = append(rows, v)
 	}
-	if *asJSON {
+	width, tty := terminal(stdout)
+	switch {
+	case *asJSON:
 		emit(stdout, rows)
-	} else {
+	case tty && len(rows) > 0:
+		_, _ = lipgloss.Fprintln(stdout, validateTable(rows, width))
+	case !tty:
 		for _, v := range rows {
 			if v.Error == "" {
 				fmt.Fprintf(stdout, "ok    %s\n", v.Path)
@@ -671,4 +745,30 @@ func runTaskValidate(args []string, stdout, stderr io.Writer) int {
 		return exitFail
 	}
 	return exitOK
+}
+
+// validateTable renders task validate verdicts for a terminal.
+func validateTable(rows []verdict, width int) string {
+	cells := make([][]string, len(rows))
+	statuses := make([]string, len(rows))
+	for i, v := range rows {
+		statuses[i] = taskStatusOrStray(v.Path)
+		result := "ok"
+		if v.Error != "" {
+			result = "bad"
+		}
+		cells[i] = []string{result, statuses[i], taskSlug(v.Path), v.Error}
+	}
+	return drawTable([]string{"RESULT", "STATUS", "TASK", "PROBLEM"}, cells, width, func(row, col int) lipgloss.Style {
+		switch col {
+		case 0:
+			if rows[row].Error != "" {
+				return cellStyle.Foreground(lipgloss.Color("1")).Bold(true)
+			}
+			return cellStyle.Foreground(lipgloss.Color("2"))
+		case 1:
+			return statusStyle(statuses[row])
+		}
+		return cellStyle
+	})
 }

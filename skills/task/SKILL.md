@@ -21,7 +21,7 @@ nabu task set <slug> --clear-waiting         # the ball is back
 nabu task set <slug> --scheduled <RFC3339|YYYY-MM-DD> --ticket <https-url> --pr <https-url> --link <https-url>   # other metadata; --clear-* drops
 nabu task mv <slug> <inbox|doing|done|dropped>  # move a task to its status folder
 nabu task rename <slug> <new-slug>           # new slug, same status and content
-nabu task ls [status] [--json]               # what exists; waiting shows who holds the ball
+nabu task ls [status] [--json]               # status, title, created; --json adds slug, waiting, and the rest
 nabu task read <slug>                        # a task's content, any status
 nabu task grep <query> [--json]              # where something is written in tasks
 nabu task validate [slug]                    # which tasks are out of shape; nothing written

@@ -10,6 +10,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/gitt510/nabu/internal/store"
 )
 
 // created is the created line task new stamps under the clock newRoot pins.
@@ -371,7 +375,7 @@ func TestTaskStray(t *testing.T) {
 		t.Fatal(err)
 	}
 	nabu(exitFail, shaped("x", ""), "task", "new", "stray")
-	if got := nabu(exitOK, "", "task", "ls"); !strings.Contains(got, "stray  stray  Stray") {
+	if got := nabu(exitOK, "", "task", "ls"); !strings.Contains(got, "stray\tStray\t-\n") {
 		t.Fatalf("task ls stray: %q", got)
 	}
 	got := nabu(exitOK, "", "task", "mv", "stray", "inbox")
@@ -379,6 +383,52 @@ func TestTaskStray(t *testing.T) {
 		t.Fatalf("stray mv: %s", got)
 	}
 	gitClean(t, dir)
+}
+
+func TestTaskTable(t *testing.T) {
+	rows := []taskEntry{
+		{Status: "inbox", Title: "検索UI", Frontmatter: taskMeta{Created: "2026-10-06T09:00:00+09:00"}},
+		{Status: "doing", Title: "ssh"},
+	}
+	want := `╭────────┬────────┬────────────╮
+│ STATUS │ TITLE  │ CREATED    │
+├────────┼────────┼────────────┤
+│ inbox  │ 検索UI │ 2026-10-06 │
+│ doing  │ ssh    │ -          │
+╰────────┴────────┴────────────╯`
+	if got := ansi.Strip(taskTable(rows, 0)); got != want {
+		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
+	}
+	for _, line := range strings.Split(ansi.Strip(taskTable(rows, 28)), "\n") {
+		if w := ansi.StringWidth(line); w > 28 {
+			t.Fatalf("line is %d cells wide, over 28: %s", w, line)
+		}
+	}
+}
+
+func TestGrepAndValidateTables(t *testing.T) {
+	got := ansi.Strip(grepTable([]store.Match{{Path: "tasks/doing/wait.md", Line: 15, Text: "Ping them"}}, "ping", 0))
+	want := `╭────────┬──────┬──────┬───────────╮
+│ STATUS │ TASK │ LINE │ TEXT      │
+├────────┼──────┼──────┼───────────┤
+│ doing  │ wait │   15 │ Ping them │
+╰────────┴──────┴──────┴───────────╯`
+	if got != want {
+		t.Fatalf("grep:\n%s\nwant:\n%s", got, want)
+	}
+	if h := highlight("Ping them, ping", "PING"); ansi.Strip(h) != "Ping them, ping" || strings.Count(h, "\x1b[") < 2 {
+		t.Fatalf("highlight: %q", h)
+	}
+	got = ansi.Strip(validateTable([]verdict{{Path: "tasks/inbox/ok.md"}, {Path: "tasks/x.md", Error: "no ## For Human"}}, 0))
+	want = `╭────────┬────────┬──────┬─────────────────╮
+│ RESULT │ STATUS │ TASK │ PROBLEM         │
+├────────┼────────┼──────┼─────────────────┤
+│ ok     │ inbox  │ ok   │                 │
+│ bad    │ stray  │ x    │ no ## For Human │
+╰────────┴────────┴──────┴─────────────────╯`
+	if got != want {
+		t.Fatalf("validate:\n%s\nwant:\n%s", got, want)
+	}
 }
 
 func TestTaskReadLsGrepViaCLI(t *testing.T) {
@@ -398,10 +448,10 @@ func TestTaskReadLsGrepViaCLI(t *testing.T) {
 		t.Fatalf("read: %q", got)
 	}
 	nabu(exitFail, "", "task", "read", "missing")
-	if got := nabu(exitOK, "", "task", "ls"); got != "doing  wait   Wait   waiting: their reply\ninbox  other  Other\n" {
+	if got := nabu(exitOK, "", "task", "ls"); got != "inbox\tOther\t2026-10-06\ndoing\tWait\t2026-10-06\n" {
 		t.Fatalf("ls: %q", got)
 	}
-	if got := nabu(exitOK, "", "task", "ls", "inbox"); got != "inbox  other  Other\n" {
+	if got := nabu(exitOK, "", "task", "ls", "inbox"); got != "inbox\tOther\t2026-10-06\n" {
 		t.Fatalf("ls inbox: %q", got)
 	}
 	if got := nabu(exitOK, "", "task", "ls", "dropped"); got != "" {
@@ -483,7 +533,7 @@ func TestTaskValidateViaCLI(t *testing.T) {
 	if code := run([]string{"task", "validate", "--root", dir}, strings.NewReader(""), &out, &errb); code != exitFail {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
-	if got := out.String(); got != "bad   tasks/doing/old.md: body has no \"## For Human\" section\nok    tasks/inbox/ok.md\n" {
+	if got := out.String(); got != "ok    tasks/inbox/ok.md\nbad   tasks/doing/old.md: body has no \"## For Human\" section\n" {
 		t.Fatalf("all: %q", got)
 	}
 	out.Reset()
@@ -527,7 +577,7 @@ func TestTaskDroppedViaCLI(t *testing.T) {
 	if !strings.Contains(got, `"to": "tasks/dropped/t.md"`) {
 		t.Fatalf("mv: %q", got)
 	}
-	if got := nabu(exitOK, "", "task", "ls", "dropped"); got != "dropped  t  T\n" {
+	if got := nabu(exitOK, "", "task", "ls", "dropped"); got != "dropped\tT\t2026-10-06\n" {
 		t.Fatalf("ls: %q", got)
 	}
 
