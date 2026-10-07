@@ -22,7 +22,7 @@ const tasks = JSON.parse(read("data.json")).map((r) => {
     title: r.title,
     frontmatter,
     html: marked.parse(body),
-    text: [r.title, r.slug, frontmatter.waiting ?? "", ...(frontmatter.tags ?? []), body].join("\n").toLowerCase(),
+    text: [r.title, r.slug, frontmatter.waiting ?? "", frontmatter.project ?? "", body].join("\n").toLowerCase(),
   };
 });
 // doing, inbox, done, stray; inside a status, scheduled tasks by time, then the rest by slug
@@ -65,7 +65,7 @@ ${css}
   </header>
   <aside class="side" id="side">
     <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search" autocomplete="off" aria-label="Search"></label>
-    <div class="tags" id="tags" hidden></div>
+    <div class="facets" id="facets"></div>
     <ul class="tree" id="tree"></ul>
     <div class="side-foot">built ${built}</div>
   </aside>

@@ -16,7 +16,7 @@ import (
 )
 
 // created is the created line task new stamps under the clock newRoot pins.
-const created = "created: \"2026-10-06T09:00:00+09:00\"\n"
+const created = "created: \"2026-10-06T09:00:00+09:00\"\narea: \"work\"\n"
 
 // newRoot returns an initialized root with a git identity, plus a
 // runner that invokes nabu against it and fails the test on the wrong
@@ -109,19 +109,22 @@ func TestNoRootExits2(t *testing.T) {
 func TestTaskNewViaCLI(t *testing.T) {
 	dir, nabu := newRoot(t)
 	for _, args := range [][]string{
-		{"task", "new", "Bad Slug", "--content", "# x"},
-		{"task", "new", "a/b", "--content", "# x"},
-		{"task", "new", "ok", "--content", "# x", "--scheduled", "2026-09-15T18:00"},
-		{"task", "new", "ok", "--content", "# x", "--ticket", "#7"},
-		{"task", "new", "ok", "--content", "# x", "--ticket", "http://example.com/1"},
-		{"task", "new", "ok", "--content", "# x", "--pr", "http://example.com/1"},
-		{"task", "new", "ok", "--content", "# x", "--link", "example.com"},
-		{"task", "new", "ok", "--content", "---\na: b\n---\n# x", "--ticket", "https://example.com/1"},
+		{"task", "new", "Bad Slug", "--area", "work", "--content", "# x"},
+		{"task", "new", "a/b", "--area", "work", "--content", "# x"},
+		{"task", "new", "ok", "--area", "work", "--content", "# x", "--scheduled", "2026-09-15T18:00"},
+		{"task", "new", "ok", "--area", "work", "--content", "# x", "--ticket", "#7"},
+		{"task", "new", "ok", "--area", "work", "--content", "# x", "--ticket", "http://example.com/1"},
+		{"task", "new", "ok", "--area", "work", "--content", "# x", "--pr", "http://example.com/1"},
+		{"task", "new", "ok", "--area", "work", "--content", "# x", "--link", "example.com"},
+		{"task", "new", "ok", "--area", "work", "--content", "---\na: b\n---\n# x", "--ticket", "https://example.com/1"},
+		{"task", "new", "ok", "--content", shaped("Ok", "")},
+		{"task", "new", "ok", "--area", "life", "--content", shaped("Ok", "")},
+		{"task", "new", "ok", "--area", "work", "--project", "Bad Project", "--content", shaped("Ok", "")},
 	} {
 		nabu(exitUsage, "", args...)
 	}
 	body := shaped("Retire legacy domain", "- [ ] delete it\n")
-	args := []string{"task", "new", "retire-legacy",
+	args := []string{"task", "new", "retire-legacy", "--area", "work",
 		"--scheduled", "2026-09-15T18:00:00+09:00",
 		"--ticket", "https://github.com/o/r/issues/7", "--ticket", "https://github.com/o/r/issues/8",
 		"--link", "https://example.com/doc", "--pr", "https://github.com/o/r/pull/9"}
@@ -138,7 +141,7 @@ func TestTaskNewViaCLI(t *testing.T) {
 		t.Fatalf("got:\n%s\nwant:\n%s", saved, want)
 	}
 	nabu(exitFail, body, args...)
-	nabu(exitOK, "", "task", "new", "plain", "--content", shaped("Plain", ""))
+	nabu(exitOK, "", "task", "new", "plain", "--area", "work", "--content", shaped("Plain", ""))
 	if saved, _ := os.ReadFile(filepath.Join(dir, "tasks", "inbox", "plain.md")); string(saved) != "---\n"+created+"---\n"+shaped("Plain", "") {
 		t.Fatalf("task without flags: %q", saved)
 	}
@@ -149,7 +152,7 @@ func TestTaskNewViaCLI(t *testing.T) {
 
 func TestTaskMvViaCLI(t *testing.T) {
 	dir, nabu := newRoot(t)
-	nabu(exitOK, "", "task", "new", "ship", "--content", shaped("Ship", ""))
+	nabu(exitOK, "", "task", "new", "ship", "--area", "work", "--content", shaped("Ship", ""))
 	for _, args := range [][]string{
 		{"task", "mv", "ship", "progress"},
 		{"task", "mv", "Bad Slug", "doing"},
@@ -167,7 +170,7 @@ func TestTaskMvViaCLI(t *testing.T) {
 		t.Fatal("source still exists")
 	}
 	// the slug is taken whatever its status
-	nabu(exitFail, "", "task", "new", "ship", "--content", shaped("Ship", ""))
+	nabu(exitFail, "", "task", "new", "ship", "--area", "work", "--content", shaped("Ship", ""))
 	nabu(exitOK, "", "task", "mv", "ship", "done")
 	gitClean(t, dir)
 	log, _ := exec.Command("git", "-C", dir, "log", "-1", "--format=%s").Output()
@@ -178,8 +181,8 @@ func TestTaskMvViaCLI(t *testing.T) {
 
 func TestTaskRenameViaCLI(t *testing.T) {
 	dir, nabu := newRoot(t)
-	nabu(exitOK, "", "task", "new", "ship", "--content", shaped("Ship", ""), "--ticket", "https://example.com/1")
-	nabu(exitOK, "", "task", "new", "sail", "--content", shaped("Sail", ""))
+	nabu(exitOK, "", "task", "new", "ship", "--area", "work", "--content", shaped("Ship", ""), "--ticket", "https://example.com/1")
+	nabu(exitOK, "", "task", "new", "sail", "--area", "work", "--content", shaped("Sail", ""))
 	nabu(exitOK, "", "task", "mv", "ship", "doing")
 	for _, args := range [][]string{
 		{"task", "rename", "ship"},
@@ -201,7 +204,7 @@ func TestTaskRenameViaCLI(t *testing.T) {
 	if !strings.Contains(read, "https://example.com/1") || !strings.Contains(read, "# Ship") {
 		t.Fatalf("content changed: %q", read)
 	}
-	nabu(exitOK, "", "task", "new", "ship", "--content", shaped("Ship", "")) // the old slug is free again
+	nabu(exitOK, "", "task", "new", "ship", "--area", "work", "--content", shaped("Ship", "")) // the old slug is free again
 	gitClean(t, dir)
 	log, _ := exec.Command("git", "-C", dir, "log", "-2", "--format=%s").Output()
 	if !strings.Contains(string(log), "nabu: task rename tasks/doing/ship.md -> tasks/doing/launch.md") {
@@ -308,7 +311,7 @@ func TestPushViaCLI(t *testing.T) {
 			t.Fatalf("git %v: %s", args, out)
 		}
 	}
-	nabu(0, shaped("A", ""), "task", "new", "a")
+	nabu(0, shaped("A", ""), "task", "new", "a", "--area", "work")
 	if out, err := exec.Command("git", "-C", dir, "push", "-q", "-u", "origin", "main").CombinedOutput(); err != nil {
 		t.Fatalf("git push -u: %s", out)
 	}
@@ -334,7 +337,7 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 		}
 		return string(b)
 	}
-	nabu(exitOK, shaped("Wait", "- [ ] send\n"), "task", "new", "wait", "--ticket", "https://example.com/1")
+	nabu(exitOK, shaped("Wait", "- [ ] send\n"), "task", "new", "wait", "--area", "work", "--ticket", "https://example.com/1")
 	nabu(exitOK, "", "task", "set", "wait", "--waiting", "担当者からの LINE 返信", "--scheduled", "2026-10-02T10:00:00+09:00", "--ticket", "https://example.com/2", "--ticket", "https://example.com/1", "--pr", "https://example.com/pull/3", "--link", "https://example.com/4")
 	want := "---\n" + created + "scheduled: \"2026-10-02T10:00:00+09:00\"\nwaiting: \"担当者からの LINE 返信\"\ntickets:\n  - \"https://example.com/1\"\n  - \"https://example.com/2\"\nprs:\n  - \"https://example.com/pull/3\"\nlinks:\n  - \"https://example.com/4\"\n---\n" + shaped("Wait", "- [ ] send\n")
 	if got := read(); got != want {
@@ -345,12 +348,13 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 	if got := read(); got != want {
 		t.Fatalf("after replace:\n%s\nwant:\n%s", got, want)
 	}
-	nabu(exitOK, "", "task", "set", "wait", "--tag", "infra", "--tag", "dns", "--tag", "infra")
-	want = strings.Replace(want, "waiting: \"担当者からの LINE 返信\"\n", "waiting: \"担当者からの LINE 返信\"\ntags:\n  - \"infra\"\n  - \"dns\"\n", 1)
+	nabu(exitOK, "", "task", "set", "wait", "--area", "personal", "--project", "nabu")
+	want = strings.Replace(want, "area: \"work\"\n", "area: \"personal\"\nproject: \"nabu\"\n", 1)
 	if got := read(); got != want {
-		t.Fatalf("after tags:\n%s\nwant:\n%s", got, want)
+		t.Fatalf("after area and project:\n%s\nwant:\n%s", got, want)
 	}
-	nabu(exitOK, "", "task", "set", "wait", "--clear-tags")
+	nabu(exitOK, "", "task", "set", "wait", "--area", "work", "--clear-project")
+	want = strings.Replace(want, "area: \"personal\"\nproject: \"nabu\"\n", "area: \"work\"\n", 1)
 	nabu(exitOK, "", "task", "set", "wait", "--clear-tickets", "--clear-links")
 	if got := read(); got != "---\n"+created+"scheduled: \"2026-10-02T10:00:00+09:00\"\nwaiting: \"担当者からの LINE 返信\"\nprs:\n  - \"https://example.com/pull/3\"\n---\n"+shaped("Wait", "- [x] send\n") {
 		t.Fatalf("after clearing two lists:\n%s", got)
@@ -369,15 +373,16 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 		{"task", "set", "wait"},
 		{"task", "set", "wait", "--waiting", "x", "--clear-waiting"},
 		{"task", "set", "wait", "--waiting", "  "},
-		{"task", "set", "wait", "--tag", "Infra"},
-		{"task", "set", "wait", "--tag", "a b"},
+		{"task", "set", "wait", "--area", "life"},
+		{"task", "set", "wait", "--project", "Nabu"},
+		{"task", "set", "wait", "--project", "x", "--clear-project"},
 		{"task", "set", "wait", "--scheduled", "2026-10-02T10:00"},
 		{"task", "set", "wait", "--scheduled", "2026-10-2"},
 		{"task", "set", "wait", "--ticket", "http://example.com/1"},
 		{"task", "set", "wait", "--pr", "http://example.com/1"},
 		{"task", "set", "wait", "--link", "ftp://example.com/1"},
 		{"task", "replace", "wait", "--content", "---\nwaiting: \"x\"\n---\n# Wait\n"},
-		{"task", "new", "other", "--content", "---\nwaiting: \"x\"\n---\n# Other\n"},
+		{"task", "new", "other", "--area", "work", "--content", "---\nwaiting: \"x\"\n---\n# Other\n"},
 	} {
 		nabu(exitUsage, "", args...)
 	}
@@ -392,12 +397,12 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 
 func TestTaskStray(t *testing.T) {
 	dir, nabu := newRoot(t)
-	nabu(exitOK, shaped("Wait", ""), "task", "new", "wait")
+	nabu(exitOK, shaped("Wait", ""), "task", "new", "wait", "--area", "work")
 	// a task dropped into tasks/ by hand is on disk but not in the index
 	if err := os.WriteFile(filepath.Join(dir, "tasks", "stray.md"), []byte("# Stray\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	nabu(exitFail, shaped("x", ""), "task", "new", "stray")
+	nabu(exitFail, shaped("x", ""), "task", "new", "stray", "--area", "work")
 	if got := nabu(exitOK, "", "task", "ls"); !strings.Contains(got, "stray\tStray\t-\n") {
 		t.Fatalf("task ls stray: %q", got)
 	}
@@ -456,8 +461,8 @@ func TestGrepAndValidateTables(t *testing.T) {
 
 func TestTaskReadLsGrepViaCLI(t *testing.T) {
 	dir, nabu := newRoot(t)
-	nabu(exitOK, shaped("Wait", "ping them\n"), "task", "new", "wait", "--ticket", "https://example.com/1")
-	nabu(exitOK, shaped("Other", ""), "task", "new", "other")
+	nabu(exitOK, shaped("Wait", "ping them\n"), "task", "new", "wait", "--area", "work", "--ticket", "https://example.com/1")
+	nabu(exitOK, shaped("Other", ""), "task", "new", "other", "--area", "work")
 	nabu(exitOK, "", "task", "mv", "wait", "doing")
 	nabu(exitOK, "", "task", "set", "wait", "--waiting", "their reply")
 	// a file outside tasks/ is not a task and stays out of task grep
@@ -493,7 +498,7 @@ func TestTaskReadLsGrepViaCLI(t *testing.T) {
 	if strings.Contains(got, `"scheduled"`) {
 		t.Fatalf("ls --json prints empty scheduled: %s", got)
 	}
-	if got := nabu(exitOK, "", "task", "grep", "PING"); got != "tasks/doing/wait.md:15: ping them\n" {
+	if got := nabu(exitOK, "", "task", "grep", "PING"); got != "tasks/doing/wait.md:16: ping them\n" {
 		t.Fatalf("grep: %q", got)
 	}
 	if got := nabu(exitOK, "", "task", "grep", "nothing-here", "--json"); strings.TrimSpace(got) != "[]" {
@@ -518,7 +523,7 @@ func TestTaskShape(t *testing.T) {
 		"# T\n## For Human\n---\n## AI memo\n",
 		head + tail + "\n## For Human\n",
 	} {
-		nabu(exitOK, body, "task", "new", "ok"+strconv.Itoa(i))
+		nabu(exitOK, body, "task", "new", "ok"+strconv.Itoa(i), "--area", "work")
 	}
 	for _, body := range []string{
 		"# T\n\n- [ ] x\n",
@@ -529,17 +534,17 @@ func TestTaskShape(t *testing.T) {
 		head + "- [ ] " + strings.Repeat("a", 25) + tail,
 		head + "### " + strings.Repeat("a", 27) + tail,
 	} {
-		nabu(exitUsage, body, "task", "new", "bad")
+		nabu(exitUsage, body, "task", "new", "bad", "--area", "work")
 		nabu(exitUsage, body, "task", "replace", "ok0")
 	}
-	if got := nabu(exitUsage, head+strings.Repeat("あ", 31)+tail, "task", "new", "bad"); got != "" {
+	if got := nabu(exitUsage, head+strings.Repeat("あ", 31)+tail, "task", "new", "bad", "--area", "work"); got != "" {
 		t.Fatalf("stdout on refusal: %q", got)
 	}
 }
 
 func TestTaskValidateViaCLI(t *testing.T) {
 	dir, nabu := newRoot(t)
-	nabu(exitOK, shaped("Ok", ""), "task", "new", "ok")
+	nabu(exitOK, shaped("Ok", ""), "task", "new", "ok", "--area", "work")
 	if err := os.MkdirAll(filepath.Join(dir, "tasks", "doing"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -568,6 +573,13 @@ func TestTaskValidateViaCLI(t *testing.T) {
 	}
 	nabu(exitFail, "", "task", "validate", "missing")
 	nabu(exitUsage, "", "task", "validate", "Bad Slug")
+	// a shaped body without an area is out of shape too
+	if err := os.WriteFile(filepath.Join(dir, "tasks", "doing", "old.md"), []byte(shaped("Old", "")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := nabu(exitFail, "", "task", "validate", "old"); !strings.Contains(got, "bad   tasks/doing/old.md: frontmatter has no area") {
+		t.Fatalf("no area: %q", got)
+	}
 }
 
 func TestTaskDroppedViaCLI(t *testing.T) {
@@ -575,7 +587,7 @@ func TestTaskDroppedViaCLI(t *testing.T) {
 	head := "# T\n\n## For Human\n\n"
 	tail := "\n---\n\n## AI memo\n\nlong story\n"
 	why := head + "### Why dropped\n\n- 主導権が自分にない\n" + tail
-	nabu(exitOK, shaped("T", ""), "task", "new", "t")
+	nabu(exitOK, shaped("T", ""), "task", "new", "t", "--area", "work")
 
 	// mv to dropped is refused until the body says why
 	var out, errb bytes.Buffer
@@ -611,7 +623,7 @@ func TestTaskDroppedViaCLI(t *testing.T) {
 	}
 
 	// the heading is allowed, not required, in any other status
-	nabu(exitOK, why, "task", "new", "u")
+	nabu(exitOK, why, "task", "new", "u", "--area", "work")
 	gitClean(t, dir)
 
 	if err := os.WriteFile(filepath.Join(dir, "tasks", "dropped", "t.md"), []byte(shaped("T", "")), 0o644); err != nil {

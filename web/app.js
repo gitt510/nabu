@@ -6,8 +6,8 @@ const tree = $("tree");
 const doc = $("doc");
 const q = $("q");
 const main = document.querySelector(".main");
-const tagBar = $("tags");
-const picked = new Set(); // tags a task must all carry to stay in the tree
+const facets = $("facets");
+const pick = { area: "", project: "" }; // "" lets every task through
 
 // scheduled is RFC3339 with an offset, or a date alone (YYYY-MM-DD) for the whole day in Asia/Tokyo
 const dateOnly = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -128,7 +128,7 @@ function select(slug, push = true) {
   const fm = t.frontmatter;
   if (fm.scheduled) meta.append(el("div", {}, el("dt", {}, "期日"), el("dd", {}, fmt(fm.scheduled))));
   if (fm.waiting) meta.append(el("div", {}, el("dt", {}, "待ち"), el("dd", {}, fm.waiting)));
-  if (fm.tags?.length) meta.append(el("div", {}, el("dt", {}, "tag"), el("dd", {}, ...fm.tags.map((g) => el("button", { class: "tag", type: "button", onclick: () => pickTag(g) }, g)))));
+  for (const key of ["area", "project"]) if (fm[key]) meta.append(el("div", {}, el("dt", {}, key), el("dd", {}, el("button", { class: "chip", type: "button", title: `${fm[key]} で絞り込む`, onclick: () => narrowTo(fm.area, key === "project" ? fm.project : "") }, fm[key]))));
   for (const [key, label] of [["tickets", "ticket"], ["prs", "pr"], ["links", "link"]]) {
     if (fm[key]?.length) meta.append(el("div", {}, el("dt", {}, label), el("dd", {}, ...fm[key].map((u) => el("a", { href: u, target: "_blank", rel: "noopener" }, ticket(u))))));
   }
@@ -150,27 +150,31 @@ function step(delta) {
 
 function filter() {
   const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const keep = (t) => words.every((w) => t.text.includes(w)) && [...picked].every((g) => t.frontmatter.tags?.includes(g));
+  const keep = (t) => words.every((w) => t.text.includes(w)) && (!pick.area || t.frontmatter.area === pick.area) && (!pick.project || t.frontmatter.project === pick.project);
   for (const b of tree.querySelectorAll(".file")) if (b.dataset.slug) b.parentElement.classList.toggle("hidden", !keep(byId[b.dataset.slug]));
   for (const dir of tree.querySelectorAll(".dir:not(.home)")) {
     const n = dir.querySelectorAll("li:not(.hidden)").length;
     dir.querySelector(".n").textContent = String(n);
     dir.classList.toggle("hidden", n === 0);
-    if (words.length || picked.size) dir.classList.remove("closed");
+    if (words.length || pick.area || pick.project) dir.classList.remove("closed");
   }
 }
 
-// ---- tags: every tag in use, as toggles under the search box ----------------
-const allTags = [...new Set(tasks.flatMap((t) => t.frontmatter.tags ?? []))].sort();
-function renderTags() {
-  tagBar.hidden = !allTags.length;
-  tagBar.replaceChildren(...allTags.map((g) => el("button", { class: "tag", type: "button", "aria-pressed": String(picked.has(g)), onclick: () => pickTag(g, true) }, g)));
+// ---- facets: area, then the projects in it, under the search box -----------
+// Each is a single choice; pressing the chosen one again lets everything through.
+const AREAS = ["work", "personal"];
+function renderFacets() {
+  const chip = (label, on, onclick) => el("button", { class: "chip", type: "button", "aria-pressed": String(on), onclick }, label);
+  const projects = [...new Set(tasks.filter((t) => !pick.area || t.frontmatter.area === pick.area).map((t) => t.frontmatter.project).filter(Boolean))].sort();
+  facets.replaceChildren(
+    el("div", { class: "facet" }, ...AREAS.map((a) => chip(a, pick.area === a, () => narrowTo(pick.area === a ? "" : a, "")))),
+    el("div", { class: "facet" }, ...projects.map((p) => chip(p, pick.project === p, () => narrowTo(pick.area, pick.project === p ? "" : p)))),
+  );
 }
-// toggle from the bar; from a task's meta, narrow to that tag alone
-function pickTag(g, toggle = false) {
-  if (toggle) picked.has(g) ? picked.delete(g) : picked.add(g);
-  else { picked.clear(); picked.add(g); }
-  renderTags();
+function narrowTo(area, project) {
+  pick.area = area;
+  pick.project = project;
+  renderFacets();
   filter();
 }
 
@@ -194,7 +198,7 @@ const shortcuts = [
   { group: "その他" },
   { key: "?", label: "この一覧", run: () => toggle($("help")) },
   { key: ",", label: "設定", run: () => toggle($("settings")) },
-  { key: "Esc", label: "検索と tag を消す / dialog を閉じる", tree: true },
+  { key: "Esc", label: "検索と area / project の絞り込みを消す / dialog を閉じる", tree: true },
 ];
 const toggle = (d) => (d.open ? d.close() : d.showModal());
 let pendingG = false;
@@ -203,7 +207,7 @@ document.addEventListener("keydown", (e) => {
   if (e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
   if (document.querySelector("dialog[open]")) return; // dialog handles Esc itself
   if (inTextField(e)) {
-    if (e.key === "Escape") { if (q.value || picked.size) { q.value = ""; picked.clear(); renderTags(); filter(); } else focusFile(0); }
+    if (e.key === "Escape") { if (q.value || pick.area || pick.project) { q.value = ""; narrowTo("", ""); } else focusFile(0); }
     if (e.key === "Enter" && e.target === q) { e.preventDefault(); focusFile(0); }
     return;
   }
@@ -265,7 +269,7 @@ const closeSide = () => { if (side.matches(":popover-open")) side.hidePopover();
 
 // ---- boot -------------------------------------------------------------------
 renderTree();
-renderTags();
+renderFacets();
 main.tabIndex = -1;
 q.addEventListener("input", filter);
 window.addEventListener("hashchange", () => select(location.hash.slice(1), false));
