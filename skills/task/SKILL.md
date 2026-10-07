@@ -101,9 +101,12 @@ nabu task validate [slug]                    # which tasks are out of shape; not
    `doing/` and run `nabu task set <slug> --waiting "<who or what>"`;
    `--clear-waiting` when the ball is back. Do not write the wait into the
    body as well.
-6. **Report the path.** After a write, tell the user the relative path nabu
-   printed (`task new`, `replace`, and `set` print `path`; `task mv` and `task
-   rename` print `from` and `to`).
+6. **Report the path and the frontmatter.** After a write, tell the user the
+   relative path nabu printed (`task new`, `replace`, and `set` print `path`;
+   `task mv` and `task rename` print `from` and `to`). After `task new` and
+   `task set`, also show the `frontmatter` nabu printed, as a YAML block in
+   the order nabu writes it, so the user can correct an `area` or `project`
+   you chose on the spot.
 7. **Repair with `task mv`.** A task that `task ls` shows as `stray`
    (a `tasks/<slug>.md` outside every status folder) moves with
    `nabu task mv <slug> inbox`. A
