@@ -345,6 +345,12 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 	if got := read(); got != want {
 		t.Fatalf("after replace:\n%s\nwant:\n%s", got, want)
 	}
+	nabu(exitOK, "", "task", "set", "wait", "--tag", "infra", "--tag", "dns", "--tag", "infra")
+	want = strings.Replace(want, "waiting: \"担当者からの LINE 返信\"\n", "waiting: \"担当者からの LINE 返信\"\ntags:\n  - \"infra\"\n  - \"dns\"\n", 1)
+	if got := read(); got != want {
+		t.Fatalf("after tags:\n%s\nwant:\n%s", got, want)
+	}
+	nabu(exitOK, "", "task", "set", "wait", "--clear-tags")
 	nabu(exitOK, "", "task", "set", "wait", "--clear-tickets", "--clear-links")
 	if got := read(); got != "---\n"+created+"scheduled: \"2026-10-02T10:00:00+09:00\"\nwaiting: \"担当者からの LINE 返信\"\nprs:\n  - \"https://example.com/pull/3\"\n---\n"+shaped("Wait", "- [x] send\n") {
 		t.Fatalf("after clearing two lists:\n%s", got)
@@ -363,6 +369,8 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 		{"task", "set", "wait"},
 		{"task", "set", "wait", "--waiting", "x", "--clear-waiting"},
 		{"task", "set", "wait", "--waiting", "  "},
+		{"task", "set", "wait", "--tag", "Infra"},
+		{"task", "set", "wait", "--tag", "a b"},
 		{"task", "set", "wait", "--scheduled", "2026-10-02T10:00"},
 		{"task", "set", "wait", "--scheduled", "2026-10-2"},
 		{"task", "set", "wait", "--ticket", "http://example.com/1"},
