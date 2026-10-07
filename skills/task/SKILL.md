@@ -14,10 +14,11 @@ for the contract; this file only says how to use it well.
 ## Commands
 
 ```bash
-nabu task new <slug> [--scheduled <RFC3339|YYYY-MM-DD>] [--ticket <https-url>]... [--pr <https-url>]... [--link <https-url>]...  # tasks/inbox/<slug>.md, body on stdin
+nabu task new <slug> [--scheduled <RFC3339|YYYY-MM-DD>] [--tag <kebab>]... [--ticket <https-url>]... [--pr <https-url>]... [--link <https-url>]...  # tasks/inbox/<slug>.md, body on stdin
 nabu task replace <slug>                     # new body on stdin; frontmatter is kept
 nabu task set <slug> --waiting "<who/what>"  # the ball is with someone else
 nabu task set <slug> --clear-waiting         # the ball is back
+nabu task set <slug> --tag <kebab>              # topic tag; --clear-tags drops all
 nabu task set <slug> --scheduled <RFC3339|YYYY-MM-DD> --ticket <https-url> --pr <https-url> --link <https-url>   # other metadata; --clear-* drops
 nabu task mv <slug> <inbox|doing|done|dropped>  # move a task to its status folder
 nabu task rename <slug> <new-slug>           # new slug, same status and content
@@ -36,7 +37,9 @@ nabu task validate [slug]                    # which tasks are out of shape; not
    nabu refuses any other. Metadata goes through flags, never hand-written
    in the body: `--scheduled` is the time the work is planned to happen
    (RFC3339 with offset, or `YYYY-MM-DD` when only the day is decided;
-   not a deadline). Do not invent a time the user did not give. URLs are full `https` and
+   not a deadline). Do not invent a time the user did not give. `--tag`
+   groups tasks by topic (lowercase kebab-case); reuse a tag already in
+   `task ls --json` rather than coining a near-duplicate. URLs are full `https` and
    repeatable, sorted by what they point at, whoever opened them and
    whatever they are to this task: `--ticket` is a work item (an issue,
    a Wrike task, a Zendesk request), `--pr` is a pull request, `--link`

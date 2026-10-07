@@ -96,6 +96,16 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 }
 .search input::placeholder { color: var(--fg-3); }
 .search input::-webkit-search-cancel-button { appearance: none; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.tags[hidden] { display: none; }
+.tag {
+  font: inherit; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0; line-height: 1.6;
+  color: var(--fg-2); background: var(--bg); border: 1px solid var(--line); border-radius: 999px;
+  padding: 0 8px; cursor: pointer;
+}
+.tag:hover { background: var(--bg-hover); color: var(--fg); }
+.tag[aria-pressed="true"] { background: var(--fg); border-color: var(--fg); color: var(--bg); }
+.meta dd .tag + .tag { margin-left: 4px; }
 .tree { flex: 1; overflow-y: auto; padding: 8px 0 16px; }
 .dir { list-style: none; margin: 0; padding: 0; }
 .dir-name {

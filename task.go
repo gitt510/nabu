@@ -21,19 +21,20 @@ import (
 // meta is a task's frontmatter. created is when task new filed the task,
 // stamped by nabu and never changed; scheduled is the time the work is
 // planned to happen, waiting names who or what the next action waits on (while it
-// is set the ball is with someone else). The three URL lists are told
+// is set the ball is with someone else). tags group tasks by topic, each
+// a lowercase kebab-case word chosen by the user. The three URL lists are told
 // apart by what the URL points at, so the choice is mechanical: tickets
 // are work items (an issue, a Wrike task, a Zendesk request), prs are
 // pull requests, links are everything else (a repo, an article, a post).
 type meta struct {
 	created, scheduled, waiting string
-	tickets, prs, links         []string
+	tags, tickets, prs, links   []string
 }
 
 // now is the clock task new stamps created with; tests pin it.
 var now = time.Now
 
-// lists names the URL lists in the order render writes them.
+// lists names the list fields in the order render writes them.
 func (m *meta) lists() []struct {
 	key string
 	v   *[]string
@@ -41,13 +42,13 @@ func (m *meta) lists() []struct {
 	return []struct {
 		key string
 		v   *[]string
-	}{{"tickets", &m.tickets}, {"prs", &m.prs}, {"links", &m.links}}
+	}{{"tags", &m.tags}, {"tickets", &m.tickets}, {"prs", &m.prs}, {"links", &m.links}}
 }
 
 // render writes the YAML block, or "" when every field is empty so a plain
 // task stays a plain file. Only this function writes task frontmatter.
 func (m meta) render() string {
-	if m.created == "" && m.scheduled == "" && m.waiting == "" && len(m.tickets) == 0 && len(m.prs) == 0 && len(m.links) == 0 {
+	if m.created == "" && m.scheduled == "" && m.waiting == "" && len(m.tags) == 0 && len(m.tickets) == 0 && len(m.prs) == 0 && len(m.links) == 0 {
 		return ""
 	}
 	var b strings.Builder
@@ -153,13 +154,13 @@ func taskCmd(e *env) *cobra.Command {
 }
 
 func taskNewCmd(e *env) *cobra.Command {
-	var tk, pr, ln []string
+	var tags, tk, pr, ln []string
 	var content string
 	var scheduled string
 	cmd := &cobra.Command{
 		Use:     "new <slug>",
 		Short:   "create tasks/inbox/<slug>.md",
-		Long:    "creates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter, with created stamped as now; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (every line at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline: RFC3339 with an offset, or a date (YYYY-MM-DD) for the whole day.\n" + urlFlagsHelp,
+		Long:    "creates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter, with created stamped as now; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (every line at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline: RFC3339 with an offset, or a date (YYYY-MM-DD) for the whole day.\n--tag groups the task by topic: a lowercase kebab-case word.\n" + urlFlagsHelp,
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
@@ -168,7 +169,7 @@ func taskNewCmd(e *env) *cobra.Command {
 				return fail(e.stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
 			}
 			m := meta{created: now().Format(time.RFC3339), scheduled: scheduled}
-			if err := m.add(tk, pr, ln); err != nil {
+			if err := m.add(tags, tk, pr, ln); err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
 			if err := m.check(); err != nil {
@@ -196,6 +197,7 @@ func taskNewCmd(e *env) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&content, "content", "", "task body; stdin is read when omitted")
 	cmd.Flags().StringVar(&scheduled, "scheduled", "", "planned work time, RFC3339 with offset (2026-09-15T18:00:00+09:00) or a date for the whole day (2026-09-15)")
+	cmd.Flags().StringArrayVar(&tags, "tag", nil, "topic tag, lowercase kebab-case; repeatable")
 	cmd.Flags().StringArrayVar(&tk, "ticket", nil, "work item URL: issue, Wrike, Zendesk (`https-url`); repeatable")
 	cmd.Flags().StringArrayVar(&pr, "pr", nil, "pull request URL (`https-url`); repeatable")
 	cmd.Flags().StringArrayVar(&ln, "link", nil, "any other URL: repo, article, post (`https-url`); repeatable")
@@ -232,22 +234,23 @@ func taskReplaceCmd(e *env) *cobra.Command {
 }
 
 func taskSetCmd(e *env) *cobra.Command {
-	var tk, pr, ln []string
+	var tags, tk, pr, ln []string
 	var scheduled string
 	var clearScheduled bool
 	var waiting string
 	var clearWaiting bool
+	var clearTags bool
 	var clearTickets bool
 	var clearPrs bool
 	var clearLinks bool
 	cmd := &cobra.Command{
 		Use:     "set <slug>",
-		Short:   "change a task's frontmatter (scheduled, waiting, tickets, prs, links)",
-		Long:    "rewrites the frontmatter of a task in any status folder; the body is kept as is (see task replace).\n--waiting names who or what the next action waits on: while it is set the ball is with someone else, so the task stays in doing/.\n--ticket, --pr and --link add to their list; the matching --clear-* empties it first.\n" + urlFlagsHelp,
+		Short:   "change a task's frontmatter (scheduled, waiting, tags, tickets, prs, links)",
+		Long:    "rewrites the frontmatter of a task in any status folder; the body is kept as is (see task replace).\n--waiting names who or what the next action waits on: while it is set the ball is with someone else, so the task stays in doing/.\n--tag, --ticket, --pr and --link add to their list; the matching --clear-* empties it first.\n" + urlFlagsHelp,
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
-			if scheduled == "" && !clearScheduled && waiting == "" && !clearWaiting && len(tk) == 0 && !clearTickets && len(pr) == 0 && !clearPrs && len(ln) == 0 && !clearLinks {
+			if scheduled == "" && !clearScheduled && waiting == "" && !clearWaiting && len(tags) == 0 && !clearTags && len(tk) == 0 && !clearTickets && len(pr) == 0 && !clearPrs && len(ln) == 0 && !clearLinks {
 				return fail(e.stderr, errors.New("nothing to set: pass at least one frontmatter flag"), exitUsage)
 			}
 			if (scheduled != "" && clearScheduled) || (waiting != "" && clearWaiting) {
@@ -269,6 +272,9 @@ func taskSetCmd(e *env) *cobra.Command {
 			if waiting != "" {
 				m.waiting = waiting
 			}
+			if clearTags {
+				m.tags = nil
+			}
 			if clearTickets {
 				m.tickets = nil
 			}
@@ -278,7 +284,7 @@ func taskSetCmd(e *env) *cobra.Command {
 			if clearLinks {
 				m.links = nil
 			}
-			if err := m.add(tk, pr, ln); err != nil {
+			if err := m.add(tags, tk, pr, ln); err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
 			if err := m.check(); err != nil {
@@ -296,6 +302,8 @@ func taskSetCmd(e *env) *cobra.Command {
 	cmd.Flags().BoolVar(&clearScheduled, "clear-scheduled", false, "drop scheduled")
 	cmd.Flags().StringVar(&waiting, "waiting", "", "who or what the next action waits on")
 	cmd.Flags().BoolVar(&clearWaiting, "clear-waiting", false, "drop waiting: the ball is back")
+	cmd.Flags().StringArrayVar(&tags, "tag", nil, "topic tag to add, lowercase kebab-case; repeatable")
+	cmd.Flags().BoolVar(&clearTags, "clear-tags", false, "drop every tag")
 	cmd.Flags().StringArrayVar(&tk, "ticket", nil, "work item URL: issue, Wrike, Zendesk (`https-url`) to add; repeatable")
 	cmd.Flags().BoolVar(&clearTickets, "clear-tickets", false, "drop every ticket")
 	cmd.Flags().StringArrayVar(&pr, "pr", nil, "pull request URL (`https-url`) to add; repeatable")
@@ -436,6 +444,7 @@ type taskMeta struct {
 	Created   string   `json:"created,omitempty"`
 	Scheduled string   `json:"scheduled,omitempty"`
 	Waiting   string   `json:"waiting,omitempty"`
+	Tags      []string `json:"tags,omitempty"`
 	Tickets   []string `json:"tickets,omitempty"`
 	Prs       []string `json:"prs,omitempty"`
 	Links     []string `json:"links,omitempty"`
@@ -457,7 +466,7 @@ func listTasks(s *store.Store, status string) ([]taskEntry, error) {
 		row := taskEntry{Path: e.Path, Slug: taskSlug(e.Path), Status: taskStatusOrStray(e.Path), Title: e.Title}
 		if doc, err := s.Read(e.Path); err == nil {
 			if m, body, err := splitMeta(doc); err == nil {
-				row.Frontmatter = taskMeta{m.created, m.scheduled, m.waiting, m.tickets, m.prs, m.links}
+				row.Frontmatter = taskMeta{m.created, m.scheduled, m.waiting, m.tags, m.tickets, m.prs, m.links}
 				row.Body = string(body)
 			}
 		}
@@ -642,13 +651,21 @@ func openTask(root, slug string, stderr io.Writer) (*store.Store, string, meta, 
 	return s, rel, m, body, exitOK
 }
 
-// add appends tickets, each a full https URL, skipping ones already there.
 // urlFlagsHelp says how the three URL lists are told apart.
 const urlFlagsHelp = "a URL goes by what it points at, whoever opened it and whatever it is to this task: --ticket is a work item (an issue, a Wrike task, a Zendesk request), --pr is a pull request, --link is everything else (a repo, an article, a post)"
 
-// add appends the URLs given by flag to their lists, in order and without
-// duplicates; each must be a full https URL.
-func (m *meta) add(tk, pr, ln []string) error {
+// add appends the tags and URLs given by flag to their lists, in order and
+// without duplicates; a tag must be lowercase kebab-case, a URL a full
+// https URL.
+func (m *meta) add(tags, tk, pr, ln []string) error {
+	for _, t := range tags {
+		if !store.Slug(t) {
+			return fmt.Errorf("--tag must be lowercase kebab-case: %s", t)
+		}
+		if !slices.Contains(m.tags, t) {
+			m.tags = append(m.tags, t)
+		}
+	}
 	for _, in := range []struct {
 		flag string
 		vals []string
