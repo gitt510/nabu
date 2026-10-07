@@ -129,7 +129,7 @@ func TestTaskNewViaCLI(t *testing.T) {
 		"--ticket", "https://github.com/o/r/issues/7", "--ticket", "https://github.com/o/r/issues/8",
 		"--link", "https://example.com/doc", "--pr", "https://github.com/o/r/pull/9"}
 	got := nabu(exitOK, body, args...)
-	if !strings.Contains(got, `"path": "tasks/inbox/retire-legacy.md"`) || !strings.Contains(got, `"committed": true`) {
+	if !strings.Contains(got, `"path": "tasks/inbox/retire-legacy.md"`) || !strings.Contains(got, `"committed": true`) || !strings.Contains(got, `"area": "work"`) || !strings.Contains(got, `"scheduled": "2026-09-15T18:00:00+09:00"`) {
 		t.Fatalf("stdout=%q", got)
 	}
 	saved, err := os.ReadFile(filepath.Join(dir, "tasks", "inbox", "retire-legacy.md"))
@@ -343,12 +343,18 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 	if got := read(); got != want {
 		t.Fatalf("after set:\n%s\nwant:\n%s", got, want)
 	}
-	nabu(exitOK, shaped("Wait", "- [x] send\n"), "task", "replace", "wait")
+	// replace keeps the frontmatter, so it does not print one
+	if got := nabu(exitOK, shaped("Wait", "- [x] send\n"), "task", "replace", "wait"); strings.Contains(got, `"frontmatter"`) {
+		t.Fatalf("replace stdout=%q", got)
+	}
 	want = strings.Replace(want, "- [ ] send", "- [x] send", 1)
 	if got := read(); got != want {
 		t.Fatalf("after replace:\n%s\nwant:\n%s", got, want)
 	}
-	nabu(exitOK, "", "task", "set", "wait", "--area", "personal", "--project", "nabu")
+	// set prints the frontmatter as written, so the caller can show it
+	if got := nabu(exitOK, "", "task", "set", "wait", "--area", "personal", "--project", "nabu"); !strings.Contains(got, `"area": "personal"`) || !strings.Contains(got, `"project": "nabu"`) || !strings.Contains(got, `"created": "2026-10-06T09:00:00+09:00"`) {
+		t.Fatalf("set stdout=%q", got)
+	}
 	want = strings.Replace(want, "area: \"work\"\n", "area: \"personal\"\nproject: \"nabu\"\n", 1)
 	if got := read(); got != want {
 		t.Fatalf("after area and project:\n%s\nwant:\n%s", got, want)

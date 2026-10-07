@@ -192,21 +192,24 @@ func pushCmd(e *env) *cobra.Command {
 }
 
 // writeResult is the JSON document of every command that writes a file.
+// Frontmatter is the task frontmatter as written, for the commands that
+// change it (task new, task set).
 type writeResult struct {
-	Path      string `json:"path"`
-	Action    string `json:"action"`
-	Bytes     int    `json:"bytes"`
-	Committed bool   `json:"committed"`
+	Path        string    `json:"path"`
+	Action      string    `json:"action"`
+	Bytes       int       `json:"bytes"`
+	Committed   bool      `json:"committed"`
+	Frontmatter *taskMeta `json:"frontmatter,omitempty"`
 }
 
 // finishWrite commits the written file as "nabu: <action> <path>" and
-// reports it.
-func finishWrite(s *store.Store, rel, action string, n int, stdout, stderr io.Writer) int {
+// reports it, with fm when the command changed a task's frontmatter.
+func finishWrite(s *store.Store, rel, action string, n int, fm *taskMeta, stdout, stderr io.Writer) int {
 	committed, err := s.Commit(fmt.Sprintf("nabu: %s %s", action, rel), rel)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	return emit(stdout, writeResult{Path: rel, Action: action, Bytes: n, Committed: committed})
+	return emit(stdout, writeResult{Path: rel, Action: action, Bytes: n, Committed: committed, Frontmatter: fm})
 }
 
 // mvResult is the JSON document of every command that moves a file.

@@ -175,7 +175,7 @@ func taskNewCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "new <slug>",
 		Short:   "create tasks/inbox/<slug>.md",
-		Long:    "creates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter, with created stamped as now; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (every line at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline: RFC3339 with an offset, or a date (YYYY-MM-DD) for the whole day.\n" + areaFlagsHelp + "\n" + urlFlagsHelp,
+		Long:    "creates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter, with created stamped as now; the body must not carry one of its own; the frontmatter as written is printed.\nthe body is \"# <title>\", then \"## For Human\" (every line at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline: RFC3339 with an offset, or a date (YYYY-MM-DD) for the whole day.\n" + areaFlagsHelp + "\n" + urlFlagsHelp,
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
@@ -209,7 +209,7 @@ func taskNewCmd(e *env) *cobra.Command {
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			return finishWrite(s, rel, "task", len(doc), e.stdout, e.stderr)
+			return finishWrite(s, rel, "task", len(doc), m.json(), e.stdout, e.stderr)
 
 		}),
 	}
@@ -244,7 +244,7 @@ func taskReplaceCmd(e *env) *cobra.Command {
 			if _, err := s.Replace(rel, doc); err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			return finishWrite(s, rel, "task replace", len(doc), e.stdout, e.stderr)
+			return finishWrite(s, rel, "task replace", len(doc), nil, e.stdout, e.stderr)
 
 		}),
 	}
@@ -266,7 +266,7 @@ func taskSetCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "set <slug>",
 		Short:   "change a task's frontmatter (area, project, scheduled, waiting, tickets, prs, links)",
-		Long:    "rewrites the frontmatter of a task in any status folder; the body is kept as is (see task replace).\n--waiting names who or what the next action waits on: while it is set the ball is with someone else, so the task stays in doing/.\n" + areaFlagsHelp + "\n--ticket, --pr and --link add to their list; the matching --clear-* empties it first.\n" + urlFlagsHelp,
+		Long:    "rewrites the frontmatter of a task in any status folder and prints it as written; the body is kept as is (see task replace).\n--waiting names who or what the next action waits on: while it is set the ball is with someone else, so the task stays in doing/.\n" + areaFlagsHelp + "\n--ticket, --pr and --link add to their list; the matching --clear-* empties it first.\n" + urlFlagsHelp,
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
@@ -320,7 +320,7 @@ func taskSetCmd(e *env) *cobra.Command {
 			if _, err := s.Replace(rel, doc); err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			return finishWrite(s, rel, "task set", len(doc), e.stdout, e.stderr)
+			return finishWrite(s, rel, "task set", len(doc), m.json(), e.stdout, e.stderr)
 
 		}),
 	}
@@ -478,6 +478,11 @@ type taskMeta struct {
 	Links     []string `json:"links,omitempty"`
 }
 
+// json is m as the JSON documents print it.
+func (m meta) json() *taskMeta {
+	return &taskMeta{m.created, m.area, m.project, m.scheduled, m.waiting, m.tickets, m.prs, m.links}
+}
+
 // listTasks reads every task, or those in one status folder, as ls rows.
 func listTasks(s *store.Store, status string) ([]taskEntry, error) {
 	entries, err := s.List(path.Join("tasks", status))
@@ -494,7 +499,7 @@ func listTasks(s *store.Store, status string) ([]taskEntry, error) {
 		row := taskEntry{Path: e.Path, Slug: taskSlug(e.Path), Status: taskStatusOrStray(e.Path), Title: e.Title}
 		if doc, err := s.Read(e.Path); err == nil {
 			if m, body, err := splitMeta(doc); err == nil {
-				row.Frontmatter = taskMeta{m.created, m.area, m.project, m.scheduled, m.waiting, m.tickets, m.prs, m.links}
+				row.Frontmatter = *m.json()
 				row.Body = string(body)
 			}
 		}

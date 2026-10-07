@@ -136,7 +136,7 @@ func canvasSaveCmd(e *env) *cobra.Command {
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			return finishWrite(s, rel, "canvas save", len(fm)+len(body), e.stdout, e.stderr)
+			return finishWrite(s, rel, "canvas save", len(fm)+len(body), nil, e.stdout, e.stderr)
 
 		}),
 	}
