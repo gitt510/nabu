@@ -19,22 +19,27 @@ import (
 )
 
 // meta is a task's frontmatter. created is when task new filed the task,
-// stamped by nabu and never changed; scheduled is the time the work is
+// stamped by nabu and never changed; area is which side of life the task
+// belongs to, one of areas and required; project is what the task ships
+// into, a service at work or a repo at home, and is left empty when the
+// task belongs to none; scheduled is the time the work is
 // planned to happen, waiting names who or what the next action waits on (while it
-// is set the ball is with someone else). tags group tasks by topic, each
-// a lowercase kebab-case word chosen by the user. The three URL lists are told
+// is set the ball is with someone else). The three URL lists are told
 // apart by what the URL points at, so the choice is mechanical: tickets
 // are work items (an issue, a Wrike task, a Zendesk request), prs are
 // pull requests, links are everything else (a repo, an article, a post).
 type meta struct {
-	created, scheduled, waiting string
-	tags, tickets, prs, links   []string
+	created, area, project, scheduled, waiting string
+	tickets, prs, links                        []string
 }
+
+// areas are the values area may take.
+var areas = []string{"work", "personal"}
 
 // now is the clock task new stamps created with; tests pin it.
 var now = time.Now
 
-// lists names the list fields in the order render writes them.
+// lists names the URL lists in the order render writes them.
 func (m *meta) lists() []struct {
 	key string
 	v   *[]string
@@ -42,19 +47,25 @@ func (m *meta) lists() []struct {
 	return []struct {
 		key string
 		v   *[]string
-	}{{"tags", &m.tags}, {"tickets", &m.tickets}, {"prs", &m.prs}, {"links", &m.links}}
+	}{{"tickets", &m.tickets}, {"prs", &m.prs}, {"links", &m.links}}
 }
 
 // render writes the YAML block, or "" when every field is empty so a plain
 // task stays a plain file. Only this function writes task frontmatter.
 func (m meta) render() string {
-	if m.created == "" && m.scheduled == "" && m.waiting == "" && len(m.tags) == 0 && len(m.tickets) == 0 && len(m.prs) == 0 && len(m.links) == 0 {
+	if m.created == "" && m.area == "" && m.project == "" && m.scheduled == "" && m.waiting == "" && len(m.tickets) == 0 && len(m.prs) == 0 && len(m.links) == 0 {
 		return ""
 	}
 	var b strings.Builder
 	b.WriteString("---\n")
 	if m.created != "" {
 		fmt.Fprintf(&b, "created: %q\n", m.created)
+	}
+	if m.area != "" {
+		fmt.Fprintf(&b, "area: %q\n", m.area)
+	}
+	if m.project != "" {
+		fmt.Fprintf(&b, "project: %q\n", m.project)
 	}
 	if m.scheduled != "" {
 		fmt.Fprintf(&b, "scheduled: %q\n", m.scheduled)
@@ -123,6 +134,10 @@ func splitMeta(doc []byte) (meta, []byte, error) {
 		switch key {
 		case "created":
 			m.created = v
+		case "area":
+			m.area = v
+		case "project":
+			m.project = v
 		case "scheduled":
 			m.scheduled = v
 		case "waiting":
@@ -154,13 +169,13 @@ func taskCmd(e *env) *cobra.Command {
 }
 
 func taskNewCmd(e *env) *cobra.Command {
-	var tags, tk, pr, ln []string
+	var tk, pr, ln []string
 	var content string
-	var scheduled string
+	var area, project, scheduled string
 	cmd := &cobra.Command{
 		Use:     "new <slug>",
 		Short:   "create tasks/inbox/<slug>.md",
-		Long:    "creates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter, with created stamped as now; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (every line at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline: RFC3339 with an offset, or a date (YYYY-MM-DD) for the whole day.\n--tag groups the task by topic: a lowercase kebab-case word.\n" + urlFlagsHelp,
+		Long:    "creates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter, with created stamped as now; the body must not carry one of its own.\nthe body is \"# <title>\", then \"## For Human\" (every line at most 30 characters), a --- line, then \"## AI memo\" (free markdown).\n--scheduled is the time the work is planned to happen, not a deadline: RFC3339 with an offset, or a date (YYYY-MM-DD) for the whole day.\n" + areaFlagsHelp + "\n" + urlFlagsHelp,
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
@@ -168,8 +183,11 @@ func taskNewCmd(e *env) *cobra.Command {
 			if !store.Slug(slug) {
 				return fail(e.stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
 			}
-			m := meta{created: now().Format(time.RFC3339), scheduled: scheduled}
-			if err := m.add(tags, tk, pr, ln); err != nil {
+			if area == "" {
+				return fail(e.stderr, errors.New("--area is required: work or personal"), exitUsage)
+			}
+			m := meta{created: now().Format(time.RFC3339), area: area, project: project, scheduled: scheduled}
+			if err := m.add(tk, pr, ln); err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
 			if err := m.check(); err != nil {
@@ -197,7 +215,8 @@ func taskNewCmd(e *env) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&content, "content", "", "task body; stdin is read when omitted")
 	cmd.Flags().StringVar(&scheduled, "scheduled", "", "planned work time, RFC3339 with offset (2026-09-15T18:00:00+09:00) or a date for the whole day (2026-09-15)")
-	cmd.Flags().StringArrayVar(&tags, "tag", nil, "topic tag, lowercase kebab-case; repeatable")
+	cmd.Flags().StringVar(&area, "area", "", "work or personal; required")
+	cmd.Flags().StringVar(&project, "project", "", "the service or repo the task ships into, lowercase kebab-case")
 	cmd.Flags().StringArrayVar(&tk, "ticket", nil, "work item URL: issue, Wrike, Zendesk (`https-url`); repeatable")
 	cmd.Flags().StringArrayVar(&pr, "pr", nil, "pull request URL (`https-url`); repeatable")
 	cmd.Flags().StringArrayVar(&ln, "link", nil, "any other URL: repo, article, post (`https-url`); repeatable")
@@ -234,31 +253,41 @@ func taskReplaceCmd(e *env) *cobra.Command {
 }
 
 func taskSetCmd(e *env) *cobra.Command {
-	var tags, tk, pr, ln []string
+	var tk, pr, ln []string
+	var area, project string
+	var clearProject bool
 	var scheduled string
 	var clearScheduled bool
 	var waiting string
 	var clearWaiting bool
-	var clearTags bool
 	var clearTickets bool
 	var clearPrs bool
 	var clearLinks bool
 	cmd := &cobra.Command{
 		Use:     "set <slug>",
-		Short:   "change a task's frontmatter (scheduled, waiting, tags, tickets, prs, links)",
-		Long:    "rewrites the frontmatter of a task in any status folder; the body is kept as is (see task replace).\n--waiting names who or what the next action waits on: while it is set the ball is with someone else, so the task stays in doing/.\n--tag, --ticket, --pr and --link add to their list; the matching --clear-* empties it first.\n" + urlFlagsHelp,
+		Short:   "change a task's frontmatter (area, project, scheduled, waiting, tickets, prs, links)",
+		Long:    "rewrites the frontmatter of a task in any status folder; the body is kept as is (see task replace).\n--waiting names who or what the next action waits on: while it is set the ball is with someone else, so the task stays in doing/.\n" + areaFlagsHelp + "\n--ticket, --pr and --link add to their list; the matching --clear-* empties it first.\n" + urlFlagsHelp,
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
-			if scheduled == "" && !clearScheduled && waiting == "" && !clearWaiting && len(tags) == 0 && !clearTags && len(tk) == 0 && !clearTickets && len(pr) == 0 && !clearPrs && len(ln) == 0 && !clearLinks {
+			if area == "" && project == "" && !clearProject && scheduled == "" && !clearScheduled && waiting == "" && !clearWaiting && len(tk) == 0 && !clearTickets && len(pr) == 0 && !clearPrs && len(ln) == 0 && !clearLinks {
 				return fail(e.stderr, errors.New("nothing to set: pass at least one frontmatter flag"), exitUsage)
 			}
-			if (scheduled != "" && clearScheduled) || (waiting != "" && clearWaiting) {
+			if (project != "" && clearProject) || (scheduled != "" && clearScheduled) || (waiting != "" && clearWaiting) {
 				return fail(e.stderr, errors.New("a value and its --clear flag cannot be given together"), exitUsage)
 			}
 			s, rel, m, body, code := openTask(e.root, arg(args, 0), e.stderr)
 			if code != exitOK {
 				return code
+			}
+			if area != "" {
+				m.area = area
+			}
+			if clearProject {
+				m.project = ""
+			}
+			if project != "" {
+				m.project = project
 			}
 			if clearScheduled {
 				m.scheduled = ""
@@ -272,9 +301,6 @@ func taskSetCmd(e *env) *cobra.Command {
 			if waiting != "" {
 				m.waiting = waiting
 			}
-			if clearTags {
-				m.tags = nil
-			}
 			if clearTickets {
 				m.tickets = nil
 			}
@@ -284,7 +310,7 @@ func taskSetCmd(e *env) *cobra.Command {
 			if clearLinks {
 				m.links = nil
 			}
-			if err := m.add(tags, tk, pr, ln); err != nil {
+			if err := m.add(tk, pr, ln); err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
 			if err := m.check(); err != nil {
@@ -298,12 +324,13 @@ func taskSetCmd(e *env) *cobra.Command {
 
 		}),
 	}
+	cmd.Flags().StringVar(&area, "area", "", "work or personal")
+	cmd.Flags().StringVar(&project, "project", "", "the service or repo the task ships into, lowercase kebab-case")
+	cmd.Flags().BoolVar(&clearProject, "clear-project", false, "drop project: the task belongs to none")
 	cmd.Flags().StringVar(&scheduled, "scheduled", "", "planned work time, RFC3339 with offset or a date for the whole day")
 	cmd.Flags().BoolVar(&clearScheduled, "clear-scheduled", false, "drop scheduled")
 	cmd.Flags().StringVar(&waiting, "waiting", "", "who or what the next action waits on")
 	cmd.Flags().BoolVar(&clearWaiting, "clear-waiting", false, "drop waiting: the ball is back")
-	cmd.Flags().StringArrayVar(&tags, "tag", nil, "topic tag to add, lowercase kebab-case; repeatable")
-	cmd.Flags().BoolVar(&clearTags, "clear-tags", false, "drop every tag")
 	cmd.Flags().StringArrayVar(&tk, "ticket", nil, "work item URL: issue, Wrike, Zendesk (`https-url`) to add; repeatable")
 	cmd.Flags().BoolVar(&clearTickets, "clear-tickets", false, "drop every ticket")
 	cmd.Flags().StringArrayVar(&pr, "pr", nil, "pull request URL (`https-url`) to add; repeatable")
@@ -442,9 +469,10 @@ type taskEntry struct {
 // taskMeta is meta as task ls --json prints it.
 type taskMeta struct {
 	Created   string   `json:"created,omitempty"`
+	Area      string   `json:"area,omitempty"`
+	Project   string   `json:"project,omitempty"`
 	Scheduled string   `json:"scheduled,omitempty"`
 	Waiting   string   `json:"waiting,omitempty"`
-	Tags      []string `json:"tags,omitempty"`
 	Tickets   []string `json:"tickets,omitempty"`
 	Prs       []string `json:"prs,omitempty"`
 	Links     []string `json:"links,omitempty"`
@@ -466,7 +494,7 @@ func listTasks(s *store.Store, status string) ([]taskEntry, error) {
 		row := taskEntry{Path: e.Path, Slug: taskSlug(e.Path), Status: taskStatusOrStray(e.Path), Title: e.Title}
 		if doc, err := s.Read(e.Path); err == nil {
 			if m, body, err := splitMeta(doc); err == nil {
-				row.Frontmatter = taskMeta{m.created, m.scheduled, m.waiting, m.tags, m.tickets, m.prs, m.links}
+				row.Frontmatter = taskMeta{m.created, m.area, m.project, m.scheduled, m.waiting, m.tickets, m.prs, m.links}
 				row.Body = string(body)
 			}
 		}
@@ -654,18 +682,9 @@ func openTask(root, slug string, stderr io.Writer) (*store.Store, string, meta, 
 // urlFlagsHelp says how the three URL lists are told apart.
 const urlFlagsHelp = "a URL goes by what it points at, whoever opened it and whatever it is to this task: --ticket is a work item (an issue, a Wrike task, a Zendesk request), --pr is a pull request, --link is everything else (a repo, an article, a post)"
 
-// add appends the tags and URLs given by flag to their lists, in order and
-// without duplicates; a tag must be lowercase kebab-case, a URL a full
-// https URL.
-func (m *meta) add(tags, tk, pr, ln []string) error {
-	for _, t := range tags {
-		if !store.Slug(t) {
-			return fmt.Errorf("--tag must be lowercase kebab-case: %s", t)
-		}
-		if !slices.Contains(m.tags, t) {
-			m.tags = append(m.tags, t)
-		}
-	}
+// add appends the URLs given by flag to their lists, in order and without
+// duplicates; each must be a full https URL.
+func (m *meta) add(tk, pr, ln []string) error {
 	for _, in := range []struct {
 		flag string
 		vals []string
@@ -684,8 +703,17 @@ func (m *meta) add(tags, tk, pr, ln []string) error {
 	return nil
 }
 
+// areaFlagsHelp says what area and project hold.
+const areaFlagsHelp = "--area is work or personal. --project is what the task ships into: a service at work, a repo at home; leave it out when the task belongs to none"
+
 // check validates the scalar fields set from flags.
 func (m meta) check() error {
+	if m.area != "" && !slices.Contains(areas, m.area) {
+		return fmt.Errorf("--area must be work or personal: %s", m.area)
+	}
+	if m.project != "" && !store.Slug(m.project) {
+		return fmt.Errorf("--project must be lowercase kebab-case: %s", m.project)
+	}
 	if m.scheduled != "" {
 		// a date alone means the whole day; a time must carry its offset so the instant is not guessed
 		_, errTime := time.Parse(time.RFC3339, m.scheduled)
@@ -698,6 +726,15 @@ func (m meta) check() error {
 		return errors.New("--waiting must not be blank")
 	}
 	return nil
+}
+
+// checkStored validates frontmatter as read from a file: area is required
+// there, and every value must pass check.
+func (m meta) checkStored() error {
+	if m.area == "" {
+		return errors.New("frontmatter has no area; set it with task set --area work|personal")
+	}
+	return m.check()
 }
 
 // readTaskBody reads a body and refuses one that opens with a frontmatter
@@ -728,7 +765,7 @@ func taskValidateCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "validate [slug]",
 		Short:   "check one task, or every task, against the task shape",
-		Long:    "checks a task's body against the shape task new and task replace require: \"## For Human\" (every line at most 30 characters), ---, \"## AI memo\"; a task in dropped/ must also carry \"### Why dropped\" under For Human.\nwithout a slug every task is checked. prints one line per task (a colored table on a terminal); exit 1 when any task is out of shape.\nnothing is written",
+		Long:    "checks a task's body against the shape task new and task replace require: \"## For Human\" (every line at most 30 characters), ---, \"## AI memo\"; a task in dropped/ must also carry \"### Why dropped\" under For Human.\nthe frontmatter must carry an area (work or personal).\nwithout a slug every task is checked. prints one line per task (a colored table on a terminal); exit 1 when any task is out of shape.\nnothing is written",
 		GroupID: "browse",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: do(func(args []string) int {
@@ -763,9 +800,11 @@ func taskValidateCmd(e *env) *cobra.Command {
 				doc, err := s.Read(rel)
 				if err != nil {
 					v.Error = err.Error()
-				} else if _, body, err := splitMeta(doc); err != nil {
+				} else if m, body, err := splitMeta(doc); err != nil {
 					v.Error = err.Error() + " (not written by nabu; fix it by hand)"
 				} else if err := checkTaskShape(store.TaskStatusOf(rel), body); err != nil {
+					v.Error = err.Error()
+				} else if err := m.checkStored(); err != nil {
 					v.Error = err.Error()
 				}
 				if v.Error != "" {
