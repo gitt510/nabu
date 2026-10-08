@@ -53,6 +53,7 @@ const page = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>nabu</title>
 <link rel="icon" href="${favicon}">
+<script>try { const t = JSON.parse(localStorage.getItem("nabu-view") ?? "{}").theme; if (t) document.documentElement.dataset.theme = t; } catch {}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+Mono:wght@400&display=swap" rel="stylesheet">
@@ -80,6 +81,7 @@ ${css}
 <dialog id="help"><button class="close" type="button" aria-label="閉じる">Esc</button><h2>Keyboard</h2><dl class="keys" id="keys"></dl></dialog>
 <dialog id="settings"><button class="close" type="button" aria-label="閉じる">Esc</button><h2>Settings</h2>
   <div class="settings">
+    <span class="label" id="s-theme-label">テーマ</span><div class="theme" id="s-theme" role="group" aria-labelledby="s-theme-label"><button type="button" data-theme="">OS に合わせる</button><button type="button" data-theme="light">light</button><button type="button" data-theme="dark">dark</button></div>
     <label for="s-font">文字サイズ</label><input id="s-font" type="range" min="14" max="24" step="1" data-key="font"><output for="s-font"></output>
     <label for="s-side">sidebar 幅</label><input id="s-side" type="range" min="220" max="480" step="20" data-key="side"><output for="s-side"></output>
     <label for="s-width">本文幅</label><input id="s-width" type="range" min="36" max="72" step="2" data-key="width"><output for="s-width"></output>

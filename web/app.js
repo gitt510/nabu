@@ -243,8 +243,17 @@ const applyAll = () => {
   }
 };
 for (const input of inputs) input.addEventListener("input", () => { store[input.dataset.key] = Number(input.value); save(); applyAll(); });
-$("s-reset").addEventListener("click", () => { for (const k of Object.keys(SETTINGS)) delete store[k]; save(); applyAll(); });
+// Theme: "" follows the OS; "light" / "dark" pin it. The <head> script applies it before first paint.
+const themeButtons = [...$("s-theme").querySelectorAll("button")];
+const applyTheme = () => {
+  const t = store.theme ?? "";
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  for (const b of themeButtons) b.setAttribute("aria-pressed", String(b.dataset.theme === t));
+};
+for (const b of themeButtons) b.addEventListener("click", () => { if (b.dataset.theme) store.theme = b.dataset.theme; else delete store.theme; save(); applyTheme(); });
+$("s-reset").addEventListener("click", () => { for (const k of [...Object.keys(SETTINGS), "theme"]) delete store[k]; save(); applyAll(); applyTheme(); });
 applyAll();
+applyTheme();
 
 // ---- narrow: sidebar as a popover drawer -------------------------------------
 const side = $("side"), sideBtn = $("side-btn");

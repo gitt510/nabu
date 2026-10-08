@@ -11,10 +11,45 @@
   --accent: #1d4ed8;
   --accent-soft: #e8eefc;
   --late: #b91c1c;
+  --shadow: rgba(0,0,0,.12);
+  --backdrop: rgba(0,0,0,.2);
   --side-w: 300px;
   --doc-w: 50rem;
   --sans: "Noto Sans JP", -apple-system, BlinkMacSystemFont, sans-serif;
   --mono: "Noto Sans Mono", ui-monospace, monospace;
+}
+/* Dark: follows the OS unless the settings pin a theme (data-theme on <html>). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fg: #e6e7ea;
+    --fg-2: #a6a9b1;
+    --fg-3: #7c8089;
+    --bg: #1c1d21;
+    --bg-side: #131417;
+    --bg-hover: #26282d;
+    --line: #2c2e33;
+    --accent: #86a6ff;
+    --accent-soft: #1e2a4a;
+    --late: #f87171;
+    --shadow: rgba(0,0,0,.5);
+    --backdrop: rgba(0,0,0,.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --fg: #e6e7ea;
+  --fg-2: #a6a9b1;
+  --fg-3: #7c8089;
+  --bg: #1c1d21;
+  --bg-side: #131417;
+  --bg-hover: #26282d;
+  --line: #2c2e33;
+  --accent: #86a6ff;
+  --accent-soft: #1e2a4a;
+  --late: #f87171;
+  --shadow: rgba(0,0,0,.5);
+  --backdrop: rgba(0,0,0,.5);
+  color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -59,9 +94,9 @@ dialog {
   border: 1px solid var(--line); border-radius: 8px; padding: 20px 24px;
   color: var(--fg); background: var(--bg);
   max-width: 28rem; width: calc(100% - 32px);
-  box-shadow: 0 8px 32px rgba(0,0,0,.12);
+  box-shadow: 0 8px 32px var(--shadow);
 }
-dialog::backdrop { background: rgba(0,0,0,.2); }
+dialog::backdrop { background: var(--backdrop); }
 dialog h2 { margin: 0 0 12px; font-size: 1rem; }
 dialog .close { position: absolute; top: 12px; right: 12px; border: 0; background: none; font: inherit; color: var(--fg-3); cursor: pointer; }
 .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 0.875rem; line-height: 1.5; }
@@ -69,9 +104,14 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .keys dd { margin: 0; }
 .keys .group { grid-column: 1 / -1; margin-top: 8px; color: var(--fg-3); font-size: 0.8125rem; }
 .settings { display: grid; grid-template-columns: auto 1fr auto; gap: 12px 16px; align-items: center; font-size: 0.875rem; }
-.settings label { color: var(--fg-2); }
+.settings label, .settings .label { color: var(--fg-2); }
 .settings output { font-family: var(--mono); letter-spacing: 0; color: var(--fg-3); min-width: 4ch; text-align: right; }
 .settings input[type="range"] { width: 100%; }
+.theme { grid-column: 2 / -1; display: inline-flex; justify-self: start; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.theme button { font: inherit; font-size: 0.8125rem; color: var(--fg-2); background: none; border: 0; padding: 3px 12px; cursor: pointer; }
+.theme button + button { border-left: 1px solid var(--line); }
+.theme button:hover { background: var(--bg-hover); }
+.theme button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 .settings-foot { margin: 16px 0 0; text-align: right; }
 .settings-foot button { font: inherit; font-size: 0.8125rem; color: var(--fg-2); background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
 .settings-foot button:hover { background: var(--bg-hover); }
@@ -170,6 +210,7 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .body code { font-family: var(--mono); font-size: 0.875rem; letter-spacing: 0; background: var(--bg-side); padding: 0.05em 0.35em; border-radius: 4px; }
 .body pre { overflow-x: auto; padding: 16px; background: var(--bg-side); border-radius: 6px; }
 .body pre code { background: none; padding: 0; }
+.body hr { border: 0; border-top: 1px solid var(--line); margin: 32px 0; }
 .empty { color: var(--fg-3); }
 
 @media (max-width: 720px) {
@@ -186,8 +227,8 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
     position: fixed; inset: 44px auto 0 0; margin: 0;
     width: min(var(--side-w), 85vw); height: calc(100dvh - 44px); max-height: none;
     border: 0; border-right: 1px solid var(--line); padding: 0;
-    box-shadow: 8px 0 24px rgba(0,0,0,.08);
+    box-shadow: 8px 0 24px var(--shadow);
   }
   .side[popover]:not(:popover-open) { display: none; }
-  .side[popover]::backdrop { background: rgba(0,0,0,.2); }
+  .side[popover]::backdrop { background: var(--backdrop); }
 }
