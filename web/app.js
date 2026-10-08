@@ -34,15 +34,15 @@ const el = (tag, attrs = {}, ...kids) => {
 };
 
 // ---- sections -------------------------------------------------------------
-// The sidebar is curated by use, not by folder. A task may sit in more than
-// one section (a doing task with a date is in Now and in Scheduled).
+// Frontmatter sections first, then one section per status folder. A task may
+// sit in both (a doing task with a date is in Scheduled and in Doing).
 const open_ = (t) => t.status !== "done" && t.status !== "dropped";
 const bySchedule = (a, b) => instant(a.frontmatter.scheduled) - instant(b.frontmatter.scheduled);
 const SECTIONS = [
-  { id: "now", label: "Now", pick: (t) => t.status === "doing" },
   { id: "scheduled", label: "Scheduled", pick: (t) => open_(t) && t.frontmatter.scheduled, sort: bySchedule },
   { id: "waiting", label: "Waiting", pick: (t) => open_(t) && t.frontmatter.waiting },
-  { id: "inbox", label: "Inbox", pick: (t) => t.status === "inbox" && !t.frontmatter.scheduled && !t.frontmatter.waiting },
+  { id: "doing", label: "Doing", pick: (t) => t.status === "doing" },
+  { id: "inbox", label: "Inbox", pick: (t) => t.status === "inbox" },
   { id: "done", label: "Done", pick: (t) => t.status === "done", closed: true },
   { id: "dropped", label: "Dropped", pick: (t) => t.status === "dropped", closed: true },
 ];
@@ -60,7 +60,6 @@ function fileButton(t) {
 
 function renderTree() {
   tree.replaceChildren();
-  tree.append(el("li", { class: "dir home" }, el("ul", { class: "files" }, el("li", {}, el("button", { class: "file", "data-slug": "", type: "button", tabindex: "-1", onclick: () => select("") }, "Home")))));
   for (const sec of SECTIONS) {
     const files = tasks.filter(sec.pick);
     if (sec.sort) files.sort(sec.sort);
@@ -77,20 +76,9 @@ function renderTree() {
 function renderHome() {
   const link = (t) => el("li", {}, el("a", { href: `#${t.slug}`, onclick: (e) => { e.preventDefault(); select(t.slug); } }, t.title), t.frontmatter.scheduled ? el("span", { class: `flag${isLate(t.frontmatter.scheduled) ? " late" : ""}` }, fmt(t.frontmatter.scheduled)) : "");
   const list = (items, empty) => (items.length ? el("ul", { class: "home-list" }, ...items.map(link)) : el("p", { class: "empty" }, empty));
-  const now = tasks.filter((t) => t.status === "doing");
-  const dated = tasks.filter((t) => open_(t) && t.frontmatter.scheduled).sort(bySchedule);
-  const due = dated.filter((t) => isLate(t.frontmatter.scheduled) || dayOf(t.frontmatter.scheduled) === today);
-  const next = dated.filter((t) => !due.includes(t)).slice(0, 3);
-  const waiting = tasks.filter((t) => open_(t) && t.frontmatter.waiting).length;
-  const inbox = tasks.filter(SECTIONS[3].pick).length;
-  doc.replaceChildren(
-    el("p", { class: "crumb" }, today),
-    el("h1", {}, "Home"),
-    el("h2", {}, "Now"), list(now, "手を付けているものはない"),
-    el("h2", {}, "Due"), list(due, "今日までのものはない"),
-    el("h2", {}, "Next"), list(next, "予定はない"),
-    el("p", { class: "home-counts" }, `waiting ${waiting} · inbox ${inbox}`),
-  );
+  // Today: open tasks scheduled for today, plus the late ones still open.
+  const due = tasks.filter((t) => open_(t) && t.frontmatter.scheduled && (isLate(t.frontmatter.scheduled) || dayOf(t.frontmatter.scheduled) === today)).sort(bySchedule);
+  doc.replaceChildren(el("p", { class: "crumb" }, today), el("h1", {}, "Today"), list(due, "今日のタスクはない"));
 }
 
 // Visible file buttons, in order. Closed folders count as hidden.
@@ -152,7 +140,7 @@ function filter() {
   const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const keep = (t) => words.every((w) => t.text.includes(w)) && (!pick.area || t.frontmatter.area === pick.area) && (!pick.project || t.frontmatter.project === pick.project);
   for (const b of tree.querySelectorAll(".file")) if (b.dataset.slug) b.parentElement.classList.toggle("hidden", !keep(byId[b.dataset.slug]));
-  for (const dir of tree.querySelectorAll(".dir:not(.home)")) {
+  for (const dir of tree.querySelectorAll(".dir")) {
     const n = dir.querySelectorAll("li:not(.hidden)").length;
     dir.querySelector(".n").textContent = String(n);
     dir.classList.toggle("hidden", n === 0);
@@ -198,6 +186,7 @@ const shortcuts = [
   { group: "その他" },
   { key: "?", label: "この一覧", run: () => toggle($("help")) },
   { key: ",", label: "設定", run: () => toggle($("settings")) },
+  { key: "t", label: "light / dark を切り替える", run: () => flipTheme() },
   { key: "Esc", label: "検索と area / project の絞り込みを消す / dialog を閉じる", tree: true },
 ];
 const toggle = (d) => (d.open ? d.close() : d.showModal());
@@ -234,13 +223,14 @@ function runGlobal(e) {
 // ---- help & settings ---------------------------------------------------------
 $("keys").append(...shortcuts.flatMap((s) => (s.group ? [el("div", { class: "group" }, s.group)] : [el("dt", {}, s.key), el("dd", {}, s.label)])));
 for (const d of document.querySelectorAll("dialog")) d.querySelector(".close").addEventListener("click", () => d.close());
+$("home-btn").addEventListener("click", () => select(""));
 $("help-btn").addEventListener("click", () => toggle($("help")));
 $("settings-btn").addEventListener("click", () => toggle($("settings")));
 
 const SETTINGS = {
-  font: { def: 16, apply: (v) => (document.documentElement.style.fontSize = `${v}px`), unit: "px" },
+  font: { def: 18, apply: (v) => (document.documentElement.style.fontSize = `${v}px`), unit: "px" },
   side: { def: 300, apply: (v) => document.documentElement.style.setProperty("--side-w", `${v}px`), unit: "px" },
-  width: { def: 46, apply: (v) => document.documentElement.style.setProperty("--doc-w", `${v}rem`), unit: "rem" },
+  width: { def: 50, apply: (v) => document.documentElement.style.setProperty("--doc-w", `${v}rem`), unit: "rem" },
 };
 const store = (() => { try { return JSON.parse(localStorage.getItem("nabu-view") ?? "{}"); } catch { return {}; } })();
 const save = () => { try { localStorage.setItem("nabu-view", JSON.stringify(store)); } catch {} };
@@ -254,8 +244,33 @@ const applyAll = () => {
   }
 };
 for (const input of inputs) input.addEventListener("input", () => { store[input.dataset.key] = Number(input.value); save(); applyAll(); });
-$("s-reset").addEventListener("click", () => { for (const k of Object.keys(SETTINGS)) delete store[k]; save(); applyAll(); });
+// Theme: "" follows the OS; "light" / "dark" pin it. The <head> script applies it before first paint.
+// The header button flips whatever is showing now and shows the theme it will switch to.
+const themeButtons = [...$("s-theme").querySelectorAll("button")];
+const themeBtn = $("theme-btn");
+const osDark = matchMedia("(prefers-color-scheme: dark)");
+const showing = () => store.theme || (osDark.matches ? "dark" : "light");
+const ICONS = {
+  dark: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+  light: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+};
+const applyTheme = () => {
+  const t = store.theme ?? "";
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  for (const b of themeButtons) b.setAttribute("aria-pressed", String(b.dataset.theme === t));
+  const next = showing() === "dark" ? "light" : "dark";
+  themeBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[next]}</svg>`;
+  themeBtn.title = `${next} にする (t)`;
+  themeBtn.setAttribute("aria-label", `${next} テーマにする`);
+};
+const setTheme = (t) => { if (t) store.theme = t; else delete store.theme; save(); applyTheme(); };
+const flipTheme = () => setTheme(showing() === "dark" ? "light" : "dark");
+for (const b of themeButtons) b.addEventListener("click", () => setTheme(b.dataset.theme));
+themeBtn.addEventListener("click", flipTheme);
+osDark.addEventListener("change", applyTheme);
+$("s-reset").addEventListener("click", () => { for (const k of [...Object.keys(SETTINGS), "theme"]) delete store[k]; save(); applyAll(); applyTheme(); });
 applyAll();
+applyTheme();
 
 // ---- narrow: sidebar as a popover drawer -------------------------------------
 const side = $("side"), sideBtn = $("side-btn");
