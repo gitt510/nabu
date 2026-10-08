@@ -4,9 +4,9 @@ import { marked } from "marked";
 
 const here = (name) => new URL(name, import.meta.url);
 const read = (name) => readFileSync(here(name), "utf8");
-// The mark: three cuneiform wedges, for Nabu, the Mesopotamian god of scribes. currentColor in the header, the accent in the favicon.
+// The mark: the mušḫuššu, the dragon Nabu stands on, as a badge with its own colors. Used in the header and as the favicon.
 const icon = read("icon.svg").trim();
-const favicon = `data:image/svg+xml,${encodeURIComponent(icon.replaceAll("currentColor", "#1d4ed8"))}`;
+const favicon = `data:image/svg+xml,${encodeURIComponent(icon)}`;
 
 const order = { doing: 0, inbox: 1, done: 2, stray: 3 };
 // scheduled tasks first, by instant (RFC3339 with any offset; a date alone is the start of that day in Asia/Tokyo), then the rest by slug
