@@ -4,6 +4,9 @@ import { marked } from "marked";
 
 const here = (name) => new URL(name, import.meta.url);
 const read = (name) => readFileSync(here(name), "utf8");
+// The mark: three cuneiform wedges, for Nabu, the Mesopotamian god of scribes. currentColor in the header, the accent in the favicon.
+const icon = read("icon.svg").trim();
+const favicon = `data:image/svg+xml,${encodeURIComponent(icon.replaceAll("currentColor", "#1d4ed8"))}`;
 
 const order = { doing: 0, inbox: 1, done: 2, stray: 3 };
 // scheduled tasks first, by instant (RFC3339 with any offset; a date alone is the start of that day in Asia/Tokyo), then the rest by slug
@@ -46,10 +49,11 @@ const page = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>tasks</title>
+<title>nabu</title>
+<link rel="icon" href="${favicon}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+Mono:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
 ${css}
 </style>
@@ -57,9 +61,8 @@ ${css}
 <body>
 <div class="shell">
   <header class="top">
-    <button type="button" id="home-btn" title="Home (H)" aria-label="Home"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></button>
     <button type="button" id="side-btn" class="menu" title="sidebar" aria-label="一覧" aria-controls="side" aria-expanded="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-    <span class="name">tasks</span>
+    <button type="button" id="home-btn" class="brand" title="Home (H)">${icon}<span>nabu</span></button>
     <span class="spacer"></span>
     <button type="button" id="help-btn" title="keyboard shortcuts (?)" aria-label="ショートカット一覧"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
     <button type="button" id="settings-btn" title="settings (,)" aria-label="設定"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.6a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.6a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
