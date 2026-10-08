@@ -186,6 +186,7 @@ const shortcuts = [
   { group: "その他" },
   { key: "?", label: "この一覧", run: () => toggle($("help")) },
   { key: ",", label: "設定", run: () => toggle($("settings")) },
+  { key: "t", label: "light / dark を切り替える", run: () => flipTheme() },
   { key: "Esc", label: "検索と area / project の絞り込みを消す / dialog を閉じる", tree: true },
 ];
 const toggle = (d) => (d.open ? d.close() : d.showModal());
@@ -244,13 +245,29 @@ const applyAll = () => {
 };
 for (const input of inputs) input.addEventListener("input", () => { store[input.dataset.key] = Number(input.value); save(); applyAll(); });
 // Theme: "" follows the OS; "light" / "dark" pin it. The <head> script applies it before first paint.
+// The header button flips whatever is showing now and shows the theme it will switch to.
 const themeButtons = [...$("s-theme").querySelectorAll("button")];
+const themeBtn = $("theme-btn");
+const osDark = matchMedia("(prefers-color-scheme: dark)");
+const showing = () => store.theme || (osDark.matches ? "dark" : "light");
+const ICONS = {
+  dark: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+  light: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+};
 const applyTheme = () => {
   const t = store.theme ?? "";
   if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
   for (const b of themeButtons) b.setAttribute("aria-pressed", String(b.dataset.theme === t));
+  const next = showing() === "dark" ? "light" : "dark";
+  themeBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[next]}</svg>`;
+  themeBtn.title = `${next} にする (t)`;
+  themeBtn.setAttribute("aria-label", `${next} テーマにする`);
 };
-for (const b of themeButtons) b.addEventListener("click", () => { if (b.dataset.theme) store.theme = b.dataset.theme; else delete store.theme; save(); applyTheme(); });
+const setTheme = (t) => { if (t) store.theme = t; else delete store.theme; save(); applyTheme(); };
+const flipTheme = () => setTheme(showing() === "dark" ? "light" : "dark");
+for (const b of themeButtons) b.addEventListener("click", () => setTheme(b.dataset.theme));
+themeBtn.addEventListener("click", flipTheme);
+osDark.addEventListener("change", applyTheme);
 $("s-reset").addEventListener("click", () => { for (const k of [...Object.keys(SETTINGS), "theme"]) delete store[k]; save(); applyAll(); applyTheme(); });
 applyAll();
 applyTheme();
