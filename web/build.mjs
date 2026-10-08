@@ -4,9 +4,11 @@ import { marked } from "marked";
 
 const here = (name) => new URL(name, import.meta.url);
 const read = (name) => readFileSync(here(name), "utf8");
-// The mark: the mušḫuššu, the dragon Nabu stands on, as a badge with its own colors. Used in the header and as the favicon.
+// The mark: the mušḫuššu, the dragon Nabu stands on, drawn in currentColor. The header colors it from the page;
+// the favicon carries its own colors, switching with the browser's color scheme.
 const icon = read("icon.svg").trim();
-const favicon = `data:image/svg+xml,${encodeURIComponent(icon)}`;
+const faviconStyle = "<style>svg{color:#1b1c1f}@media (prefers-color-scheme:dark){svg{color:#ececef}}</style>";
+const favicon = `data:image/svg+xml,${encodeURIComponent(icon.replace(/^(<svg[^>]*>)/, `$1${faviconStyle}`))}`;
 
 const order = { doing: 0, inbox: 1, done: 2, stray: 3 };
 // scheduled tasks first, by instant (RFC3339 with any offset; a date alone is the start of that day in Asia/Tokyo), then the rest by slug
