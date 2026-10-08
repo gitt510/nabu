@@ -34,15 +34,15 @@ const el = (tag, attrs = {}, ...kids) => {
 };
 
 // ---- sections -------------------------------------------------------------
-// The sidebar is curated by use, not by folder. A task may sit in more than
-// one section (a doing task with a date is in Now and in Scheduled).
+// Frontmatter sections first, then one section per status folder. A task may
+// sit in both (a doing task with a date is in Scheduled and in Doing).
 const open_ = (t) => t.status !== "done" && t.status !== "dropped";
 const bySchedule = (a, b) => instant(a.frontmatter.scheduled) - instant(b.frontmatter.scheduled);
 const SECTIONS = [
-  { id: "now", label: "Now", pick: (t) => t.status === "doing" },
   { id: "scheduled", label: "Scheduled", pick: (t) => open_(t) && t.frontmatter.scheduled, sort: bySchedule },
   { id: "waiting", label: "Waiting", pick: (t) => open_(t) && t.frontmatter.waiting },
-  { id: "inbox", label: "Inbox", pick: (t) => t.status === "inbox" && !t.frontmatter.scheduled && !t.frontmatter.waiting },
+  { id: "doing", label: "Doing", pick: (t) => t.status === "doing" },
+  { id: "inbox", label: "Inbox", pick: (t) => t.status === "inbox" },
   { id: "done", label: "Done", pick: (t) => t.status === "done", closed: true },
   { id: "dropped", label: "Dropped", pick: (t) => t.status === "dropped", closed: true },
 ];
@@ -60,7 +60,6 @@ function fileButton(t) {
 
 function renderTree() {
   tree.replaceChildren();
-  tree.append(el("li", { class: "dir home" }, el("ul", { class: "files" }, el("li", {}, el("button", { class: "file", "data-slug": "", type: "button", tabindex: "-1", onclick: () => select("") }, "Home")))));
   for (const sec of SECTIONS) {
     const files = tasks.filter(sec.pick);
     if (sec.sort) files.sort(sec.sort);
@@ -77,20 +76,9 @@ function renderTree() {
 function renderHome() {
   const link = (t) => el("li", {}, el("a", { href: `#${t.slug}`, onclick: (e) => { e.preventDefault(); select(t.slug); } }, t.title), t.frontmatter.scheduled ? el("span", { class: `flag${isLate(t.frontmatter.scheduled) ? " late" : ""}` }, fmt(t.frontmatter.scheduled)) : "");
   const list = (items, empty) => (items.length ? el("ul", { class: "home-list" }, ...items.map(link)) : el("p", { class: "empty" }, empty));
-  const now = tasks.filter((t) => t.status === "doing");
-  const dated = tasks.filter((t) => open_(t) && t.frontmatter.scheduled).sort(bySchedule);
-  const due = dated.filter((t) => isLate(t.frontmatter.scheduled) || dayOf(t.frontmatter.scheduled) === today);
-  const next = dated.filter((t) => !due.includes(t)).slice(0, 3);
-  const waiting = tasks.filter((t) => open_(t) && t.frontmatter.waiting).length;
-  const inbox = tasks.filter(SECTIONS[3].pick).length;
-  doc.replaceChildren(
-    el("p", { class: "crumb" }, today),
-    el("h1", {}, "Home"),
-    el("h2", {}, "Now"), list(now, "手を付けているものはない"),
-    el("h2", {}, "Due"), list(due, "今日までのものはない"),
-    el("h2", {}, "Next"), list(next, "予定はない"),
-    el("p", { class: "home-counts" }, `waiting ${waiting} · inbox ${inbox}`),
-  );
+  // Today: open tasks scheduled for today, plus the late ones still open.
+  const due = tasks.filter((t) => open_(t) && t.frontmatter.scheduled && (isLate(t.frontmatter.scheduled) || dayOf(t.frontmatter.scheduled) === today)).sort(bySchedule);
+  doc.replaceChildren(el("p", { class: "crumb" }, today), el("h1", {}, "Today"), list(due, "今日のタスクはない"));
 }
 
 // Visible file buttons, in order. Closed folders count as hidden.
@@ -152,7 +140,7 @@ function filter() {
   const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const keep = (t) => words.every((w) => t.text.includes(w)) && (!pick.area || t.frontmatter.area === pick.area) && (!pick.project || t.frontmatter.project === pick.project);
   for (const b of tree.querySelectorAll(".file")) if (b.dataset.slug) b.parentElement.classList.toggle("hidden", !keep(byId[b.dataset.slug]));
-  for (const dir of tree.querySelectorAll(".dir:not(.home)")) {
+  for (const dir of tree.querySelectorAll(".dir")) {
     const n = dir.querySelectorAll("li:not(.hidden)").length;
     dir.querySelector(".n").textContent = String(n);
     dir.classList.toggle("hidden", n === 0);
@@ -234,6 +222,7 @@ function runGlobal(e) {
 // ---- help & settings ---------------------------------------------------------
 $("keys").append(...shortcuts.flatMap((s) => (s.group ? [el("div", { class: "group" }, s.group)] : [el("dt", {}, s.key), el("dd", {}, s.label)])));
 for (const d of document.querySelectorAll("dialog")) d.querySelector(".close").addEventListener("click", () => d.close());
+$("home-btn").addEventListener("click", () => select(""));
 $("help-btn").addEventListener("click", () => toggle($("help")));
 $("settings-btn").addEventListener("click", () => toggle($("settings")));
 

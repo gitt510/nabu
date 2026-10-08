@@ -57,6 +57,7 @@ ${css}
 <body>
 <div class="shell">
   <header class="top">
+    <button type="button" id="home-btn" title="Home (H)" aria-label="Home"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></button>
     <button type="button" id="side-btn" class="menu" title="sidebar" aria-label="一覧" aria-controls="side" aria-expanded="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     <span class="name">tasks</span>
     <span class="spacer"></span>
