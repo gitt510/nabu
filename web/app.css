@@ -1,4 +1,4 @@
-/* Typography follows DADS (Noto Sans JP / Noto Sans Mono, 16px base, 1.7, 0.02em; 14px only inside the sidebar). Everything else is our own. */
+/* Typography follows DADS (Noto Sans JP / Noto Sans Mono, 1.7, 0.02em; 14px only inside the sidebar), except the base: 18px instead of DADS' 16px, set in app.js. Everything else is our own. */
 :root {
   --fg: #1a1a1a;
   --fg-2: #5c5c5c;
@@ -10,7 +10,7 @@
   --line: #e0e0dd;
   --accent: #1d4ed8;
   --side-w: 300px;
-  --doc-w: 46rem;
+  --doc-w: 50rem;
   --sans: "Noto Sans JP", -apple-system, BlinkMacSystemFont, sans-serif;
   --mono: "Noto Sans Mono", ui-monospace, monospace;
 }
@@ -146,7 +146,7 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 
 /* Main */
 .main { overflow-y: auto; min-height: 0; }
-.doc { max-width: var(--doc-w, 46rem); padding: 48px 40px 96px; }
+.doc { max-width: var(--doc-w, 50rem); padding: 48px 40px 96px; }
 .crumb { font-family: var(--mono); font-size: 0.875rem; letter-spacing: 0; color: var(--fg-3); margin: 0 0 12px; }
 .doc h1 { font-size: 1.75rem; line-height: 1.5; letter-spacing: 0.01em; margin: 0 0 16px; }
 .meta { display: flex; flex-wrap: wrap; gap: 4px 24px; margin: 0 0 32px; padding: 0 0 16px; border-bottom: 1px solid var(--line); }

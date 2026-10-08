@@ -74,7 +74,7 @@ ${css}
 <dialog id="help"><button class="close" type="button" aria-label="閉じる">Esc</button><h2>Keyboard</h2><dl class="keys" id="keys"></dl></dialog>
 <dialog id="settings"><button class="close" type="button" aria-label="閉じる">Esc</button><h2>Settings</h2>
   <div class="settings">
-    <label for="s-font">文字サイズ</label><input id="s-font" type="range" min="14" max="20" step="1" data-key="font"><output for="s-font"></output>
+    <label for="s-font">文字サイズ</label><input id="s-font" type="range" min="14" max="24" step="1" data-key="font"><output for="s-font"></output>
     <label for="s-side">sidebar 幅</label><input id="s-side" type="range" min="220" max="480" step="20" data-key="side"><output for="s-side"></output>
     <label for="s-width">本文幅</label><input id="s-width" type="range" min="36" max="72" step="2" data-key="width"><output for="s-width"></output>
   </div>

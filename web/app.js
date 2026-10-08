@@ -238,9 +238,9 @@ $("help-btn").addEventListener("click", () => toggle($("help")));
 $("settings-btn").addEventListener("click", () => toggle($("settings")));
 
 const SETTINGS = {
-  font: { def: 16, apply: (v) => (document.documentElement.style.fontSize = `${v}px`), unit: "px" },
+  font: { def: 18, apply: (v) => (document.documentElement.style.fontSize = `${v}px`), unit: "px" },
   side: { def: 300, apply: (v) => document.documentElement.style.setProperty("--side-w", `${v}px`), unit: "px" },
-  width: { def: 46, apply: (v) => document.documentElement.style.setProperty("--doc-w", `${v}rem`), unit: "rem" },
+  width: { def: 50, apply: (v) => document.documentElement.style.setProperty("--doc-w", `${v}rem`), unit: "rem" },
 };
 const store = (() => { try { return JSON.parse(localStorage.getItem("nabu-view") ?? "{}"); } catch { return {}; } })();
 const save = () => { try { localStorage.setItem("nabu-view", JSON.stringify(store)); } catch {} };
