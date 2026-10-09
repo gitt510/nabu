@@ -187,6 +187,11 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .home-list li { position: relative; }
 .home-list .flag { margin-left: auto; color: var(--fg-3); white-space: nowrap; font-family: var(--mono); font-size: 0.85em; }
 .home-list .flag.late { color: var(--late); }
+.home-list .refs { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 12px; font-family: var(--mono); font-size: 0.85em; letter-spacing: 0; }
+.home-list .refs a { position: relative; z-index: 1; color: var(--fg-2); white-space: nowrap; } /* above the row link */
+.home-list .refs a:hover { color: var(--fg); text-decoration: underline; }
+.home-list .refs a::after { content: none; }
+.home-h { font-size: 1.125rem; line-height: 1.6; margin: 32px 0 8px; }
 .hidden { display: none !important; }
 .tree-empty { padding: 16px 12px; color: var(--fg-3); }
 .side-foot { padding: 10px 18px; color: var(--fg-3); font-size: 12px; font-family: var(--mono); }
@@ -195,10 +200,12 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .main { overflow-y: auto; min-height: 0; margin: 0 8px 8px 0; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
 .doc { max-width: var(--doc-w, 50rem); padding: 32px 32px 96px; }
 .crumb { font-family: var(--mono); font-size: 0.875rem; letter-spacing: 0; color: var(--fg-3); margin: 0 0 12px; }
+.crumb .copy { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.crumb .copy:hover { color: var(--fg); }
 .doc h1 { font-size: 1.5rem; line-height: 1.5; letter-spacing: 0.01em; margin: 0 0 16px; }
-.meta { display: flex; flex-wrap: wrap; gap: 4px 24px; margin: 0 0 32px; padding: 0 0 16px; border-bottom: 1px solid var(--line); }
-.meta > div { display: flex; gap: 8px; }
-.meta dt { color: var(--fg-2); margin: 0; }
+.meta { display: grid; grid-template-columns: max-content 1fr; gap: 4px 24px; margin: 0 0 32px; padding: 0 0 16px; border-bottom: 1px solid var(--line); }
+.meta > div { display: contents; }
+.meta dt { color: var(--fg-3); font-family: var(--mono); font-size: 0.875rem; letter-spacing: 0; margin: 0; }
 .meta dd { margin: 0; }
 .meta dd a + a::before { content: " · "; color: var(--fg-3); text-decoration: none; display: inline-block; }
 .body > :first-child { margin-top: 0; }
