@@ -46,6 +46,7 @@ const SECTIONS = [
   { id: "done", label: "Done", pick: (t) => t.status === "done", closed: true },
   { id: "dropped", label: "Dropped", pick: (t) => t.status === "dropped", closed: true },
 ];
+const PROPS = ["scheduled", "waiting", "area", "project", "tickets", "prs", "links", "created"];
 const today = new Date().toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
 const dayOf = (iso) => instant(iso).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
 const isLate = (iso) => instant(iso) < new Date() && dayOf(iso) !== today;
@@ -78,7 +79,14 @@ function renderHome() {
   const list = (items, empty) => (items.length ? el("ul", { class: "home-list" }, ...items.map(link)) : el("p", { class: "empty" }, empty));
   // Today: open tasks scheduled for today, plus the late ones still open.
   const due = tasks.filter((t) => open_(t) && t.frontmatter.scheduled && (isLate(t.frontmatter.scheduled) || dayOf(t.frontmatter.scheduled) === today)).sort(bySchedule);
-  doc.replaceChildren(el("p", { class: "crumb" }, today), el("h1", {}, "Today"), list(due, "今日のタスクはない"));
+  // Linked: open tasks with PRs or tickets, PRs first, each link one click away.
+  const refs = (t) => [...(t.frontmatter.prs ?? []), ...(t.frontmatter.tickets ?? [])];
+  const linked = tasks.filter((t) => open_(t) && refs(t).length).sort((a, b) => !a.frontmatter.prs - !b.frontmatter.prs);
+  const row = (t) => el("li", {}, el("a", { href: `#${t.slug}`, onclick: (e) => { e.preventDefault(); select(t.slug); } }, t.title), el("span", { class: "refs" }, ...refs(t).map((u) => el("a", { href: u, target: "_blank", rel: "noopener" }, ticket(u)))));
+  doc.replaceChildren(
+    el("p", { class: "crumb" }, today), el("h1", {}, "Today"), list(due, "今日のタスクはない"),
+    el("h2", { class: "home-h" }, "Linked"), linked.length ? el("ul", { class: "home-list" }, ...linked.map(row)) : el("p", { class: "empty" }, "PR や ticket のあるタスクはない"),
+  );
 }
 
 // Visible file buttons, in order. Closed folders count as hidden.
@@ -112,20 +120,32 @@ function select(slug, push = true) {
   const t = byId[slug];
   if (!t) return;
   tree.querySelector(`.file.active`)?.closest(".dir")?.classList.remove("closed");
+  // Properties: keys verbatim, in PROPS order (what to do next first), not file order.
   const meta = el("dl", { class: "meta" });
   const fm = t.frontmatter;
-  if (fm.scheduled) meta.append(el("div", {}, el("dt", {}, "期日"), el("dd", {}, fmt(fm.scheduled))));
-  if (fm.waiting) meta.append(el("div", {}, el("dt", {}, "待ち"), el("dd", {}, fm.waiting)));
-  for (const key of ["area", "project"]) if (fm[key]) meta.append(el("div", {}, el("dt", {}, key), el("dd", {}, el("button", { class: "chip", type: "button", title: `${fm[key]} で絞り込む`, onclick: () => narrowTo(fm.area, key === "project" ? fm.project : "") }, fm[key]))));
-  for (const [key, label] of [["tickets", "ticket"], ["prs", "pr"], ["links", "link"]]) {
-    if (fm[key]?.length) meta.append(el("div", {}, el("dt", {}, label), el("dd", {}, ...fm[key].map((u) => el("a", { href: u, target: "_blank", rel: "noopener" }, ticket(u))))));
-  }
+  const value = (key, v) => {
+    if (Array.isArray(v)) return v.map((u) => el("a", { href: u, target: "_blank", rel: "noopener" }, ticket(u)));
+    if (key === "created" || key === "scheduled") return [fmt(v)];
+    if (key === "area" || key === "project") return [el("button", { class: "chip", type: "button", title: `${v} で絞り込む`, onclick: () => narrowTo(fm.area, key === "project" ? v : "") }, v)];
+    return [v];
+  };
+  for (const key of PROPS) if (fm[key]?.length) meta.append(el("div", {}, el("dt", {}, key), el("dd", {}, ...value(key, fm[key]))));
   const body = el("div", { class: "body" });
   body.innerHTML = t.html;
-  doc.replaceChildren(el("p", { class: "crumb" }, t.path), el("h1", {}, t.title), meta, body);
+  doc.replaceChildren(el("p", { class: "crumb" }, crumb(t)), el("h1", {}, t.title), meta, body);
   if (push) history.replaceState(null, "", `#${slug}`);
   main.scrollTop = 0;
   if (push) closeSide();
+}
+
+// The path line above the title; a click copies the file's path (absolute when the build knew the root).
+function crumb(t) {
+  const b = el("button", { class: "copy", type: "button", title: `${t.file}\nclick で copy` }, t.path);
+  b.addEventListener("click", () => navigator.clipboard.writeText(t.file).then(() => {
+    b.textContent = "copied";
+    setTimeout(() => { b.textContent = t.path; }, 1200);
+  }));
+  return b;
 }
 
 // Open the task adjacent to the current one, regardless of focus.

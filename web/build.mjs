@@ -1,5 +1,6 @@
 // Builds dist/index.html from data.json, the output of `nabu task ls --json`.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { marked } from "marked";
 
 const here = (name) => new URL(name, import.meta.url);
@@ -9,6 +10,14 @@ const read = (name) => readFileSync(here(name), "utf8");
 const icon = read("icon.svg").trim();
 const faviconStyle = "<style>svg{color:#1b1c1f}@media (prefers-color-scheme:dark){svg{color:#ececef}}</style>";
 const favicon = `data:image/svg+xml,${encodeURIComponent(icon.replace(/^(<svg[^>]*>)/, `$1${faviconStyle}`))}`;
+
+// The notes repository, from nabu's own config; absent (a build away from that machine) leaves paths relative.
+const root = (() => {
+  try {
+    const r = JSON.parse(readFileSync(`${homedir()}/.config/nabu/config.json`, "utf8")).root ?? "";
+    return r.replace(/^~(?=\/|$)/, homedir()).replace(/\/$/, "");
+  } catch { return ""; }
+})();
 
 const order = { doing: 0, inbox: 1, done: 2, stray: 3 };
 // scheduled tasks first, by instant (RFC3339 with any offset; a date alone is the start of that day in Asia/Tokyo), then the rest by slug
@@ -22,6 +31,7 @@ const tasks = JSON.parse(read("data.json")).map((r) => {
   body = body.trim();
   return {
     path: r.path,
+    file: root ? `${root}/${r.path}` : r.path, // what the crumb copies
     slug: r.slug,
     status: r.status,
     title: r.title,
