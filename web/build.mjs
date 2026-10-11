@@ -63,7 +63,7 @@ const page = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>nabu</title>
 <link rel="icon" href="${favicon}">
-<script>try { const t = JSON.parse(localStorage.getItem("nabu-view") ?? "{}").theme; if (t) document.documentElement.dataset.theme = t; } catch {}</script>
+<script>{ let t; try { t = JSON.parse(localStorage.getItem("nabu-view") ?? "{}").theme; } catch {} document.documentElement.classList.toggle("dark", t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches); }</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+Mono:wght@400&display=swap" rel="stylesheet">
