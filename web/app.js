@@ -126,7 +126,7 @@ function select(slug, push = true) {
   const value = (key, v) => {
     if (Array.isArray(v)) return v.map((u) => el("a", { href: u, target: "_blank", rel: "noopener" }, ticket(u)));
     if (key === "created" || key === "scheduled") return [fmt(v)];
-    if (key === "area" || key === "project") return [el("button", { class: "chip", type: "button", title: `${v} で絞り込む`, onclick: () => narrowTo(fm.area, key === "project" ? v : "") }, v)];
+    if (key === "area" || key === "project") return [el("button", { class: `chip ${key}`, type: "button", title: `${v} で絞り込む`, onclick: () => narrowTo(fm.area, key === "project" ? v : "") }, v)];
     return [v];
   };
   for (const key of PROPS) if (fm[key]?.length) meta.append(el("div", {}, el("dt", {}, key), el("dd", {}, ...value(key, fm[key]))));
@@ -172,11 +172,11 @@ function filter() {
 // Each is a single choice; pressing the chosen one again lets everything through.
 const AREAS = ["work", "personal"];
 function renderFacets() {
-  const chip = (label, on, onclick) => el("button", { class: "chip", type: "button", "aria-pressed": String(on), onclick }, label);
+  const chip = (kind, label, on, onclick) => el("button", { class: `chip ${kind}`, type: "button", "aria-pressed": String(on), onclick }, label);
   const projects = [...new Set(tasks.filter((t) => !pick.area || t.frontmatter.area === pick.area).map((t) => t.frontmatter.project).filter(Boolean))].sort();
   facets.replaceChildren(
-    el("div", { class: "facet" }, ...AREAS.map((a) => chip(a, pick.area === a, () => narrowTo(pick.area === a ? "" : a, "")))),
-    el("div", { class: "facet" }, ...projects.map((p) => chip(p, pick.project === p, () => narrowTo(pick.area, pick.project === p ? "" : p)))),
+    el("div", { class: "facet" }, ...AREAS.map((a) => chip("area", a, pick.area === a, () => narrowTo(pick.area === a ? "" : a, "")))),
+    el("div", { class: "facet" }, ...projects.map((p) => chip("project", p, pick.project === p, () => narrowTo(pick.area, pick.project === p ? "" : p)))),
   );
 }
 function narrowTo(area, project) {
@@ -276,7 +276,7 @@ const ICONS = {
 };
 const applyTheme = () => {
   const t = store.theme ?? "";
-  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  document.documentElement.classList.toggle("dark", showing() === "dark");
   for (const b of themeButtons) b.setAttribute("aria-pressed", String(b.dataset.theme === t));
   const next = showing() === "dark" ? "light" : "dark";
   themeBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[next]}</svg>`;
