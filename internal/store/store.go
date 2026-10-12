@@ -14,11 +14,17 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"syscall"
+	"time"
 )
 
 // Store is a repository root.
 type Store struct {
 	Root string
+	// PostCommit, when set, runs in the background after each commit Commit
+	// makes, with its output and exit status appended to Log.
+	PostCommit string
+	Log        string
 }
 
 // Open validates that root exists and is a git repository.
@@ -307,7 +313,38 @@ func (s *Store) Commit(message string, rels ...string) (bool, error) {
 	if err := s.git(append([]string{"commit", "-q", "-m", message, "--"}, rels...)...); err != nil {
 		return false, err
 	}
+	s.runPostCommit()
 	return true, nil
+}
+
+// postCommitScript logs the start, runs the command, and logs its exit status
+// with what it printed. $1 is the command, $2 the log.
+const postCommitScript = `stamp() { date +%Y-%m-%dT%H:%M:%S%z; }
+echo "$(stamp) post_commit start: $1" >> "$2"
+out=$(sh -c "$1" 2>&1); code=$?
+echo "$(stamp) post_commit exit $code: $out" >> "$2"`
+
+// runPostCommit starts PostCommit in its own session in the root and returns
+// at once: the commit is already made, so the hook can neither block nor fail
+// it. A hook that cannot start is logged and dropped.
+func (s *Store) runPostCommit() {
+	if s.PostCommit == "" || s.Log == "" {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(s.Log), 0o755); err != nil {
+		return
+	}
+	cmd := exec.Command("sh", "-c", postCommitScript, "sh", s.PostCommit, s.Log)
+	cmd.Dir = s.Root
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := cmd.Start(); err != nil {
+		if f, ferr := os.OpenFile(s.Log, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); ferr == nil {
+			fmt.Fprintf(f, "%s post_commit not started: %v\n", time.Now().Format("2006-01-02T15:04:05-0700"), err)
+			f.Close()
+		}
+		return
+	}
+	cmd.Process.Release() //nolint:errcheck // nabu exits without waiting; the outcome is in the log
 }
 
 // Push sends the current branch to its upstream and returns that upstream
