@@ -24,3 +24,13 @@ view:
     go run . task ls --json > web/data.json
     cd web && npm ci --silent --no-fund --no-audit && npm run --silent build
     open web/dist/index.html
+
+# Render tasks/ with the installed nabu and upload the page to R2, where the nabu Worker serves it
+publish:
+    nabu task ls --json > web/data.json
+    cd web && { test -d node_modules || npm ci --silent --no-fund --no-audit; } && npm run --silent build
+    cd web && npx wrangler r2 object put nabu/index.html --file dist/index.html --content-type "text/html; charset=utf-8" --remote
+
+# Deploy the Worker that serves what publish uploads
+deploy:
+    cd web && npx wrangler deploy
