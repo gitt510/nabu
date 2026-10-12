@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func newRepo(t *testing.T) *Store {
@@ -212,5 +213,47 @@ func TestFindTask(t *testing.T) {
 	}
 	if got := s.FindTask("x"); got != "tasks/done/x.md" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestCommitRunsPostCommit(t *testing.T) {
+	s := newRepo(t)
+	s.Log = filepath.Join(t.TempDir(), "state", "nabu.log")
+	s.PostCommit = "pwd; echo done; exit 3"
+	if _, err := s.Write("a.md", []byte("one")); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := s.Commit("add a", "a.md"); err != nil || !ok {
+		t.Fatalf("commit: %v %v", ok, err)
+	}
+	var log string
+	for i := 0; i < 100 && !strings.Contains(log, "exit"); i++ {
+		time.Sleep(20 * time.Millisecond)
+		b, _ := os.ReadFile(s.Log)
+		log = string(b)
+	}
+	for _, want := range []string{"post_commit start: pwd; echo done; exit 3", "post_commit exit 3: " + s.Root + "\ndone"} {
+		if !strings.Contains(log, want) {
+			t.Fatalf("log lacks %q:\n%s", want, log)
+		}
+	}
+}
+
+func TestCommitWithoutChangeRunsNoPostCommit(t *testing.T) {
+	s := newRepo(t)
+	if _, err := s.Write("a.md", []byte("one")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Commit("add a", "a.md"); err != nil {
+		t.Fatal(err)
+	}
+	s.Log = filepath.Join(t.TempDir(), "nabu.log")
+	s.PostCommit = "true"
+	if ok, err := s.Commit("again", "a.md"); err != nil || ok {
+		t.Fatalf("commit: %v %v", ok, err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if _, err := os.Stat(s.Log); err == nil {
+		t.Fatal("post_commit ran without a commit")
 	}
 }

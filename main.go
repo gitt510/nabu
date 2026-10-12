@@ -139,12 +139,23 @@ func resolveRoot(flagRoot string) (string, error) {
 	return cfg.Root, nil
 }
 
+// openStore opens the resolved root. post_commit comes from the config file,
+// so a --root invocation, which bypasses the file, runs no hook.
 func openStore(flagRoot string) (*store.Store, error) {
 	root, err := resolveRoot(flagRoot)
 	if err != nil {
 		return nil, err
 	}
-	return store.Open(root)
+	s, err := store.Open(root)
+	if err != nil || flagRoot != "" {
+		return s, err
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
+	}
+	s.PostCommit, s.Log = cfg.PostCommit, config.LogPath()
+	return s, nil
 }
 
 func initCmd(e *env) *cobra.Command {

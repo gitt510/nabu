@@ -85,6 +85,23 @@ agent: nabu canvas save pr68-comment --ticket https://github.com/o/r/pull/68
 - When the draft is final, ask the agent to save it
   - it hangs in `gallery/<slug>.md` and the canvas is emptied
 
+## Viewer
+
+- `just view` renders `tasks/` into `web/dist/index.html` and opens it locally
+- `just publish` uploads the same page to the R2 bucket `nabu`; the `nabu` Worker serves it behind Cloudflare Access
+- `just deploy` deploys the Worker (`web/wrangler.jsonc`)
+- A publish started while another is running exits with `skip`
+
+### Publish on every commit
+
+```json
+{"root": "~/ghq/github.com/you/notes", "post_commit": "just -f ~/ghq/github.com/you/nabu/justfile publish"}
+```
+
+- `post_commit` in the config runs in the background after each commit nabu makes; the command never blocks or fails the commit
+- Its output and exit status are appended to `~/.local/state/nabu/nabu.log` (`$XDG_STATE_HOME/nabu/nabu.log`); `just log` shows the tail
+- `--root` bypasses the config file, so no `post_commit` runs
+
 ## Agent skill
 
 ```

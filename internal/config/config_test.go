@@ -13,6 +13,13 @@ func TestPathHonorsXDG(t *testing.T) {
 	}
 }
 
+func TestLogPathHonorsXDG(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", "/s")
+	if got := LogPath(); got != filepath.Join("/s", "nabu", "nabu.log") {
+		t.Fatalf("got %s", got)
+	}
+}
+
 func TestLoadMissingIsEmpty(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	cfg, err := Load()
