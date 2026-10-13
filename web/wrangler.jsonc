@@ -1,8 +1,10 @@
 {
-  // Serves the viewer that `just publish` uploads to R2. The page lives only in the bucket, never in the repo or the Worker.
+  // Serves the viewer: the page from dist/ as static assets, built on deploy, and its data from R2, which `just publish` uploads.
+  // The data lives only in the bucket, never in the repo or the Worker.
   // Access (sign-in) is set on the Worker in the Zero Trust dashboard, not here.
   "name": "nabu",
   "main": "worker.js",
+  "assets": { "directory": "dist" },
   // Pinned on purpose: a moving date would change the Worker's behavior silently.
   "compatibility_date": "2026-10-11",
   "r2_buckets": [{ "binding": "VIEW", "bucket_name": "nabu" }],

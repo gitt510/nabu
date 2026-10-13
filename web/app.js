@@ -1,4 +1,5 @@
-const tasks = JSON.parse(document.getElementById("data").textContent);
+// no-store, so a reload shows the latest publish
+const tasks = await (await fetch("tasks.json", { cache: "no-store" })).json();
 const byId = Object.fromEntries(tasks.map((t) => [t.slug, t]));
 const STATUS = ["doing", "inbox", "done", "dropped"];
 const $ = (id) => document.getElementById(id);

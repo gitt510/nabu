@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "data": "node data.mjs"
   },
   "dependencies": {
     "marked": "^15"
