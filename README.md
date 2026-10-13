@@ -29,6 +29,7 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 - A task is one file, `tasks/<status>/<slug>.md`
 - The folder is the status: `inbox`, `doing`, `done`, `dropped`
 - `done` is finished work; `dropped` is work decided against, and its `For Human` says why
+- `task rm` deletes a task that should not have been filed (a duplicate, a mistake), whatever its status; git history keeps the content
 - The body has two sections: `## For Human` for the user, `## AI memo` for the agent
 - Every change is a git commit; nothing is pushed until you ask for `nabu push`
 

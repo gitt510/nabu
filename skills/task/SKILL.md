@@ -22,6 +22,7 @@ nabu task set <slug> --area <work|personal> --project <kebab>  # --clear-project
 nabu task set <slug> --scheduled <RFC3339|YYYY-MM-DD> --ticket <https-url> --pr <https-url> --link <https-url>   # other metadata; --clear-* drops
 nabu task mv <slug> <inbox|doing|done|dropped>  # move a task to its status folder
 nabu task rename <slug> <new-slug>           # new slug, same status and content
+nabu task rm <slug>                          # delete a task, whatever its status
 nabu task ls [status] [--json]               # status, title, created; --json adds slug, waiting, and the rest
 nabu task read <slug>                        # a task's content, any status
 nabu task grep <query> [--json]              # where something is written in tasks
@@ -90,6 +91,10 @@ nabu task validate [slug]                    # which tasks are out of shape; not
 
    - <one reason, at most 30 characters>
    ```
+   A task that should not have been filed at all (a duplicate, a mistake,
+   「消して」「削除して」) is deleted with `nabu task rm <slug>`, whatever its
+   status. Delete only when the user asks; a decision not to do the work
+   is `dropped`.
 4. **Revise with `task replace` and `task set`.** `task
    replace` takes the new body on stdin, in the same shape `task new`
    requires, and keeps the frontmatter; `task set` changes the frontmatter

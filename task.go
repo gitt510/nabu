@@ -163,7 +163,7 @@ func taskCmd(e *env) *cobra.Command {
 	cmd.AddCommand(
 		taskLsCmd(e), taskGrepCmd(e), taskValidateCmd(e),
 		taskReadCmd(e),
-		taskNewCmd(e), taskReplaceCmd(e), taskSetCmd(e), taskMvCmd(e), taskRenameCmd(e),
+		taskNewCmd(e), taskReplaceCmd(e), taskSetCmd(e), taskMvCmd(e), taskRenameCmd(e), taskRmCmd(e),
 	)
 	return cmd
 }
@@ -423,6 +423,40 @@ func taskRenameCmd(e *env) *cobra.Command {
 				return fail(e.stderr, err, exitFail)
 			}
 			return finishMv(s, from, to, "task rename", e.stdout, e.stderr)
+
+		}),
+	}
+	return cmd
+}
+
+func taskRmCmd(e *env) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "rm <slug>",
+		Short:   "delete a task, whatever its status",
+		Long:    "deletes tasks/<status>/<slug>.md and commits the deletion, so git history keeps the content.\nfor a task that should not have been filed (a duplicate, a mistake); work decided against goes to dropped (see task mv)",
+		GroupID: "update",
+		Args:    cobra.ExactArgs(1),
+		RunE: do(func(args []string) int {
+			slug := arg(args, 0)
+			if !store.Slug(slug) {
+				return fail(e.stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
+			}
+			s, err := openStore(e.root)
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			rel := s.FindTask(slug)
+			if rel == "" {
+				return fail(e.stderr, fmt.Errorf("no task %s under tasks/", slug), exitFail)
+			}
+			if _, err := s.Remove(rel); err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			committed, err := s.Commit("nabu: task rm "+rel, rel)
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			return emit(e.stdout, rmResult{Path: rel, Action: "task rm", Committed: committed})
 
 		}),
 	}
