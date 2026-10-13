@@ -22,7 +22,8 @@ install:
 # Render tasks/ and the viewer into web/dist/ and serve them on localhost:8000
 view:
     go run . task ls --json > web/data.json
-    cd web && npm ci --silent --no-fund --no-audit && npm run --silent build && npm run --silent data
+    pnpm install --frozen-lockfile --silent
+    cd web && pnpm --silent build && pnpm --silent data
     open http://localhost:8000
     python3 -m http.server -d web/dist 8000
 
@@ -35,9 +36,9 @@ publish:
     trap 'rmdir "$lock"' EXIT
     nabu task ls --json > web/data.json
     cd web
-    test -d node_modules || npm ci --silent --no-fund --no-audit
-    npm run --silent data
-    out=$(npx wrangler r2 object put nabu/tasks.json --file dist/tasks.json --content-type "application/json; charset=utf-8" --remote 2>&1) || { echo "$out"; exit 1; }
+    test -d node_modules || pnpm install --frozen-lockfile --silent
+    pnpm --silent data
+    out=$(pnpm exec wrangler r2 object put nabu/tasks.json --file dist/tasks.json --content-type "application/json; charset=utf-8" --remote 2>&1) || { echo "$out"; exit 1; }
     echo "ok ${SECONDS}s $(( $(wc -c < dist/tasks.json) / 1024 ))KB"
 
 # Show the tail of nabu's log, where each post_commit run lands
@@ -46,4 +47,5 @@ log lines="40":
 
 # Build the viewer and deploy it with the Worker that serves what publish uploads
 deploy:
-    cd web && npm run --silent build && npx wrangler deploy
+    pnpm install --frozen-lockfile --silent
+    cd web && pnpm --silent build && pnpm exec wrangler deploy
