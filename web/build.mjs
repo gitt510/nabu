@@ -1,4 +1,5 @@
 // Builds dist/index.html from data.json, the output of `nabu task ls --json`.
+import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { marked } from "marked";
@@ -19,10 +20,21 @@ const root = (() => {
   } catch { return ""; }
 })();
 
-const order = { doing: 0, inbox: 1, done: 2, stray: 3 };
-// scheduled tasks first, by instant (RFC3339 with any offset; a date alone is the start of that day in Asia/Tokyo), then the rest by slug
-const instant = (s) => Date.parse(/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T00:00:00+09:00` : s);
-const key = (t) => (t.frontmatter.scheduled ? "0" + String(instant(t.frontmatter.scheduled)).padStart(15, "0") : "1" + t.slug);
+// When each task was last committed, from the notes repository's history (newest first, so the first
+// mention of a path wins). Empty away from that machine; the viewer then sorts those tasks last.
+const updated = (() => {
+  if (!root) return {};
+  try {
+    const log = execFileSync("git", ["-C", root, "log", "--format=%x00%cI", "--name-only", "--", "tasks/"], { encoding: "utf8" });
+    const at = {};
+    let when = "";
+    for (const line of log.split("\n")) {
+      if (line.startsWith("\0")) when = line.slice(1);
+      else if (line && !(line in at)) at[line] = when;
+    }
+    return at;
+  } catch { return {}; }
+})();
 
 const tasks = JSON.parse(read("data.json")).map((r) => {
   const frontmatter = r.frontmatter ?? {};
@@ -36,25 +48,17 @@ const tasks = JSON.parse(read("data.json")).map((r) => {
     status: r.status,
     title: r.title,
     frontmatter,
+    updated: updated[r.path] ?? "",
     html: marked.parse(body),
     text: [r.title, r.slug, frontmatter.waiting ?? "", frontmatter.project ?? "", body].join("\n").toLowerCase(),
   };
 });
-// doing, inbox, done, stray; inside a status, scheduled tasks by time, then the rest by slug
-tasks.sort((a, b) => order[a.status] - order[b.status] || (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
+tasks.sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0)); // the viewer orders; this only fixes ties
 
 // escaping < keeps the JSON from closing its <script>
 const data = JSON.stringify(tasks).replaceAll("<", "\\u003c");
 const css = read("app.css");
 const js = read("app.js");
-const built = new Intl.DateTimeFormat("ja-JP", {
-  timeZone: "Asia/Tokyo",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-}).format(new Date());
 
 const page = `<!doctype html>
 <html lang="ja">
@@ -82,12 +86,16 @@ ${css}
     <button type="button" id="settings-btn" title="settings (,)" aria-label="設定"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.6a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.6a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
   </header>
   <aside class="side" id="side">
-    <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search" autocomplete="off" aria-label="Search"></label>
-    <div class="facets" id="facets"></div>
-    <ul class="tree" id="tree"></ul>
-    <div class="side-foot">built ${built}</div>
+    <nav class="views" id="views" aria-label="一覧の切り替え"></nav>
   </aside>
-  <main class="main"><article class="doc" id="doc"><p class="empty">読み込み中</p></article></main>
+  <section class="content">
+    <div class="list" id="list">
+      <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search" autocomplete="off" aria-label="Search"></label>
+      <div class="list-head"><span class="n" id="count"></span><div class="sort" id="sort" role="group" aria-label="並び順"><button type="button" tabindex="-1" data-sort="updated" title="updated (s)">updated</button><button type="button" tabindex="-1" data-sort="created" title="created (s)">created</button></div></div>
+      <ul class="files" id="files"></ul>
+    </div>
+    <main class="main"><article class="doc" id="doc"><p class="empty">読み込み中</p></article></main>
+  </section>
 </div>
 <dialog id="help"><button class="close" type="button" aria-label="閉じる">Esc</button><h2>Keyboard</h2><dl class="keys" id="keys"></dl></dialog>
 <dialog id="settings"><button class="close" type="button" aria-label="閉じる">Esc</button><h2>Settings</h2>

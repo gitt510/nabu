@@ -2,11 +2,10 @@ const tasks = JSON.parse(document.getElementById("data").textContent);
 const byId = Object.fromEntries(tasks.map((t) => [t.slug, t]));
 const STATUS = ["doing", "inbox", "done", "dropped"];
 const $ = (id) => document.getElementById(id);
-const tree = $("tree");
+const files = $("files");
 const doc = $("doc");
 const q = $("q");
 const main = document.querySelector(".main");
-const facets = $("facets");
 const pick = { area: "", project: "" }; // "" lets every task through
 
 // scheduled is RFC3339 with an offset, or a date alone (YYYY-MM-DD) for the whole day in Asia/Tokyo
@@ -33,45 +32,110 @@ const el = (tag, attrs = {}, ...kids) => {
   return e;
 };
 
-// ---- sections -------------------------------------------------------------
-// Frontmatter sections first, then one section per status folder. A task may
-// sit in both (a doing task with a date is in Scheduled and in Doing).
+// ---- views -----------------------------------------------------------------
+// The first column, like Finder's sidebar: one view per frontmatter key, then one per status folder,
+// then the area and project filters. Every item carries a data-key so focus survives a re-render.
+// A task may sit in two views (a doing task with a date is in Scheduled and in Doing).
 const open_ = (t) => t.status !== "done" && t.status !== "dropped";
 const bySchedule = (a, b) => instant(a.frontmatter.scheduled) - instant(b.frontmatter.scheduled);
-const SECTIONS = [
-  { id: "scheduled", label: "Scheduled", pick: (t) => open_(t) && t.frontmatter.scheduled, sort: bySchedule },
-  { id: "waiting", label: "Waiting", pick: (t) => open_(t) && t.frontmatter.waiting },
-  { id: "doing", label: "Doing", pick: (t) => t.status === "doing" },
-  { id: "inbox", label: "Inbox", pick: (t) => t.status === "inbox" },
-  { id: "done", label: "Done", pick: (t) => t.status === "done", closed: true },
-  { id: "dropped", label: "Dropped", pick: (t) => t.status === "dropped", closed: true },
+const svg = (d) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const VIEWS = [
+  { id: "all", label: "All", pick: () => true, icon: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>' },
+  { id: "scheduled", label: "Scheduled", pick: (t) => open_(t) && t.frontmatter.scheduled, icon: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>' },
+  { id: "waiting", label: "Waiting", pick: (t) => open_(t) && t.frontmatter.waiting, icon: '<path d="M6 3h12M6 21h12M8 3v4a4 4 0 0 0 8 0V3M8 21v-4a4 4 0 0 1 8 0v4"/>' },
+  { id: "doing", label: "Doing", pick: (t) => t.status === "doing", folder: true, icon: '<circle cx="12" cy="12" r="9"/><path d="m10 8 5 4-5 4z"/>' },
+  { id: "inbox", label: "Inbox", pick: (t) => t.status === "inbox", folder: true, icon: '<path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 4h14l2 9v7H3v-7z"/>' },
+  { id: "done", label: "Done", pick: (t) => t.status === "done", folder: true, icon: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>' },
+  { id: "dropped", label: "Dropped", pick: (t) => t.status === "dropped", folder: true, icon: '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>' },
 ];
+// The list's order: newest first by the key the toggle names. created is the frontmatter stamp;
+// updated is the last commit touching the file (empty when the build had no repository: those go last).
+const createdOf = (t) => t.frontmatter.created ?? t.updated;
+const SORTS = { updated: (t) => t.updated, created: createdOf };
 const PROPS = ["scheduled", "waiting", "area", "project", "tickets", "prs", "links", "created"];
 const today = new Date().toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
 const dayOf = (iso) => instant(iso).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
 const isLate = (iso) => instant(iso) < new Date() && dayOf(iso) !== today;
 
+const store = (() => { try { return JSON.parse(localStorage.getItem("nabu-view") ?? "{}"); } catch { return {}; } })();
+const save = () => { try { localStorage.setItem("nabu-view", JSON.stringify(store)); } catch {} };
+const viewOf = (id) => VIEWS.find((v) => v.id === id) ?? VIEWS[0];
+let view = viewOf(store.view);
+let sort = store.sort in SORTS ? store.sort : "updated";
+
+// What the search box and the area / project rows let through.
+function keep(t) {
+  const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return words.every((w) => t.text.includes(w)) && (!pick.area || t.frontmatter.area === pick.area) && (!pick.project || t.frontmatter.project === pick.project);
+}
+const listed = (v) => {
+  const key = SORTS[sort];
+  return tasks.filter((t) => v.pick(t) && keep(t)).sort((a, b) => (key(a) < key(b) ? 1 : key(a) > key(b) ? -1 : 0));
+};
+
 function fileButton(t) {
   const fm = t.frontmatter;
-  const b = el("button", { class: "file", "data-slug": t.slug, type: "button", tabindex: "-1", title: t.slug, onclick: () => select(t.slug) }, t.title);
-  if (fm.scheduled) b.append(el("span", { class: `flag${isLate(fm.scheduled) ? " late" : ""}` }, fmt(fm.scheduled).split(" ")[0]));
-  else if (fm.waiting) b.append(el("span", { class: "flag" }, "⏳"));
-  return b;
+  const when = SORTS[sort](t);
+  // One date: the scheduled one when there is one (red once it has passed), else the sort key's.
+  const date = fm.scheduled ? el("span", { class: isLate(fm.scheduled) ? "late" : "" }, fmt(fm.scheduled).split(" ")[0]) : when ? fmt(when).split(" ")[0] : "—";
+  const sub = el("span", { class: "sub" }, t.status, " · ", date);
+  if (fm.waiting) sub.append(el("span", { class: "flag" }, "⏳"));
+  return el("button", { class: "file", "data-slug": t.slug, "data-status": t.status, type: "button", tabindex: "-1", title: t.slug, onclick: () => select(t.slug) }, el("span", { class: "name" }, t.title), sub);
 }
 
-function renderTree() {
-  tree.replaceChildren();
-  for (const sec of SECTIONS) {
-    const files = tasks.filter(sec.pick);
-    if (sec.sort) files.sort(sec.sort);
-    const dir = el("li", { class: `dir ${sec.id}${sec.closed ? " closed" : ""}` });
-    const name = el("div", { class: "dir-name", onclick: () => dir.classList.toggle("closed") }, sec.label, el("span", { class: "n" }, String(files.length)));
-    const ul = el("ul", { class: "files" });
-    for (const t of files) ul.append(el("li", {}, fileButton(t)));
-    dir.append(name, ul);
-    tree.append(dir);
-  }
+// Area, then the projects in it. Each is a single choice; pressing the chosen one again lets everything through.
+const AREAS = ["work", "personal"];
+function renderViews() {
+  const row = (label, on, onclick, icon, ...rest) => {
+    const b = el("button", { class: "view", type: "button", tabindex: on ? "0" : "-1", "data-key": label, "aria-current": String(on), onclick });
+    b.innerHTML = icon;
+    b.append(el("span", {}, label), ...rest);
+    return b;
+  };
+  const head = (s) => el("div", { class: "views-h" }, s);
+  const chip = (kind, label, on, onclick) => el("button", { class: `chip ${kind}`, type: "button", tabindex: "-1", "data-key": `${kind}:${label}`, "aria-pressed": String(on), onclick }, label);
+  const viewRow = (v) => row(v.label, v.id === view.id, () => setView(v), svg(v.icon), el("span", { class: "n" }, String(listed(v).length)));
+  const projects = [...new Set(tasks.filter((t) => !pick.area || t.frontmatter.area === pick.area).map((t) => t.frontmatter.project).filter(Boolean))].sort();
+  const focused = $("views").contains(document.activeElement) ? document.activeElement.dataset.key : null;
+  $("views").replaceChildren(
+    head("Views"), ...VIEWS.filter((v) => !v.folder).map(viewRow),
+    head("Status"), ...VIEWS.filter((v) => v.folder).map(viewRow),
+    head("Area"), el("div", { class: "chips" }, ...AREAS.map((a) => chip("area", a, pick.area === a, () => narrowTo(pick.area === a ? "" : a, "")))),
+    ...(projects.length ? [head("Project"), el("div", { class: "chips" }, ...projects.map((p) => chip("project", p, pick.project === p, () => narrowTo(pick.area, pick.project === p ? "" : p))))] : []),
+  );
+  if (focused) ($("views").querySelector(`[data-key="${CSS.escape(focused)}"]`) ?? $("views").querySelector("button")).focus();
 }
+function narrowTo(area, project) {
+  pick.area = area;
+  pick.project = project;
+  filter();
+}
+
+function renderList() {
+  const active = files.querySelector(".file.active")?.dataset.slug ?? location.hash.slice(1);
+  const items = listed(view);
+  files.replaceChildren(...(items.length ? items.map((t) => el("li", {}, fileButton(t))) : [el("li", { class: "empty" }, "なし")]));
+  const stop = files.querySelector(`.file[data-slug="${CSS.escape(active)}"]`) ?? files.querySelector(".file");
+  stop?.classList.toggle("active", stop.dataset.slug === active);
+  if (stop) stop.tabIndex = 0; // the column's one Tab stop
+  $("count").textContent = `${items.length} / ${tasks.filter(view.pick).length}`;
+  for (const b of $("sort").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.sort === sort));
+}
+
+function setView(v) {
+  view = v;
+  store.view = v.id;
+  save();
+  renderViews();
+  renderList();
+}
+function setSort(key) {
+  sort = key;
+  store.sort = key;
+  save();
+  renderList();
+}
+const stepView = (delta) => setView(VIEWS[(VIEWS.indexOf(view) + delta + VIEWS.length) % VIEWS.length]);
 
 // ---- home -------------------------------------------------------------------
 function renderHome() {
@@ -89,8 +153,21 @@ function renderHome() {
   );
 }
 
-// Visible file buttons, in order. Closed folders count as hidden.
-const visibleFiles = () => [...tree.querySelectorAll(".dir:not(.closed):not(.hidden) li:not(.hidden) > .file")];
+const visibleFiles = () => [...files.querySelectorAll(".file")];
+const views = $("views");
+const sideItems = () => [...views.querySelectorAll("button")];
+
+// Move the focus inside the sidebar. Landing on a view opens it (as in Finder); a chip waits for Enter.
+function focusSide(delta) {
+  const items = sideItems();
+  const at = items.indexOf(document.activeElement);
+  let next;
+  if (at < 0) next = Math.max(0, items.findIndex((b) => b.getAttribute("aria-current") === "true"));
+  else next = Math.min(items.length - 1, Math.max(0, at + delta));
+  items[next].focus();
+  items[next].scrollIntoView({ block: "nearest" });
+  if (items[next].classList.contains("view") && items[next].getAttribute("aria-current") !== "true") items[next].click(); // re-renders; the focus follows the key
+}
 
 function focusFile(delta) {
   const items = visibleFiles();
@@ -109,8 +186,8 @@ function focusFile(delta) {
 }
 
 function select(slug, push = true) {
-  for (const b of tree.querySelectorAll(".file")) b.classList.toggle("active", b.dataset.slug === slug);
   if (slug === "") {
+    for (const b of files.querySelectorAll(".file")) b.classList.remove("active");
     renderHome();
     if (push) history.replaceState(null, "", location.pathname);
     main.scrollTop = 0;
@@ -119,7 +196,9 @@ function select(slug, push = true) {
   }
   const t = byId[slug];
   if (!t) return;
-  tree.querySelector(`.file.active`)?.closest(".dir")?.classList.remove("closed");
+  // A task outside the current view (opened from the URL or Home) shows under All.
+  if (!view.pick(t) && view.id !== "all") setView(VIEWS[0]);
+  for (const b of files.querySelectorAll(".file")) b.classList.toggle("active", b.dataset.slug === slug);
   // Properties: keys verbatim, in PROPS order (what to do next first), not file order.
   const meta = el("dl", { class: "meta" });
   const fm = t.frontmatter;
@@ -153,56 +232,53 @@ function step(delta) {
   const items = visibleFiles();
   const at = items.findIndex((b) => b.classList.contains("active"));
   const next = items[Math.min(items.length - 1, Math.max(0, at + delta))];
-  if (next) { select(next.dataset.slug); next.scrollIntoView({ block: "nearest" }); if (tree.contains(document.activeElement)) next.focus(); }
+  if (next) { select(next.dataset.slug); next.scrollIntoView({ block: "nearest" }); if (files.contains(document.activeElement)) next.focus(); }
 }
 
 function filter() {
-  const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const keep = (t) => words.every((w) => t.text.includes(w)) && (!pick.area || t.frontmatter.area === pick.area) && (!pick.project || t.frontmatter.project === pick.project);
-  for (const b of tree.querySelectorAll(".file")) if (b.dataset.slug) b.parentElement.classList.toggle("hidden", !keep(byId[b.dataset.slug]));
-  for (const dir of tree.querySelectorAll(".dir")) {
-    const n = dir.querySelectorAll("li:not(.hidden)").length;
-    dir.querySelector(".n").textContent = String(n);
-    dir.classList.toggle("hidden", n === 0);
-    if (words.length || pick.area || pick.project) dir.classList.remove("closed");
-  }
-}
-
-// ---- facets: area, then the projects in it, under the search box -----------
-// Each is a single choice; pressing the chosen one again lets everything through.
-const AREAS = ["work", "personal"];
-function renderFacets() {
-  const chip = (kind, label, on, onclick) => el("button", { class: `chip ${kind}`, type: "button", "aria-pressed": String(on), onclick }, label);
-  const projects = [...new Set(tasks.filter((t) => !pick.area || t.frontmatter.area === pick.area).map((t) => t.frontmatter.project).filter(Boolean))].sort();
-  facets.replaceChildren(
-    el("div", { class: "facet" }, ...AREAS.map((a) => chip("area", a, pick.area === a, () => narrowTo(pick.area === a ? "" : a, "")))),
-    el("div", { class: "facet" }, ...projects.map((p) => chip("project", p, pick.project === p, () => narrowTo(pick.area, pick.project === p ? "" : p)))),
-  );
-}
-function narrowTo(area, project) {
-  pick.area = area;
-  pick.project = project;
-  renderFacets();
-  filter();
+  renderViews();
+  renderList();
 }
 
 // ---- shortcuts (single keys, outside text fields; ? lists them) ------------
+// Three columns: sidebar, list, document. ← → move the focus between them (→ from the sidebar lands on
+// the top of the list); Tab / Shift+Tab do the same with one stop per column. ↑ ↓ walk the sidebar,
+// pick a file in the list, and scroll the document.
 const inTextField = (e) => ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName) || e.target.isContentEditable;
+const scroll = (dy) => main.scrollBy({ top: dy });
 const shortcuts = [
   { group: "移動" },
   { key: "/", label: "検索にフォーカス", run: () => q.focus() },
-  { key: "h", label: "一覧にフォーカス", run: () => focusFile(0) },
+  { key: "← → / Tab", label: "列を移る（サイドバー → 一覧 → 本文）", run: null },
+  { key: "h", run: () => focusFile(0) },
+  { key: "ArrowLeft", run: () => focusFile(0) },
   { key: "H", label: "Home を開く", run: () => select("") },
   { key: "n", label: "次のタスクを開く", run: () => step(1) },
   { key: "p", label: "前のタスクを開く", run: () => step(-1) },
-  { key: "j", label: "本文をスクロール", run: () => main.scrollBy({ top: 80 }) },
-  { key: "k", label: "本文をスクロール", run: () => main.scrollBy({ top: -80 }) },
+  { key: "[ / ]", label: "前 / 次の一覧へ", run: null },
+  { key: "[", run: () => stepView(-1) },
+  { key: "]", run: () => stepView(1) },
+  { key: "s", label: "updated / created の並び順を切り替える", run: () => setSort(sort === "updated" ? "created" : "updated") },
+  { key: "j / ↓", label: "本文を下へスクロール", run: null },
+  { key: "j", run: () => scroll(80) },
+  { key: "ArrowDown", run: () => scroll(80) },
+  { key: "k / ↑", label: "本文を上へスクロール", run: null },
+  { key: "k", run: () => scroll(-80) },
+  { key: "ArrowUp", run: () => scroll(-80) },
   { group: "一覧内" },
-  { key: "j / ↓", label: "下へ", tree: true },
+  { key: "j / ↓", label: "下へ（移動した先が開く）", tree: true },
   { key: "k / ↑", label: "上へ", tree: true },
   { key: "gg / G", label: "先頭 / 末尾", tree: true },
-  { key: "l / Enter", label: "開く（移動しただけでも切り替わる）", tree: true },
-  { key: "Esc", label: "一覧から抜ける", tree: true },
+  { key: "Enter", label: "開く", tree: true },
+  { key: "l / →", label: "本文にフォーカス", tree: true },
+  { key: "h / ←", label: "サイドバーにフォーカス", tree: true },
+  { key: "Esc", label: "本文にフォーカス", tree: true },
+  { group: "サイドバー内" },
+  { key: "j / ↓", label: "下へ（view は移動した先に切り替わる）", tree: true },
+  { key: "k / ↑", label: "上へ", tree: true },
+  { key: "Enter", label: "area / project を絞り込む・解除する", tree: true },
+  { key: "l / →", label: "一覧の先頭にフォーカス", tree: true },
+  { key: "Esc", label: "本文にフォーカス", tree: true },
   { group: "その他" },
   { key: "?", label: "この一覧", run: () => toggle($("help")) },
   { key: ",", label: "設定", run: () => toggle($("settings")) },
@@ -220,16 +296,29 @@ document.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && e.target === q) { e.preventDefault(); focusFile(0); }
     return;
   }
-  if (tree.contains(e.target)) {
+  if (files.contains(e.target)) {
     const k = e.key;
+    if (k === "Tab") return;
     if (k === "g") { if (pendingG) { focusFile("first"); pendingG = false; } else pendingG = true; e.preventDefault(); return; }
     pendingG = false;
     if (k === "j" || k === "ArrowDown") focusFile(1);
     else if (k === "k" || k === "ArrowUp") focusFile(-1);
     else if (k === "G") focusFile("last");
-    else if (k === "l" || k === "ArrowRight" || k === "Enter") { select(e.target.dataset.slug); }
-    else if (k === "Escape") { e.target.blur(); main.focus(); }
+    else if (k === "Enter") select(e.target.dataset.slug);
+    else if (k === "l" || k === "ArrowRight" || k === "Escape") main.focus();
+    else if (k === "h" || k === "ArrowLeft") focusSide(0);
     else { pendingG = false; return runGlobal(e); }
+    e.preventDefault();
+    return;
+  }
+  if (views.contains(e.target)) {
+    const k = e.key;
+    if (k === "j" || k === "ArrowDown") focusSide(1);
+    else if (k === "k" || k === "ArrowUp") focusSide(-1);
+    else if (k === "l" || k === "ArrowRight") focusFile("first");
+    else if (k === "Escape") main.focus();
+    else if (k === "Enter" || k === " " || k === "Tab") return; // the button activates itself
+    else return runGlobal(e);
     e.preventDefault();
     return;
   }
@@ -241,7 +330,8 @@ function runGlobal(e) {
 }
 
 // ---- help & settings ---------------------------------------------------------
-$("keys").append(...shortcuts.flatMap((s) => (s.group ? [el("div", { class: "group" }, s.group)] : [el("dt", {}, s.key), el("dd", {}, s.label)])));
+$("keys").append(...shortcuts.flatMap((s) => (s.group ? [el("div", { class: "group" }, s.group)] : s.label ? [el("dt", {}, s.key), el("dd", {}, s.label)] : [])));
+for (const b of $("sort").querySelectorAll("button")) b.addEventListener("click", () => setSort(b.dataset.sort));
 for (const d of document.querySelectorAll("dialog")) d.querySelector(".close").addEventListener("click", () => d.close());
 $("home-btn").addEventListener("click", () => select(""));
 $("help-btn").addEventListener("click", () => toggle($("help")));
@@ -252,8 +342,6 @@ const SETTINGS = {
   side: { def: 300, apply: (v) => document.documentElement.style.setProperty("--side-w", `${v}px`), unit: "px" },
   width: { def: 50, apply: (v) => document.documentElement.style.setProperty("--doc-w", `${v}rem`), unit: "rem" },
 };
-const store = (() => { try { return JSON.parse(localStorage.getItem("nabu-view") ?? "{}"); } catch { return {}; } })();
-const save = () => { try { localStorage.setItem("nabu-view", JSON.stringify(store)); } catch {} };
 const inputs = [...document.querySelectorAll(".settings input")];
 const applyAll = () => {
   for (const input of inputs) {
@@ -295,7 +383,11 @@ applyTheme();
 // ---- narrow: sidebar as a popover drawer -------------------------------------
 const side = $("side"), sideBtn = $("side-btn");
 const narrow = matchMedia("(max-width: 48rem)");
-const applyNarrow = () => { if (narrow.matches) side.setAttribute("popover", "auto"); else { if (side.matches(":popover-open")) side.hidePopover(); side.removeAttribute("popover"); } };
+// Narrow: the drawer takes the file list along, so one tap reaches both the views and the files.
+const applyNarrow = () => {
+  if (narrow.matches) { side.setAttribute("popover", "auto"); side.append($("list")); }
+  else { if (side.matches(":popover-open")) side.hidePopover(); side.removeAttribute("popover"); document.querySelector(".content").prepend($("list")); }
+};
 narrow.addEventListener("change", applyNarrow);
 applyNarrow();
 sideBtn.addEventListener("click", () => { side.togglePopover(); if (side.matches(":popover-open")) q.focus(); });
@@ -303,9 +395,9 @@ side.addEventListener("toggle", (e) => sideBtn.setAttribute("aria-expanded", Str
 const closeSide = () => { if (side.matches(":popover-open")) side.hidePopover(); };
 
 // ---- boot -------------------------------------------------------------------
-renderTree();
-renderFacets();
-main.tabIndex = -1;
+renderViews();
+renderList();
+main.tabIndex = 0;
 q.addEventListener("input", filter);
 window.addEventListener("hashchange", () => select(location.hash.slice(1), false));
 select(location.hash.slice(1), false);
