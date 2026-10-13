@@ -212,6 +212,28 @@ func TestTaskRenameViaCLI(t *testing.T) {
 	}
 }
 
+func TestTaskRmViaCLI(t *testing.T) {
+	dir, nabu := newRoot(t)
+	nabu(exitOK, "", "task", "new", "ship", "--area", "work", "--content", shaped("Ship", ""))
+	nabu(exitOK, "", "task", "mv", "ship", "done")
+	nabu(exitUsage, "", "task", "rm")
+	nabu(exitUsage, "", "task", "rm", "Bad Slug")
+	nabu(exitFail, "", "task", "rm", "nope")
+	got := nabu(exitOK, "", "task", "rm", "ship") // any status
+	if !strings.Contains(got, `"path": "tasks/done/ship.md"`) || !strings.Contains(got, `"committed": true`) {
+		t.Fatalf("stdout=%q", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "tasks", "done", "ship.md")); err == nil {
+		t.Fatal("task still exists")
+	}
+	gitClean(t, dir)
+	log, _ := exec.Command("git", "-C", dir, "log", "-1", "--format=%s").Output()
+	if !strings.Contains(string(log), "nabu: task rm tasks/done/ship.md") {
+		t.Fatalf("log: %s", log)
+	}
+	nabu(exitOK, "", "task", "new", "ship", "--area", "work", "--content", shaped("Ship", "")) // the slug is free again
+}
+
 func TestCanvasFlowViaCLI(t *testing.T) {
 	dir, nabu := newRoot(t)
 	nabu(exitOK, "", "init") // seeds .gitignore so the canvas stays out of git

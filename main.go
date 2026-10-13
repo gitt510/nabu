@@ -241,6 +241,13 @@ func finishMv(s *store.Store, from, to, action string, stdout, stderr io.Writer)
 	return emit(stdout, mvResult{From: from, To: to, Action: action, Committed: committed})
 }
 
+// rmResult is the JSON document of a command that deletes a file.
+type rmResult struct {
+	Path      string `json:"path"`
+	Action    string `json:"action"`
+	Committed bool   `json:"committed"`
+}
+
 // readBody returns --content when given, otherwise all of stdin.
 func readBody(content string, stdin io.Reader) ([]byte, error) {
 	if content != "" {

@@ -203,6 +203,28 @@ func TestCommitMove(t *testing.T) {
 	}
 }
 
+func TestRemoveRequiresExisting(t *testing.T) {
+	s := newRepo(t)
+	if _, err := s.Remove("a.md"); err == nil {
+		t.Fatal("expected ErrNotExist")
+	}
+	rel, _ := s.Write("a.md", []byte("one"))
+	if _, err := s.Commit("write", rel); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Remove("a.md"); err != nil {
+		t.Fatal(err)
+	}
+	done, err := s.Commit("rm", rel)
+	if err != nil || !done {
+		t.Fatalf("done=%v err=%v", done, err)
+	}
+	out, _ := exec.Command("git", "-C", s.Root, "status", "--porcelain").Output()
+	if len(strings.TrimSpace(string(out))) != 0 {
+		t.Fatalf("worktree not clean: %s", out)
+	}
+}
+
 func TestFindTask(t *testing.T) {
 	s := newRepo(t)
 	if s.FindTask("x") != "" {

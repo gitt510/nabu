@@ -198,6 +198,21 @@ func (s *Store) Move(from, to string) (string, string, error) {
 	return s.Rel(src), s.Rel(dst), os.Rename(src, dst)
 }
 
+// Remove deletes a file. It must exist, so a typo in the path is an error
+// rather than a silent no-op. The path is returned for the commit.
+func (s *Store) Remove(p string) (string, error) {
+	abs, err := s.Resolve(p)
+	if err != nil {
+		return "", err
+	}
+	if _, err := os.Stat(abs); errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("%s: %w", s.Rel(abs), ErrNotExist)
+	} else if err != nil {
+		return "", err
+	}
+	return s.Rel(abs), os.Remove(abs)
+}
+
 // Read returns a file's content.
 func (s *Store) Read(p string) ([]byte, error) {
 	abs, err := s.Resolve(p)
