@@ -87,9 +87,9 @@ agent: nabu canvas save pr68-comment --ticket https://github.com/o/r/pull/68
 
 ## Viewer
 
-- `just view` renders `tasks/` into `web/dist/index.html` and opens it locally
-- `just publish` uploads the same page to the R2 bucket `nabu`; the `nabu` Worker serves it behind Cloudflare Access
-- `just deploy` deploys the Worker (`web/wrangler.jsonc`)
+- `just view` renders `tasks/` and the viewer into `web/dist/` and serves them on `localhost:8000`
+- `just publish` uploads the tasks as `tasks.json` to the R2 bucket `nabu`; the `nabu` Worker serves it behind Cloudflare Access
+- `just deploy` builds the viewer and deploys it as the Worker's static assets (`web/wrangler.jsonc`)
 - A publish started while another is running exits with `skip`
 
 ### Publish on every commit
