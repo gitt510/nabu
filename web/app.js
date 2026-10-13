@@ -87,7 +87,7 @@ function fileButton(t) {
 const AREAS = ["work", "personal"];
 function renderViews() {
   const row = (label, on, onclick, icon, ...rest) => {
-    const b = el("button", { class: "view", type: "button", tabindex: "-1", "data-key": label, "aria-current": String(on), onclick });
+    const b = el("button", { class: "view", type: "button", tabindex: on ? "0" : "-1", "data-key": label, "aria-current": String(on), onclick });
     b.innerHTML = icon;
     b.append(el("span", {}, label), ...rest);
     return b;
@@ -115,7 +115,9 @@ function renderList() {
   const active = files.querySelector(".file.active")?.dataset.slug ?? location.hash.slice(1);
   const items = listed(view);
   files.replaceChildren(...(items.length ? items.map((t) => el("li", {}, fileButton(t))) : [el("li", { class: "empty" }, "なし")]));
-  files.querySelector(`.file[data-slug="${CSS.escape(active)}"]`)?.classList.add("active");
+  const stop = files.querySelector(`.file[data-slug="${CSS.escape(active)}"]`) ?? files.querySelector(".file");
+  stop?.classList.toggle("active", stop.dataset.slug === active);
+  if (stop) stop.tabIndex = 0; // the column's one Tab stop
   $("count").textContent = `${items.length} / ${tasks.filter(view.pick).length}`;
   for (const b of $("sort").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.sort === sort));
 }
@@ -239,14 +241,15 @@ function filter() {
 }
 
 // ---- shortcuts (single keys, outside text fields; ? lists them) ------------
-// Three columns, like Finder: sidebar, list, document. ← → move the focus between them;
-// ↑ ↓ walk the sidebar, pick a file in the list, and scroll the document.
+// Three columns: sidebar, list, document. ← → move the focus between them (→ from the sidebar lands on
+// the top of the list); Tab / Shift+Tab do the same with one stop per column. ↑ ↓ walk the sidebar,
+// pick a file in the list, and scroll the document.
 const inTextField = (e) => ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName) || e.target.isContentEditable;
 const scroll = (dy) => main.scrollBy({ top: dy });
 const shortcuts = [
   { group: "移動" },
   { key: "/", label: "検索にフォーカス", run: () => q.focus() },
-  { key: "h / ←", label: "左の列にフォーカス（本文 → 一覧 → サイドバー）", run: null },
+  { key: "← → / Tab", label: "列を移る（サイドバー → 一覧 → 本文）", run: null },
   { key: "h", run: () => focusFile(0) },
   { key: "ArrowLeft", run: () => focusFile(0) },
   { key: "H", label: "Home を開く", run: () => select("") },
@@ -266,14 +269,16 @@ const shortcuts = [
   { key: "j / ↓", label: "下へ（移動した先が開く）", tree: true },
   { key: "k / ↑", label: "上へ", tree: true },
   { key: "gg / G", label: "先頭 / 末尾", tree: true },
-  { key: "l / →", label: "本文にフォーカス", tree: true },
   { key: "Enter", label: "開く", tree: true },
-  { key: "Esc", label: "一覧から抜ける", tree: true },
+  { key: "l / →", label: "本文にフォーカス", tree: true },
+  { key: "h / ←", label: "サイドバーにフォーカス", tree: true },
+  { key: "Esc", label: "本文にフォーカス", tree: true },
   { group: "サイドバー内" },
   { key: "j / ↓", label: "下へ（view は移動した先に切り替わる）", tree: true },
   { key: "k / ↑", label: "上へ", tree: true },
   { key: "Enter", label: "area / project を絞り込む・解除する", tree: true },
-  { key: "l / →", label: "一覧にフォーカス", tree: true },
+  { key: "l / →", label: "一覧の先頭にフォーカス", tree: true },
+  { key: "Esc", label: "本文にフォーカス", tree: true },
   { group: "その他" },
   { key: "?", label: "この一覧", run: () => toggle($("help")) },
   { key: ",", label: "設定", run: () => toggle($("settings")) },
@@ -293,6 +298,7 @@ document.addEventListener("keydown", (e) => {
   }
   if (files.contains(e.target)) {
     const k = e.key;
+    if (k === "Tab") return;
     if (k === "g") { if (pendingG) { focusFile("first"); pendingG = false; } else pendingG = true; e.preventDefault(); return; }
     pendingG = false;
     if (k === "j" || k === "ArrowDown") focusFile(1);
@@ -309,8 +315,9 @@ document.addEventListener("keydown", (e) => {
     const k = e.key;
     if (k === "j" || k === "ArrowDown") focusSide(1);
     else if (k === "k" || k === "ArrowUp") focusSide(-1);
-    else if (k === "l" || k === "ArrowRight" || k === "Escape") focusFile(0);
-    else if (k === "Enter" || k === " ") return; // the button activates itself
+    else if (k === "l" || k === "ArrowRight") focusFile("first");
+    else if (k === "Escape") main.focus();
+    else if (k === "Enter" || k === " " || k === "Tab") return; // the button activates itself
     else return runGlobal(e);
     e.preventDefault();
     return;
@@ -390,7 +397,7 @@ const closeSide = () => { if (side.matches(":popover-open")) side.hidePopover();
 // ---- boot -------------------------------------------------------------------
 renderViews();
 renderList();
-main.tabIndex = -1;
+main.tabIndex = 0;
 q.addEventListener("input", filter);
 window.addEventListener("hashchange", () => select(location.hash.slice(1), false));
 select(location.hash.slice(1), false);

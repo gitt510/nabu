@@ -92,7 +92,7 @@ a:hover { text-decoration-thickness: 2px; }
   grid-template-areas: "list doc";
   grid-template-columns: var(--side-w) 1fr;
   min-width: 0; min-height: 0; margin: 0 8px 8px 0;
-  background: var(--background); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+  background: var(--background); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
 }
 .list { grid-area: list; }
 .main { grid-area: doc; }
@@ -120,7 +120,7 @@ a:hover { text-decoration-thickness: 2px; }
 /* Dialogs */
 dialog {
   border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px;
-  color: var(--popover-foreground); background: var(--popover);
+  color: var(--foreground); background: var(--background);
   max-width: 28rem; width: calc(100% - 32px);
   box-shadow: 0 8px 32px rgb(0 0 0 / .2);
 }
@@ -165,7 +165,7 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 }
 .view:hover { background: var(--accent); color: var(--foreground); }
 .view[aria-current="true"] { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground); }
-.view[aria-current="true"] svg { color: var(--sidebar-primary); }
+.view[aria-current="true"] svg { color: var(--primary); }
 .view svg { flex-shrink: 0; color: var(--muted-foreground); }
 .view .n { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
 .search {
@@ -239,7 +239,8 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 
 /* Main */
 .main { min-width: 0; overflow-y: auto; }
-.main:focus { outline: none; box-shadow: inset 0 0 0 2px var(--ring); } /* the doc column has the keyboard */
+.main:focus { outline: none; }
+.main:focus-visible { box-shadow: inset 0 0 0 2px var(--ring); } /* the doc column has the keyboard */
 .doc { max-width: var(--doc-w, 50rem); padding: 32px 32px 96px; }
 .crumb { font-family: var(--font-mono); font-size: 0.875rem; letter-spacing: 0; color: var(--muted-foreground); margin: 0 0 12px; }
 .crumb .copy { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }

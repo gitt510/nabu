@@ -91,7 +91,7 @@ ${css}
   <section class="content">
     <div class="list" id="list">
       <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search" autocomplete="off" aria-label="Search"></label>
-      <div class="list-head"><span class="n" id="count"></span><div class="sort" id="sort" role="group" aria-label="並び順"><button type="button" data-sort="updated" title="updated (s)">updated</button><button type="button" data-sort="created" title="created (s)">created</button></div></div>
+      <div class="list-head"><span class="n" id="count"></span><div class="sort" id="sort" role="group" aria-label="並び順"><button type="button" tabindex="-1" data-sort="updated" title="updated (s)">updated</button><button type="button" tabindex="-1" data-sort="created" title="created (s)">created</button></div></div>
       <ul class="files" id="files"></ul>
     </div>
     <main class="main"><article class="doc" id="doc"><p class="empty">読み込み中</p></article></main>
