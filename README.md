@@ -1,6 +1,6 @@
 # nabu
 
-nabu is an agent-integrated task manager.
+- nabu is an agent-integrated task manager
 
 ## Setup
 
@@ -11,7 +11,7 @@ echo '{"notebook": "~/ghq/github.com/you/notes"}' > ~/.config/nabu/config.json
 nabu init
 ```
 
-- Go 1.26+ to build (`mise install` provides it)
+- Building nabu needs Go 1.26+, which `mise install` provides
 - `nabu -h` and `nabu <command> -h` print the full contract of every command
 
 ## Configuration
@@ -26,7 +26,8 @@ nabu init
 
 ### auto_push
 
-- The remote and its credentials are git's: run `git push -u origin main` in the notebook once, with SSH or a credential helper set up
+- The remote and its credentials belong to git, set up with SSH or a credential helper
+- You run `git push -u origin main` in the notebook once to give it an upstream
 - The JSON result of each write carries `"push": "ok"`, or `"push": "failed: <reason>"` with the commit kept
 
 ## Agent skill
@@ -55,8 +56,10 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 
 - A task is one file, `tasks/<status>/<slug>.md`
 - The folder is the status: `inbox`, `doing`, `done`, `dropped`
-- `done` is finished work; `dropped` is work decided against, and its `For Human` says why
-- `task rm` deletes a task that should not have been filed (a duplicate, a mistake), whatever its status; git history keeps the content
+- `done` holds finished work
+- `dropped` holds work decided against, with the reason in its `For Human`
+- `task rm` deletes a task that should not have been filed (a duplicate, a mistake), whatever its status
+- Git history keeps the content of a deleted task
 - The body has two sections: `## For Human` for the user, `## AI memo` for the agent
 - Every change is a git commit, pushed when `auto_push` is on or you run `nabu push`
 
@@ -64,9 +67,9 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 
 | key | meaning | format |
 | --- | --- | --- |
-| `created` | when `task new` filed the task; stamped by nabu, never changed | RFC3339 with offset |
-| `area` | which side of life the task belongs to; required | `work` or `personal` |
-| `project` | what the task ships into: a service at work, a repo at home; absent when none | lowercase kebab-case |
+| `created` | filing time, stamped by nabu and never changed | RFC3339 with offset |
+| `area` | side of life, required | `work` or `personal` |
+| `project` | destination of the work: a service at work, a repo at home, or none | lowercase kebab-case |
 | `scheduled` | when the work is planned to happen | RFC3339 with offset, or `YYYY-MM-DD` for the whole day |
 | `waiting` | who or what the next action waits on | free text |
 | `tickets` | work items: an issue, a Wrike task, a Zendesk request | full `https` URLs |
@@ -82,8 +85,10 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 - A slug is lowercase kebab-case and unique across every status folder
 - The body is `# <title>`, `## For Human`, a `---` line, `## AI memo`, in that order
 - Every line in `For Human` section is at most 30 characters
-- Every task carries an `area`; `task new` is refused without `--area`, and `task validate` reports a task without one
-- A task in `dropped/` carries `### Why dropped` under `For Human` with at least one line; `task mv ... dropped` is refused without it
+- Every task carries an `area`
+- `task new` refuses a task without `--area`, and `task validate` reports one
+- A task in `dropped/` carries `### Why dropped` under `For Human` with at least one line
+- `task mv ... dropped` refuses a task without it
 
 ## Canvas
 
@@ -108,10 +113,11 @@ agent: nabu canvas save pr68-comment --ticket https://github.com/o/r/pull/68
 ### Overview
 
 - `CANVAS.md` at the top of the notebook holds one draft at a time and is never committed
-- You edit `CANVAS.md` in your editor; the agent revises it through the CLI
-- Every hand edit is yours: the agent reads it before revising and never reverts it
-- When the draft is final, ask the agent to save it
-  - it hangs in `gallery/<slug>.md` and the canvas is emptied
+- You edit `CANVAS.md` in your editor
+- The agent revises `CANVAS.md` through the CLI
+- The agent reads every hand edit before revising and never reverts one
+- The agent saves the draft when you call it final
+  - The saved draft hangs in `gallery/<slug>.md` and the canvas is emptied
 
 ## Development
 
