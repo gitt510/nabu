@@ -14,6 +14,10 @@ const humanLimit = 30
 // reason the work was decided against, where the user reads state.
 const whyHeading = "### Why dropped"
 
+// shapeHelp is the task shape as the help states it; every other command
+// points here (see task validate) instead of restating it.
+var shapeHelp = fmt.Sprintf("the task shape is \"# <title>\", then \"## For Human\" (every line at most %d characters), a --- line, then \"## AI memo\" (free markdown).\na task in dropped/ also carries %q under For Human with at least one line under it.", humanLimit, whyHeading)
+
 // checkTaskShape enforces the body shape every task is written in:
 //
 //	# <title>

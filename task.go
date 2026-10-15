@@ -46,7 +46,7 @@ func taskNewCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "new <slug>",
 		Short:   "create tasks/inbox/<slug>.md",
-		Long:    "creates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter, with created stamped as now; the body must not carry one of its own; the frontmatter as written is printed.\nthe body is \"# <title>\", then \"## For Human\" (every line at most 30 characters), a --- line, then \"## AI memo\" (free markdown).",
+		Long:    "creates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter, with created stamped as now; the body must not carry one of its own; the frontmatter as written is printed.\nthe body must be in the task shape (see task validate).",
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
@@ -92,7 +92,7 @@ func taskReplaceCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "replace <slug>",
 		Short:   "replace a task's body, keeping its frontmatter",
-		Long:    "replaces the body of a task in any status folder; its frontmatter is kept as is (see task set).\nthe body is read from stdin unless --content is given and must not carry a frontmatter block.\nit is in the same shape task new requires: \"## For Human\" (every line at most 30 characters), ---, \"## AI memo\"",
+		Long:    "replaces the body of a task in any status folder; its frontmatter is kept as is (see task set).\nthe body is read from stdin unless --content is given and must not carry a frontmatter block.\nit must be in the task shape (see task validate)",
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
@@ -152,7 +152,7 @@ func taskMvCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "mv <slug> <status>",
 		Short:   "move a task to tasks/<status>/ (inbox, doing, done, dropped)",
-		Long:    "moves tasks/<current>/<slug>.md to tasks/<status>/<slug>.md; the folder is the task's only status.\ndone is finished work; dropped is work decided against, and is refused until the body carries \"### Why dropped\" under For Human (see task replace)",
+		Long:    "moves tasks/<current>/<slug>.md to tasks/<status>/<slug>.md; the folder is the task's only status.\ndone is finished work; dropped is work decided against, and is refused until the body is in the task shape for dropped/ (see task validate)",
 		GroupID: "update",
 		Args:    cobra.ExactArgs(2),
 		RunE: do(func(args []string) int {
@@ -537,7 +537,7 @@ func taskValidateCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "validate [slug]",
 		Short:   "check one task, or every task, against the task shape",
-		Long:    "checks a task's body against the shape task new and task replace require: \"## For Human\" (every line at most 30 characters), ---, \"## AI memo\"; a task in dropped/ must also carry \"### Why dropped\" under For Human.\nthe frontmatter must carry an area (work or personal).\nwithout a slug every task is checked. prints one line per task (a colored table on a terminal); exit 1 when any task is out of shape.\nnothing is written",
+		Long:    "checks a task's body against the task shape and its frontmatter against the keys task set takes.\n" + shapeHelp + "\nwithout a slug every task is checked. prints one line per task (a colored table on a terminal); exit 1 when any task is out of shape.\nnothing is written",
 		GroupID: "browse",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: do(func(args []string) int {
