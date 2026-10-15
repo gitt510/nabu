@@ -8,11 +8,11 @@ name: publish
 #     publish:
 #       uses: gitt510/nabu/.github/workflows/publish.yml@main
 #       with: { r2-bucket: nabu }
-#       secrets: { CLOUDFLARE_API_TOKEN: ${{ secrets.R2_WRITE }} }
+#       secrets: { R2_EDIT: ${{ secrets.R2_EDIT }} }
 #
 # Contract with callers:
 #   - the notebook is the root of the calling repository
-#   - the token can write objects to r2-bucket in the one account it carries
+#   - R2_EDIT can edit r2-bucket in the one account it carries
 #   - <r2-bucket>/tasks.json is replaced by the tasks of the pushed commit
 on:
   workflow_call:
@@ -22,8 +22,8 @@ on:
         type: string
         required: true
     secrets:
-      CLOUDFLARE_API_TOKEN:
-        description: Cloudflare API token that can write objects to r2-bucket.
+      R2_EDIT:
+        description: Cloudflare API token with R2 edit permission in the account that holds r2-bucket.
         required: true
 
 permissions:
@@ -68,7 +68,7 @@ jobs:
       - name: Upload to R2
         working-directory: nabu/web
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.R2_EDIT }}
         run: >-
           pnpm exec wrangler r2 object put "${{ inputs.r2-bucket }}/tasks.json"
           --file dist/tasks.json --content-type "application/json; charset=utf-8" --remote

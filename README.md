@@ -44,11 +44,11 @@ jobs:
   publish:
     uses: gitt510/nabu/.github/workflows/publish.yml@main
     with: { r2-bucket: nabu }
-    secrets: { CLOUDFLARE_API_TOKEN: ${{ secrets.R2_WRITE }} }
+    secrets: { R2_EDIT: ${{ secrets.R2_EDIT }} }
 ```
 
 - The publish workflow replaces `<r2-bucket>/tasks.json` with the tasks of each pushed commit
-- The token needs write access to objects in `r2-bucket`
+- `R2_EDIT` is a Cloudflare API token with R2 edit permission in the account that holds `r2-bucket`
 - A newer push cancels an older publish still running
 
 ## Agent skill
