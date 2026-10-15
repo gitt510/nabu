@@ -1,5 +1,5 @@
-// Package store performs the file operations on the repository root and
-// records each write as a git commit. Every path is relative to the root,
+// Package store performs the file operations on the notebook and records
+// each write as a git commit. Every path is relative to the notebook,
 // cleaned, confined to it, and ends in .md.
 package store
 
@@ -14,65 +14,62 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"syscall"
-	"time"
 )
 
-// Store is a repository root.
+// Store is a notebook: a git repository nabu reads and writes.
 type Store struct {
-	Root string
-	// PostCommit, when set, runs in the background after each commit Commit
-	// makes, with its output and exit status appended to Log.
-	PostCommit string
-	Log        string
+	Dir string
+	// AutoPush asks the caller to push after each commit; Commit itself
+	// never pushes.
+	AutoPush bool
 }
 
-// Open validates that root exists and is a git repository.
-func Open(root string) (*Store, error) {
-	if root == "" {
-		return nil, errors.New("no root")
+// Open validates that dir exists and is a git repository.
+func Open(dir string) (*Store, error) {
+	if dir == "" {
+		return nil, errors.New("no notebook")
 	}
-	abs, err := filepath.Abs(root)
+	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
 	}
 	st, err := os.Stat(abs)
 	if err != nil {
-		return nil, fmt.Errorf("root: %w", err)
+		return nil, fmt.Errorf("notebook: %w", err)
 	}
 	if !st.IsDir() {
-		return nil, fmt.Errorf("root is not a directory: %s", abs)
+		return nil, fmt.Errorf("notebook is not a directory: %s", abs)
 	}
 	if _, err := os.Stat(filepath.Join(abs, ".git")); err != nil {
-		return nil, fmt.Errorf("root is not a git repository: %s", abs)
+		return nil, fmt.Errorf("notebook is not a git repository: %s", abs)
 	}
-	return &Store{Root: abs}, nil
+	return &Store{Dir: abs}, nil
 }
 
 // InitResult says what Init had to create.
 type InitResult struct {
-	Root       string `json:"root"`
+	Notebook   string `json:"notebook"`
 	CreatedDir bool   `json:"created_dir"`
 	InitedGit  bool   `json:"inited_git"`
 	Committed  bool   `json:"committed"`
 }
 
-// readme is the seed file of a fresh root, so the first commit has content.
+// readme is the seed file of a fresh notebook, so the first commit has content.
 const readme = "# tasks\n\nManaged by nabu.\n"
 
-// Init makes root usable: the directory exists, it is a git repository on
-// main, and it has at least one commit. Each step is skipped when already
-// done, so Init is safe to rerun.
-func Init(root string) (InitResult, error) {
+// Init makes dir a usable notebook: the directory exists, it is a git
+// repository on main, and it has at least one commit. Each step is skipped
+// when already done, so Init is safe to rerun.
+func Init(dir string) (InitResult, error) {
 	var r InitResult
-	if root == "" {
-		return r, errors.New("no root")
+	if dir == "" {
+		return r, errors.New("no notebook")
 	}
-	abs, err := filepath.Abs(root)
+	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return r, err
 	}
-	r.Root = abs
+	r.Notebook = abs
 	if _, err := os.Stat(abs); errors.Is(err, fs.ErrNotExist) {
 		if err := os.MkdirAll(abs, 0o755); err != nil {
 			return r, err
@@ -87,7 +84,7 @@ func Init(root string) (InitResult, error) {
 		}
 		r.InitedGit = true
 	}
-	s := &Store{Root: abs}
+	s := &Store{Dir: abs}
 	if exec.Command("git", "-C", abs, "rev-parse", "--verify", "-q", "HEAD").Run() == nil {
 		return r, nil // has history already; nothing to seed
 	}
@@ -110,17 +107,17 @@ var ErrExists = errors.New("already exists")
 var ErrNotExist = errors.New("no such file")
 
 // Resolve turns a path into an absolute path, rejecting anything that
-// escapes the root or is not a markdown file.
+// escapes the notebook or is not a markdown file.
 func (s *Store) Resolve(p string) (string, error) {
 	if p == "" {
 		return "", errors.New("empty path")
 	}
 	if filepath.IsAbs(p) {
-		return "", fmt.Errorf("path must be relative to root: %s", p)
+		return "", fmt.Errorf("path must be relative to the notebook: %s", p)
 	}
 	clean := filepath.Clean(p)
 	if clean == "." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || clean == ".." {
-		return "", fmt.Errorf("path escapes root: %s", p)
+		return "", fmt.Errorf("path escapes the notebook: %s", p)
 	}
 	if strings.HasPrefix(clean, ".git"+string(filepath.Separator)) || clean == ".git" {
 		return "", fmt.Errorf("path is inside .git: %s", p)
@@ -131,12 +128,12 @@ func (s *Store) Resolve(p string) (string, error) {
 	if filepath.Ext(clean) != ".md" {
 		return "", fmt.Errorf("path must end in .md: %s", p)
 	}
-	return filepath.Join(s.Root, clean), nil
+	return filepath.Join(s.Dir, clean), nil
 }
 
 // Rel is the inverse of Resolve for display.
 func (s *Store) Rel(abs string) string {
-	r, err := filepath.Rel(s.Root, abs)
+	r, err := filepath.Rel(s.Dir, abs)
 	if err != nil {
 		return abs
 	}
@@ -232,15 +229,15 @@ type Entry struct {
 	Title string
 }
 
-// List returns the markdown files under dir (root when empty), sorted by path.
+// List returns the markdown files under dir (the whole notebook when empty), sorted by path.
 func (s *Store) List(dir string) ([]Entry, error) {
-	start := s.Root
+	start := s.Dir
 	if dir != "" {
 		clean := filepath.Clean(dir)
 		if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, "..") {
-			return nil, fmt.Errorf("dir escapes root: %s", dir)
+			return nil, fmt.Errorf("dir escapes the notebook: %s", dir)
 		}
-		start = filepath.Join(s.Root, clean)
+		start = filepath.Join(s.Dir, clean)
 	}
 	var out []Entry
 	err := filepath.WalkDir(start, func(path string, d fs.DirEntry, err error) error {
@@ -288,7 +285,7 @@ func (s *Store) Grep(dir, query string) ([]Match, error) {
 	q := strings.ToLower(query)
 	out := []Match{}
 	for _, e := range entries {
-		b, err := os.ReadFile(filepath.Join(s.Root, filepath.FromSlash(e.Path)))
+		b, err := os.ReadFile(filepath.Join(s.Dir, filepath.FromSlash(e.Path)))
 		if err != nil {
 			return nil, err
 		}
@@ -318,7 +315,7 @@ func (s *Store) Commit(message string, rels ...string) (bool, error) {
 	if err := s.git(append([]string{"add", "-A", "--"}, rels...)...); err != nil {
 		return false, err
 	}
-	out, err := exec.Command("git", append([]string{"-C", s.Root, "status", "--porcelain", "--"}, rels...)...).Output()
+	out, err := exec.Command("git", append([]string{"-C", s.Dir, "status", "--porcelain", "--"}, rels...)...).Output()
 	if err != nil {
 		return false, fmt.Errorf("git status: %w", err)
 	}
@@ -328,47 +325,16 @@ func (s *Store) Commit(message string, rels ...string) (bool, error) {
 	if err := s.git(append([]string{"commit", "-q", "-m", message, "--"}, rels...)...); err != nil {
 		return false, err
 	}
-	s.runPostCommit()
 	return true, nil
-}
-
-// postCommitScript logs the start, runs the command, and logs its exit status
-// with what it printed. $1 is the command, $2 the log.
-const postCommitScript = `stamp() { date +%Y-%m-%dT%H:%M:%S%z; }
-echo "$(stamp) post_commit start: $1" >> "$2"
-out=$(sh -c "$1" 2>&1); code=$?
-echo "$(stamp) post_commit exit $code: $out" >> "$2"`
-
-// runPostCommit starts PostCommit in its own session in the root and returns
-// at once: the commit is already made, so the hook can neither block nor fail
-// it. A hook that cannot start is logged and dropped.
-func (s *Store) runPostCommit() {
-	if s.PostCommit == "" || s.Log == "" {
-		return
-	}
-	if err := os.MkdirAll(filepath.Dir(s.Log), 0o755); err != nil {
-		return
-	}
-	cmd := exec.Command("sh", "-c", postCommitScript, "sh", s.PostCommit, s.Log)
-	cmd.Dir = s.Root
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	if err := cmd.Start(); err != nil {
-		if f, ferr := os.OpenFile(s.Log, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); ferr == nil {
-			fmt.Fprintf(f, "%s post_commit not started: %v\n", time.Now().Format("2006-01-02T15:04:05-0700"), err)
-			f.Close()
-		}
-		return
-	}
-	cmd.Process.Release() //nolint:errcheck // nabu exits without waiting; the outcome is in the log
 }
 
 // Push sends the current branch to its upstream and returns that upstream
 // ("origin/main"). It refuses a branch without one, so the remote is set up
 // by hand once and never guessed.
 func (s *Store) Push() (string, error) {
-	out, err := exec.Command("git", "-C", s.Root, "rev-parse", "--abbrev-ref", "@{u}").Output()
+	out, err := exec.Command("git", "-C", s.Dir, "rev-parse", "--abbrev-ref", "@{u}").Output()
 	if err != nil {
-		return "", errors.New("no upstream branch; run git push -u <remote> <branch> in the root once")
+		return "", errors.New("no upstream branch; run git push -u <remote> <branch> in the notebook once")
 	}
 	upstream := strings.TrimSpace(string(out))
 	if err := s.git("push", "-q"); err != nil {
@@ -412,7 +378,7 @@ func TaskPath(status, slug string) string {
 // outside every status folder is found last, so task mv can put it away.
 func (s *Store) FindTask(slug string) string {
 	for _, rel := range append(taskPaths(slug), "tasks/"+slug+".md") {
-		if _, err := os.Stat(filepath.Join(s.Root, filepath.FromSlash(rel))); err == nil {
+		if _, err := os.Stat(filepath.Join(s.Dir, filepath.FromSlash(rel))); err == nil {
 			return rel
 		}
 	}
@@ -447,11 +413,11 @@ func kebabPath(p string) bool {
 func (s *Store) stageable(rels []string) []string {
 	var keep []string
 	for _, rel := range rels {
-		if _, err := os.Stat(filepath.Join(s.Root, rel)); err == nil {
+		if _, err := os.Stat(filepath.Join(s.Dir, rel)); err == nil {
 			keep = append(keep, rel)
 			continue
 		}
-		if exec.Command("git", "-C", s.Root, "ls-files", "--error-unmatch", "--", rel).Run() == nil {
+		if exec.Command("git", "-C", s.Dir, "ls-files", "--error-unmatch", "--", rel).Run() == nil {
 			keep = append(keep, rel)
 		}
 	}
@@ -459,7 +425,7 @@ func (s *Store) stageable(rels []string) []string {
 }
 
 func (s *Store) git(args ...string) error {
-	cmd := exec.Command("git", append([]string{"-C", s.Root}, args...)...)
+	cmd := exec.Command("git", append([]string{"-C", s.Dir}, args...)...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("git %s: %s", args[0], strings.TrimSpace(string(out)))

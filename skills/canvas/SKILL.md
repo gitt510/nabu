@@ -5,8 +5,8 @@ description: Co-write a text with the user on the canvas of their nabu repositor
 
 # nabu canvas
 
-The canvas is a single draft file, `CANVAS.md` at the root, that the user
-edits by hand while you revise it through the CLI. Use it when the text
+The canvas is a single draft file, `CANVAS.md` at the top of the notebook,
+that the user edits by hand while you revise it through the CLI. Use it when the text
 will go through rounds before it is final: a PR comment, a proposal, a
 message to someone. `nabu canvas -h` is the source of truth for the
 contract.
@@ -44,9 +44,10 @@ nabu canvas drop                             # empty the canvas
   `canvas diff` relies on. Go through the canvas commands.
 - `canvas write` while the user is editing. Run `canvas diff` first so their
   edits are read, not overwritten. Do not `canvas save` until they say so.
-- Read or edit files under the root with Read / Edit / Write / shell
-  redirection. Only nabu touches the root.
-- Run git inside the root. nabu commits each change itself; `nabu
-  push` only when the user asks.
-- Guess the root. If nabu exits 2 with "no root declared", show the user
-  the message; it tells them what to fix.
+- Read or edit files in the notebook with Read / Edit / Write / shell
+  redirection. Only nabu touches the notebook.
+- Run git inside the notebook. nabu commits each change itself; `nabu
+  push` only when the user asks. When a result carries `"push":
+  "failed: ..."`, tell the user; the change is committed but not pushed.
+- Guess the notebook. If nabu exits 2 with "no notebook declared", show the
+  user the message; it tells them what to fix.

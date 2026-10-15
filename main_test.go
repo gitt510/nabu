@@ -15,13 +15,13 @@ import (
 	"github.com/gitt510/nabu/internal/store"
 )
 
-// created is the created line task new stamps under the clock newRoot pins.
+// created is the created line task new stamps under the clock newNotebook pins.
 const created = "created: \"2026-10-06T09:00:00+09:00\"\narea: \"work\"\n"
 
-// newRoot returns an initialized root with a git identity, plus a
+// newNotebook returns an initialized notebook with a git identity, plus a
 // runner that invokes nabu against it and fails the test on the wrong
 // exit code. The returned string is stdout.
-func newRoot(t *testing.T) (string, func(want int, stdin string, args ...string) string) {
+func newNotebook(t *testing.T) (string, func(want int, stdin string, args ...string) string) {
 	t.Helper()
 	dir := t.TempDir()
 	now = func() time.Time { return time.Date(2026, 10, 6, 9, 0, 0, 0, time.FixedZone("JST", 9*60*60)) }
@@ -34,7 +34,7 @@ func newRoot(t *testing.T) (string, func(want int, stdin string, args ...string)
 	nabu := func(want int, stdin string, args ...string) string {
 		t.Helper()
 		var out, errb bytes.Buffer
-		if code := run(append(args, "--root", dir), strings.NewReader(stdin), &out, &errb); code != want {
+		if code := run(append(args, "--notebook", dir), strings.NewReader(stdin), &out, &errb); code != want {
 			t.Fatalf("%v: exit %d want %d: %s%s", args, code, want, out.String(), errb.String())
 		}
 		return out.String()
@@ -95,19 +95,19 @@ func TestUnknownCommandExits2(t *testing.T) {
 	}
 }
 
-func TestNoRootExits2(t *testing.T) {
+func TestNoNotebookExits2(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	var out, errb bytes.Buffer
 	if code := run([]string{"task", "ls"}, strings.NewReader(""), &out, &errb); code != exitUsage {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
-	if !strings.Contains(errb.String(), "no root declared") {
+	if !strings.Contains(errb.String(), "no notebook declared") {
 		t.Fatalf("stderr=%q", errb.String())
 	}
 }
 
 func TestTaskNewViaCLI(t *testing.T) {
-	dir, nabu := newRoot(t)
+	dir, nabu := newNotebook(t)
 	for _, args := range [][]string{
 		{"task", "new", "Bad Slug", "--area", "work", "--content", "# x"},
 		{"task", "new", "a/b", "--area", "work", "--content", "# x"},
@@ -151,7 +151,7 @@ func TestTaskNewViaCLI(t *testing.T) {
 }
 
 func TestTaskMvViaCLI(t *testing.T) {
-	dir, nabu := newRoot(t)
+	dir, nabu := newNotebook(t)
 	nabu(exitOK, "", "task", "new", "ship", "--area", "work", "--content", shaped("Ship", ""))
 	for _, args := range [][]string{
 		{"task", "mv", "ship", "progress"},
@@ -180,7 +180,7 @@ func TestTaskMvViaCLI(t *testing.T) {
 }
 
 func TestTaskRenameViaCLI(t *testing.T) {
-	dir, nabu := newRoot(t)
+	dir, nabu := newNotebook(t)
 	nabu(exitOK, "", "task", "new", "ship", "--area", "work", "--content", shaped("Ship", ""), "--ticket", "https://example.com/1")
 	nabu(exitOK, "", "task", "new", "sail", "--area", "work", "--content", shaped("Sail", ""))
 	nabu(exitOK, "", "task", "mv", "ship", "doing")
@@ -213,7 +213,7 @@ func TestTaskRenameViaCLI(t *testing.T) {
 }
 
 func TestTaskRmViaCLI(t *testing.T) {
-	dir, nabu := newRoot(t)
+	dir, nabu := newNotebook(t)
 	nabu(exitOK, "", "task", "new", "ship", "--area", "work", "--content", shaped("Ship", ""))
 	nabu(exitOK, "", "task", "mv", "ship", "done")
 	nabu(exitUsage, "", "task", "rm")
@@ -235,7 +235,7 @@ func TestTaskRmViaCLI(t *testing.T) {
 }
 
 func TestCanvasFlowViaCLI(t *testing.T) {
-	dir, nabu := newRoot(t)
+	dir, nabu := newNotebook(t)
 	nabu(exitOK, "", "init") // seeds .gitignore so the canvas stays out of git
 
 	// read / write / diff / save need a draft
@@ -306,9 +306,9 @@ func TestInitSeedsGitignore(t *testing.T) {
 	for _, kv := range [][2]string{{"GIT_AUTHOR_NAME", "t"}, {"GIT_AUTHOR_EMAIL", "t@x"}, {"GIT_COMMITTER_NAME", "t"}, {"GIT_COMMITTER_EMAIL", "t@x"}} {
 		t.Setenv(kv[0], kv[1])
 	}
-	dir := filepath.Join(t.TempDir(), "root")
+	dir := filepath.Join(t.TempDir(), "notebook")
 	var out, errb bytes.Buffer
-	if code := run([]string{"init", "--root", dir}, strings.NewReader(""), &out, &errb); code != exitOK {
+	if code := run([]string{"init", "--notebook", dir}, strings.NewReader(""), &out, &errb); code != exitOK {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
 	if !strings.Contains(out.String(), `"committed": true`) {
@@ -321,7 +321,7 @@ func TestInitSeedsGitignore(t *testing.T) {
 }
 
 func TestPushViaCLI(t *testing.T) {
-	dir, nabu := newRoot(t)
+	dir, nabu := newNotebook(t)
 	nabu(1, "", "push") // no upstream yet
 
 	bare := t.TempDir()
@@ -350,7 +350,7 @@ func TestPushViaCLI(t *testing.T) {
 }
 
 func TestTaskReplaceAndSetViaCLI(t *testing.T) {
-	dir, nabu := newRoot(t)
+	dir, nabu := newNotebook(t)
 	read := func() string {
 		t.Helper()
 		b, err := os.ReadFile(filepath.Join(dir, "tasks", "inbox", "wait.md"))
@@ -424,7 +424,7 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 }
 
 func TestTaskStray(t *testing.T) {
-	dir, nabu := newRoot(t)
+	dir, nabu := newNotebook(t)
 	nabu(exitOK, shaped("Wait", ""), "task", "new", "wait", "--area", "work")
 	// a task dropped into tasks/ by hand is on disk but not in the index
 	if err := os.WriteFile(filepath.Join(dir, "tasks", "stray.md"), []byte("# Stray\n"), 0o644); err != nil {
@@ -488,7 +488,7 @@ func TestGrepAndValidateTables(t *testing.T) {
 }
 
 func TestTaskReadLsGrepViaCLI(t *testing.T) {
-	dir, nabu := newRoot(t)
+	dir, nabu := newNotebook(t)
 	nabu(exitOK, shaped("Wait", "ping them\n"), "task", "new", "wait", "--area", "work", "--ticket", "https://example.com/1")
 	nabu(exitOK, shaped("Other", ""), "task", "new", "other", "--area", "work")
 	nabu(exitOK, "", "task", "mv", "wait", "doing")
@@ -541,7 +541,7 @@ func shaped(title, memo string) string {
 }
 
 func TestTaskShape(t *testing.T) {
-	_, nabu := newRoot(t)
+	_, nabu := newNotebook(t)
 	head := "# T\n\n## For Human\n\n"
 	tail := "\n---\n\n## AI memo\n\nfree *prose*, any length, --- lines too\n---\n"
 	for i, body := range []string{
@@ -571,7 +571,7 @@ func TestTaskShape(t *testing.T) {
 }
 
 func TestTaskValidateViaCLI(t *testing.T) {
-	dir, nabu := newRoot(t)
+	dir, nabu := newNotebook(t)
 	nabu(exitOK, shaped("Ok", ""), "task", "new", "ok", "--area", "work")
 	if err := os.MkdirAll(filepath.Join(dir, "tasks", "doing"), 0o755); err != nil {
 		t.Fatal(err)
@@ -586,14 +586,14 @@ func TestTaskValidateViaCLI(t *testing.T) {
 		t.Fatalf("one: %q", got)
 	}
 	var out, errb bytes.Buffer
-	if code := run([]string{"task", "validate", "--root", dir}, strings.NewReader(""), &out, &errb); code != exitFail {
+	if code := run([]string{"task", "validate", "--notebook", dir}, strings.NewReader(""), &out, &errb); code != exitFail {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
 	if got := out.String(); got != "ok    tasks/inbox/ok.md\nbad   tasks/doing/old.md: body has no \"## For Human\" section\n" {
 		t.Fatalf("all: %q", got)
 	}
 	out.Reset()
-	if code := run([]string{"task", "validate", "old", "--json", "--root", dir}, strings.NewReader(""), &out, &errb); code != exitFail {
+	if code := run([]string{"task", "validate", "old", "--json", "--notebook", dir}, strings.NewReader(""), &out, &errb); code != exitFail {
 		t.Fatalf("exit %d", code)
 	}
 	if !strings.Contains(out.String(), `"error": "body has no`) {
@@ -611,7 +611,7 @@ func TestTaskValidateViaCLI(t *testing.T) {
 }
 
 func TestTaskDroppedViaCLI(t *testing.T) {
-	dir, nabu := newRoot(t)
+	dir, nabu := newNotebook(t)
 	head := "# T\n\n## For Human\n\n"
 	tail := "\n---\n\n## AI memo\n\nlong story\n"
 	why := head + "### Why dropped\n\n- 主導権が自分にない\n" + tail
@@ -619,7 +619,7 @@ func TestTaskDroppedViaCLI(t *testing.T) {
 
 	// mv to dropped is refused until the body says why
 	var out, errb bytes.Buffer
-	if code := run([]string{"task", "mv", "t", "dropped", "--root", dir}, strings.NewReader(""), &out, &errb); code != exitUsage {
+	if code := run([]string{"task", "mv", "t", "dropped", "--notebook", dir}, strings.NewReader(""), &out, &errb); code != exitUsage {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
 	if !strings.Contains(errb.String(), `needs a "### Why dropped" heading`) || !strings.Contains(errb.String(), "task replace first") {
@@ -631,7 +631,7 @@ func TestTaskDroppedViaCLI(t *testing.T) {
 
 	// a heading with nothing under it is not a reason
 	nabu(exitOK, head+"### Why dropped\n"+tail, "task", "replace", "t")
-	if code := run([]string{"task", "mv", "t", "dropped", "--root", dir}, strings.NewReader(""), &out, &errb); code != exitUsage {
+	if code := run([]string{"task", "mv", "t", "dropped", "--notebook", dir}, strings.NewReader(""), &out, &errb); code != exitUsage {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
 
@@ -658,4 +658,51 @@ func TestTaskDroppedViaCLI(t *testing.T) {
 		t.Fatal(err)
 	}
 	nabu(exitFail, "", "task", "validate", "t")
+}
+
+func TestAutoPushReportsEachCommit(t *testing.T) {
+	dir, _ := newNotebook(t)
+	cfgDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgDir)
+	if err := os.MkdirAll(filepath.Join(cfgDir, "nabu"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := `{"notebook": "` + dir + `", "auto_push": true}`
+	if err := os.WriteFile(filepath.Join(cfgDir, "nabu", "config.json"), []byte(cfg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// no --notebook, so the config file and its auto_push apply
+	nabu := func(stdin string, args ...string) string {
+		t.Helper()
+		var out, errb bytes.Buffer
+		if code := run(args, strings.NewReader(stdin), &out, &errb); code != exitOK {
+			t.Fatalf("%v: exit %d: %s%s", args, code, out.String(), errb.String())
+		}
+		return out.String()
+	}
+
+	// a failed push is reported, and the commit stands
+	out := nabu(shaped("A", ""), "task", "new", "a", "--area", "work")
+	if !strings.Contains(out, `"committed": true`) || !strings.Contains(out, `"push": "failed: no upstream branch`) {
+		t.Fatalf("new output: %s", out)
+	}
+
+	bare := t.TempDir()
+	for _, args := range [][]string{
+		{"init", "-q", "--bare", bare},
+		{"-C", dir, "remote", "add", "origin", bare},
+		{"-C", dir, "push", "-q", "-u", "origin", "main"},
+	} {
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	out = nabu("", "task", "mv", "a", "doing")
+	if !strings.Contains(out, `"push": "ok"`) {
+		t.Fatalf("mv output: %s", out)
+	}
+	log, _ := exec.Command("git", "-C", bare, "log", "-1", "--format=%s", "main").Output()
+	if !strings.Contains(string(log), "nabu: task mv tasks/inbox/a.md -> tasks/doing/a.md") {
+		t.Fatalf("remote log: %s", log)
+	}
 }

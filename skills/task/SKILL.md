@@ -120,9 +120,10 @@ nabu task validate [slug]                    # which tasks are out of shape; not
 
 ## Do not
 
-- Read or edit files under the root with Read / Edit / Write / shell
-  redirection. Only nabu touches the root.
-- Run git inside the root. nabu commits each change itself; `nabu
-  push` only when the user asks.
-- Guess the root. If nabu exits 2 with "no root declared", show the user
-  the message; it tells them what to fix.
+- Read or edit files in the notebook with Read / Edit / Write / shell
+  redirection. Only nabu touches the notebook.
+- Run git inside the notebook. nabu commits each change itself; `nabu
+  push` only when the user asks. When a result carries `"push":
+  "failed: ..."`, tell the user; the change is committed but not pushed.
+- Guess the notebook. If nabu exits 2 with "no notebook declared", show the
+  user the message; it tells them what to fix.

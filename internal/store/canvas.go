@@ -11,7 +11,7 @@ import (
 )
 
 // CanvasFile is the one draft the user edits by hand while the agent
-// revises it through the CLI. It sits at the root and is never committed:
+// revises it through the CLI. It sits at the top of the notebook and is never committed:
 // List skips it and Resolve refuses it.
 const CanvasFile = "CANVAS.md"
 
@@ -28,14 +28,14 @@ var ErrCanvasBusy = errors.New("canvas is not empty (save or drop it first)")
 // ErrCanvasEmpty is returned when a command needs a draft and there is none.
 var ErrCanvasEmpty = errors.New("canvas is empty (use canvas open)")
 
-// isCanvasPath reports whether a root-relative slash path is the canvas or
+// isCanvasPath reports whether a notebook-relative slash path is the canvas or
 // its snapshot.
 func isCanvasPath(rel string) bool {
 	return rel == CanvasFile || rel == canvasSnapshot
 }
 
 // CanvasPath is the absolute path of the canvas, for the user's editor.
-func (s *Store) CanvasPath() string { return filepath.Join(s.Root, CanvasFile) }
+func (s *Store) CanvasPath() string { return filepath.Join(s.Dir, CanvasFile) }
 
 // CanvasOpen starts a draft. It refuses when the canvas already holds one.
 func (s *Store) CanvasOpen(body []byte) (int, error) {
@@ -64,7 +64,7 @@ func (s *Store) canvasPut(body []byte) (int, error) {
 	if err := os.WriteFile(s.CanvasPath(), body, 0o644); err != nil {
 		return 0, err
 	}
-	return len(body), os.WriteFile(filepath.Join(s.Root, canvasSnapshot), body, 0o644)
+	return len(body), os.WriteFile(filepath.Join(s.Dir, canvasSnapshot), body, 0o644)
 }
 
 // CanvasRead returns the draft as it is now, including the user's edits.
@@ -85,11 +85,11 @@ func (s *Store) CanvasDiff() ([]byte, error) {
 	if _, err := s.CanvasRead(); err != nil {
 		return nil, err
 	}
-	snap := filepath.Join(s.Root, canvasSnapshot)
+	snap := filepath.Join(s.Dir, canvasSnapshot)
 	if _, err := os.Stat(snap); errors.Is(err, fs.ErrNotExist) {
 		snap = os.DevNull // the draft was started by hand; all of it is the user's
 	}
-	out, err := exec.Command("git", "-C", s.Root, "diff", "--no-index", "--", snap, s.CanvasPath()).Output()
+	out, err := exec.Command("git", "-C", s.Dir, "diff", "--no-index", "--", snap, s.CanvasPath()).Output()
 	var exit *exec.ExitError
 	if errors.As(err, &exit) && exit.ExitCode() == 1 {
 		err = nil // exit 1 is "differences found"
@@ -127,7 +127,7 @@ func (s *Store) CanvasDrop() error {
 	if err := os.WriteFile(s.CanvasPath(), nil, 0o644); err != nil {
 		return err
 	}
-	if err := os.Remove(filepath.Join(s.Root, canvasSnapshot)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err := os.Remove(filepath.Join(s.Dir, canvasSnapshot)); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
 	return nil
