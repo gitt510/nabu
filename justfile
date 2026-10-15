@@ -21,9 +21,9 @@ install:
 
 # Render tasks/ and the viewer into web/dist/ and serve them on localhost:8000
 view:
-    go run . task ls --json > web/data.json
     pnpm install --frozen-lockfile --silent
-    cd web && pnpm --silent build && pnpm --silent data
+    cd web && pnpm --silent build
+    go run . task ls --json > web/dist/tasks.json
     open http://localhost:8000
     python3 -m http.server -d web/dist 8000
 

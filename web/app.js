@@ -1,5 +1,21 @@
-// no-store, so a reload shows the latest publish
-const tasks = await (await fetch("tasks.json", { cache: "no-store" })).json();
+import { marked } from "./marked.js";
+
+// tasks.json is `nabu task ls --json` as published; no-store, so a reload shows the latest publish.
+// Each row gains what the page shows: the body as HTML without its title line, and a lowercase search text.
+const tasks = (await (await fetch("tasks.json", { cache: "no-store" })).json())
+  .map((r) => {
+    const frontmatter = r.frontmatter ?? {};
+    let body = r.body.trim();
+    if (body.startsWith("# " + r.title)) body = body.slice(r.title.length + 2).trim();
+    return {
+      ...r,
+      frontmatter,
+      updated: r.updated ?? "",
+      html: marked.parse(body),
+      text: [r.title, r.slug, frontmatter.waiting ?? "", frontmatter.project ?? "", body].join("\n").toLowerCase(),
+    };
+  })
+  .sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0)); // the views order; this only fixes ties
 const byId = Object.fromEntries(tasks.map((t) => [t.slug, t]));
 const STATUS = ["doing", "inbox", "done", "dropped"];
 const $ = (id) => document.getElementById(id);
@@ -220,8 +236,8 @@ function select(slug, push = true) {
 
 // The path line above the title; a click copies the file's path, relative to the notebook.
 function crumb(t) {
-  const b = el("button", { class: "copy", type: "button", title: `${t.file}\nclick で copy` }, t.path);
-  b.addEventListener("click", () => navigator.clipboard.writeText(t.file).then(() => {
+  const b = el("button", { class: "copy", type: "button", title: `${t.path}\nclick で copy` }, t.path);
+  b.addEventListener("click", () => navigator.clipboard.writeText(t.path).then(() => {
     b.textContent = "copied";
     setTimeout(() => { b.textContent = t.path; }, 1200);
   }));
