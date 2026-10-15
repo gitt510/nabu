@@ -709,3 +709,59 @@ func TestAutoPushReportsEachCommit(t *testing.T) {
 		t.Fatalf("remote log: %s", log)
 	}
 }
+
+func TestPublishPushesThenRunsTheWorkflow(t *testing.T) {
+	dir, nabu := newNotebook(t)
+	bare := t.TempDir()
+	// a stand-in gh that records where and how it ran and what the remote held
+	// by then, prints a run URL, and fails when told to
+	bin := t.TempDir()
+	calls := filepath.Join(bin, "calls")
+	script := "#!/bin/sh\n" +
+		"[ -f " + filepath.Join(bin, "fail") + " ] && { echo 'HTTP 404: workflow not found' >&2; exit 1; }\n" +
+		"echo \"$(pwd -P) $* remote=$(git -C " + bare + " log -1 --format=%s main)\" >> " + calls + "\n" +
+		"echo https://github.com/o/notes/actions/runs/1\n"
+	if err := os.WriteFile(filepath.Join(bin, "gh"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	nabu(exitFail, "", "publish") // no upstream yet: nothing is started
+	if _, err := os.Stat(calls); err == nil {
+		t.Fatal("gh ran without a push")
+	}
+
+	nabu(exitOK, shaped("A", ""), "task", "new", "a", "--area", "work")
+	for _, args := range [][]string{
+		{"init", "-q", "--bare", bare},
+		{"-C", dir, "remote", "add", "origin", bare},
+		{"-C", dir, "push", "-q", "-u", "origin", "main"},
+	} {
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	nabu(exitOK, "", "task", "mv", "a", "doing")
+	out := nabu(exitOK, "", "publish")
+	if !strings.Contains(out, `"run": "https://github.com/o/notes/actions/runs/1"`) || !strings.Contains(out, `"ref": "main"`) {
+		t.Fatalf("publish output: %s", out)
+	}
+	// gh ran in the notebook, on its branch, after the move had reached the remote
+	got, _ := os.ReadFile(calls)
+	real, _ := filepath.EvalSymlinks(dir)
+	if want := real + " workflow run publish.yml --ref main remote=nabu: task mv tasks/inbox/a.md -> tasks/doing/a.md\n"; string(got) != want {
+		t.Fatalf("gh calls %q want %q", got, want)
+	}
+
+	// a run that cannot start is reported after the push that landed
+	if err := os.WriteFile(filepath.Join(bin, "fail"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"publish"}, strings.NewReader(""), &stdout, &stderr); code != exitFail {
+		t.Fatalf("exit %d", code)
+	}
+	if msg := stderr.String(); !strings.Contains(msg, "pushed to origin/main, but the publish run did not start") || !strings.Contains(msg, "HTTP 404: workflow not found") {
+		t.Fatalf("stderr: %s", msg)
+	}
+}

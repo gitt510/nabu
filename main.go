@@ -52,7 +52,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	})
-	root.AddCommand(taskCmd(e), canvasCmd(e), pushCmd(e), initCmd(e))
+	root.AddCommand(taskCmd(e), canvasCmd(e), pushCmd(e), publishCmd(e), initCmd(e))
 	root.SetArgs(args)
 	root.SetIn(stdin)
 	root.SetOut(stdout)
@@ -202,6 +202,32 @@ func pushCmd(e *env) *cobra.Command {
 				return fail(e.stderr, err, exitFail)
 			}
 			return emit(e.stdout, map[string]string{"action": "push", "upstream": upstream})
+
+		}),
+	}
+	return cmd
+}
+
+func publishCmd(e *env) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "publish",
+		Short: "push the notebook and run its publish workflow now",
+		Long:  "pushes the notebook to its upstream, then starts the notebook repository's " + store.PublishWorkflow + " on the current branch through gh, so the viewer shows the pushed tasks without waiting for the schedule.\nprints the run's URL; the viewer updates when that run succeeds. a failed push starts nothing; a push that lands but a run that cannot start is reported as such.\nthe workflow must take workflow_dispatch, and gh must be signed in",
+		Args:  cobra.NoArgs,
+		RunE: do(func(args []string) int {
+			s, err := openStore()
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			upstream, err := s.Push()
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			branch, run, err := s.Publish()
+			if err != nil {
+				return fail(e.stderr, fmt.Errorf("pushed to %s, but the publish run did not start: %w", upstream, err), exitFail)
+			}
+			return emit(e.stdout, map[string]string{"action": "publish", "upstream": upstream, "workflow": store.PublishWorkflow, "ref": branch, "run": run})
 
 		}),
 	}
