@@ -1,5 +1,5 @@
 {
-  // Serves the viewer: the page from dist/ as static assets, built on deploy, and its data from R2, which `just publish` uploads.
+  // Serves the viewer: the page from dist/ as static assets, built on deploy, and its data from R2, which the publish workflow uploads.
   // The data lives only in the bucket, never in the repo or the Worker.
   // Access (sign-in) is set on the Worker in the Zero Trust dashboard, not here.
   "name": "nabu",

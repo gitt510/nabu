@@ -35,6 +35,22 @@ nabu init
 - The notebook needs an upstream branch and git credentials before the first push
 - A failed push keeps the commit and returns `"push": "failed: <reason>"` in the JSON result
 
+### publish
+
+```yaml
+# .github/workflows/publish.yml in the notebook repository
+on: { push: { branches: [main] } }
+jobs:
+  publish:
+    uses: gitt510/nabu/.github/workflows/publish.yml@main
+    with: { r2-bucket: nabu }
+    secrets: { R2_EDIT: ${{ secrets.R2_EDIT }} }
+```
+
+- The publish workflow replaces `<r2-bucket>/tasks.json` with the tasks of each pushed commit
+- `R2_EDIT` is a Cloudflare API token with R2 edit permission in the account that holds `r2-bucket`
+- A newer push cancels an older publish still running
+
 ## Agent skill
 
 ```

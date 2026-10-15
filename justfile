@@ -21,27 +21,13 @@ install:
 
 # Render tasks/ and the viewer into web/dist/ and serve them on localhost:8000
 view:
-    go run . task ls --json > web/data.json
     pnpm install --frozen-lockfile --silent
-    cd web && pnpm --silent build && pnpm --silent data
+    cd web && pnpm --silent build
+    go run . task ls --json > web/dist/tasks.json
     open http://localhost:8000
     python3 -m http.server -d web/dist 8000
 
-# Render tasks/ with the installed nabu and upload the data to R2, where the nabu Worker serves it; skipped while another publish runs
-publish:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    lock="${TMPDIR:-/tmp}/nabu-publish.lock"
-    mkdir "$lock" 2>/dev/null || { echo "skip: another publish is running"; exit 0; }
-    trap 'rmdir "$lock"' EXIT
-    nabu task ls --json > web/data.json
-    cd web
-    test -d node_modules || pnpm install --frozen-lockfile --silent
-    pnpm --silent data
-    out=$(pnpm exec wrangler r2 object put nabu/tasks.json --file dist/tasks.json --content-type "application/json; charset=utf-8" --remote 2>&1) || { echo "$out"; exit 1; }
-    echo "ok ${SECONDS}s $(( $(wc -c < dist/tasks.json) / 1024 ))KB"
-
-# Build the viewer and deploy it with the Worker that serves what publish uploads
+# Build the viewer and deploy it with the Worker that serves what the publish workflow uploads
 deploy:
     pnpm install --frozen-lockfile --silent
     cd web && pnpm --silent build && pnpm exec wrangler deploy

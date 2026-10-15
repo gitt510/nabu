@@ -18,7 +18,7 @@ jobs:
       - uses: jdx/mise-action@v2
       - run: go test ./...
 
-  # Deploys the viewer page; the tasks it shows come from `just publish`, not from here.
+  # Deploys the viewer page; the tasks it shows come from the publish workflow, not from here.
   deploy:
     needs: test
     uses: gitt510/.github/.github/workflows/deploy-worker-pnpm.yml@6b1d55c320755e6cd34095a80ed064a0ca367d72

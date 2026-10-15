@@ -229,6 +229,27 @@ type Entry struct {
 	Title string
 }
 
+// Updated maps each path under dir that git history knows to the commit
+// time (RFC3339) of the last commit that touched it. A path never committed
+// is absent.
+func (s *Store) Updated(dir string) (map[string]string, error) {
+	out, err := exec.Command("git", "-C", s.Dir, "log", "--format=%x00%cI", "--name-only", "--", dir).Output()
+	if err != nil {
+		return nil, fmt.Errorf("git log: %w", err)
+	}
+	at := map[string]string{}
+	when := ""
+	// newest first, so the first mention of a path is its last commit
+	for _, line := range strings.Split(string(out), "\n") {
+		if t, ok := strings.CutPrefix(line, "\x00"); ok {
+			when = t
+		} else if _, seen := at[line]; line != "" && !seen {
+			at[line] = when
+		}
+	}
+	return at, nil
+}
+
 // List returns the markdown files under dir (the whole notebook when empty), sorted by path.
 func (s *Store) List(dir string) ([]Entry, error) {
 	start := s.Dir

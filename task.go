@@ -305,7 +305,9 @@ type taskEntry struct {
 	Status      string `json:"status"`
 	Title       string `json:"title"`
 	Frontmatter meta   `json:"frontmatter"`
-	Body        string `json:"body"`
+	// Updated is when the last commit touched the task; empty before its first.
+	Updated string `json:"updated,omitempty"`
+	Body    string `json:"body"`
 }
 
 // listTasks reads every task, or those in one status folder, as ls rows.
@@ -319,9 +321,13 @@ func listTasks(s *store.Store, status string) ([]taskEntry, error) {
 		}
 		return nil, err
 	}
+	updated, err := s.Updated("tasks")
+	if err != nil {
+		return nil, err
+	}
 	rows := []taskEntry{}
 	for _, e := range entries {
-		row := taskEntry{Path: e.Path, Slug: taskSlug(e.Path), Status: taskStatusOrStray(e.Path), Title: e.Title}
+		row := taskEntry{Path: e.Path, Slug: taskSlug(e.Path), Status: taskStatusOrStray(e.Path), Title: e.Title, Updated: updated[e.Path]}
 		if doc, err := s.Read(e.Path); err == nil {
 			if m, body, err := splitMeta(doc); err == nil {
 				row.Frontmatter = m
@@ -339,7 +345,7 @@ func taskLsCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "ls [status]",
 		Short:   "list tasks in workflow order",
-		Long:    "lists every task in workflow order (inbox, doing, done, dropped), or those in one status folder; a task outside every folder shows as stray, last.\non a terminal prints a table of status, title, and created (its date), colored by status;\npiped, prints the same columns tab-separated without a header or color; --json adds path, slug, the frontmatter, and the body",
+		Long:    "lists every task in workflow order (inbox, doing, done, dropped), or those in one status folder; a task outside every folder shows as stray, last.\non a terminal prints a table of status, title, and created (its date), colored by status;\npiped, prints the same columns tab-separated without a header or color; --json adds path, slug, the frontmatter, updated (when the last commit touched the task), and the body",
 		GroupID: "browse",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: do(func(args []string) int {
