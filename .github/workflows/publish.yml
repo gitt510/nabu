@@ -3,12 +3,16 @@ name: publish
 # Publishes the tasks of the calling notebook repository to R2, where the
 # nabu viewer reads them. A notebook repository calls it on every push:
 #
-#   on: { push: { branches: [main] } }
+#   on:
+#     push:
+#       branches: [main]
 #   jobs:
 #     publish:
 #       uses: gitt510/nabu/.github/workflows/publish.yml@main
-#       with: { r2-bucket: nabu }
-#       secrets: { R2_EDIT: ${{ secrets.R2_EDIT }} }
+#       with:
+#         r2-bucket: nabu
+#       secrets:
+#         R2_EDIT: ${{ secrets.R2_EDIT }}
 #
 # Contract with callers:
 #   - the notebook is the root of the calling repository

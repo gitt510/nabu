@@ -39,12 +39,16 @@ nabu init
 
 ```yaml
 # .github/workflows/publish.yml in the notebook repository
-on: { push: { branches: [main] } }
+on:
+  push:
+    branches: [main]
 jobs:
   publish:
     uses: gitt510/nabu/.github/workflows/publish.yml@main
-    with: { r2-bucket: nabu }
-    secrets: { R2_EDIT: ${{ secrets.R2_EDIT }} }
+    with:
+      r2-bucket: nabu
+    secrets:
+      R2_EDIT: ${{ secrets.R2_EDIT }}
 ```
 
 - The publish workflow replaces `<r2-bucket>/tasks.json` with the tasks of each pushed commit
