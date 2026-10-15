@@ -22,7 +22,6 @@ nabu init
 | `auto_push` | `false` | `git push` after each commit nabu makes |
 
 - The file is `~/.config/nabu/config.json` (`$XDG_CONFIG_HOME/nabu/config.json`)
-- `--notebook <dir>` overrides `notebook` and bypasses the file, so nothing is pushed
 
 ### auto_push
 

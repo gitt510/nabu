@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,9 +19,26 @@ import (
 // created is the created line task new stamps under the clock newNotebook pins.
 const created = "created: \"2026-10-06T09:00:00+09:00\"\narea: \"work\"\n"
 
-// newNotebook returns an initialized notebook with a git identity, plus a
-// runner that invokes nabu against it and fails the test on the wrong
-// exit code. The returned string is stdout.
+// useNotebook points a fresh config file at dir for the rest of the test.
+func useNotebook(t *testing.T, dir string, autoPush bool) {
+	t.Helper()
+	cfgDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgDir)
+	b, err := json.Marshal(map[string]any{"notebook": dir, "auto_push": autoPush})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(cfgDir, "nabu"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cfgDir, "nabu", "config.json"), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// newNotebook returns an initialized notebook with a git identity, declared
+// in the config file, plus a runner that invokes nabu against it and fails
+// the test on the wrong exit code. The returned string is stdout.
 func newNotebook(t *testing.T) (string, func(want int, stdin string, args ...string) string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -31,10 +49,11 @@ func newNotebook(t *testing.T) (string, func(want int, stdin string, args ...str
 			t.Fatalf("git %v: %s", args, out)
 		}
 	}
+	useNotebook(t, dir, false)
 	nabu := func(want int, stdin string, args ...string) string {
 		t.Helper()
 		var out, errb bytes.Buffer
-		if code := run(append(args, "--notebook", dir), strings.NewReader(stdin), &out, &errb); code != want {
+		if code := run(args, strings.NewReader(stdin), &out, &errb); code != want {
 			t.Fatalf("%v: exit %d want %d: %s%s", args, code, want, out.String(), errb.String())
 		}
 		return out.String()
@@ -307,8 +326,9 @@ func TestInitSeedsGitignore(t *testing.T) {
 		t.Setenv(kv[0], kv[1])
 	}
 	dir := filepath.Join(t.TempDir(), "notebook")
+	useNotebook(t, dir, false)
 	var out, errb bytes.Buffer
-	if code := run([]string{"init", "--notebook", dir}, strings.NewReader(""), &out, &errb); code != exitOK {
+	if code := run([]string{"init"}, strings.NewReader(""), &out, &errb); code != exitOK {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
 	if !strings.Contains(out.String(), `"committed": true`) {
@@ -586,14 +606,14 @@ func TestTaskValidateViaCLI(t *testing.T) {
 		t.Fatalf("one: %q", got)
 	}
 	var out, errb bytes.Buffer
-	if code := run([]string{"task", "validate", "--notebook", dir}, strings.NewReader(""), &out, &errb); code != exitFail {
+	if code := run([]string{"task", "validate"}, strings.NewReader(""), &out, &errb); code != exitFail {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
 	if got := out.String(); got != "ok    tasks/inbox/ok.md\nbad   tasks/doing/old.md: body has no \"## For Human\" section\n" {
 		t.Fatalf("all: %q", got)
 	}
 	out.Reset()
-	if code := run([]string{"task", "validate", "old", "--json", "--notebook", dir}, strings.NewReader(""), &out, &errb); code != exitFail {
+	if code := run([]string{"task", "validate", "old", "--json"}, strings.NewReader(""), &out, &errb); code != exitFail {
 		t.Fatalf("exit %d", code)
 	}
 	if !strings.Contains(out.String(), `"error": "body has no`) {
@@ -619,7 +639,7 @@ func TestTaskDroppedViaCLI(t *testing.T) {
 
 	// mv to dropped is refused until the body says why
 	var out, errb bytes.Buffer
-	if code := run([]string{"task", "mv", "t", "dropped", "--notebook", dir}, strings.NewReader(""), &out, &errb); code != exitUsage {
+	if code := run([]string{"task", "mv", "t", "dropped"}, strings.NewReader(""), &out, &errb); code != exitUsage {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
 	if !strings.Contains(errb.String(), `needs a "### Why dropped" heading`) || !strings.Contains(errb.String(), "task replace first") {
@@ -631,7 +651,7 @@ func TestTaskDroppedViaCLI(t *testing.T) {
 
 	// a heading with nothing under it is not a reason
 	nabu(exitOK, head+"### Why dropped\n"+tail, "task", "replace", "t")
-	if code := run([]string{"task", "mv", "t", "dropped", "--notebook", dir}, strings.NewReader(""), &out, &errb); code != exitUsage {
+	if code := run([]string{"task", "mv", "t", "dropped"}, strings.NewReader(""), &out, &errb); code != exitUsage {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
 
@@ -661,28 +681,11 @@ func TestTaskDroppedViaCLI(t *testing.T) {
 }
 
 func TestAutoPushReportsEachCommit(t *testing.T) {
-	dir, _ := newNotebook(t)
-	cfgDir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", cfgDir)
-	if err := os.MkdirAll(filepath.Join(cfgDir, "nabu"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	cfg := `{"notebook": "` + dir + `", "auto_push": true}`
-	if err := os.WriteFile(filepath.Join(cfgDir, "nabu", "config.json"), []byte(cfg), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	// no --notebook, so the config file and its auto_push apply
-	nabu := func(stdin string, args ...string) string {
-		t.Helper()
-		var out, errb bytes.Buffer
-		if code := run(args, strings.NewReader(stdin), &out, &errb); code != exitOK {
-			t.Fatalf("%v: exit %d: %s%s", args, code, out.String(), errb.String())
-		}
-		return out.String()
-	}
+	dir, nabu := newNotebook(t)
+	useNotebook(t, dir, true)
 
 	// a failed push is reported, and the commit stands
-	out := nabu(shaped("A", ""), "task", "new", "a", "--area", "work")
+	out := nabu(0, shaped("A", ""), "task", "new", "a", "--area", "work")
 	if !strings.Contains(out, `"committed": true`) || !strings.Contains(out, `"push": "failed: no upstream branch`) {
 		t.Fatalf("new output: %s", out)
 	}
@@ -697,7 +700,7 @@ func TestAutoPushReportsEachCommit(t *testing.T) {
 			t.Fatalf("git %v: %s", args, out)
 		}
 	}
-	out = nabu("", "task", "mv", "a", "doing")
+	out = nabu(0, "", "task", "mv", "a", "doing")
 	if !strings.Contains(out, `"push": "ok"`) {
 		t.Fatalf("mv output: %s", out)
 	}

@@ -58,7 +58,7 @@ func canvasPutCmd(e *env, action, short, long string) *cobra.Command {
 			if err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -86,7 +86,7 @@ func canvasShowCmd(e *env, action, short, long string) *cobra.Command {
 		Long:  long,
 		Args:  cobra.NoArgs,
 		RunE: do(func([]string) int {
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -121,7 +121,7 @@ func canvasSaveCmd(e *env) *cobra.Command {
 			if err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -151,7 +151,7 @@ func canvasDropCmd(e *env) *cobra.Command {
 		Long:  "empties CANVAS.md; the file stays so an open editor sees a reload, not a deletion",
 		Args:  cobra.NoArgs,
 		RunE: do(func(args []string) int {
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}

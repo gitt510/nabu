@@ -197,7 +197,7 @@ func taskNewCmd(e *env) *cobra.Command {
 			if err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -232,7 +232,7 @@ func taskReplaceCmd(e *env) *cobra.Command {
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
-			s, rel, m, _, code := openTask(e.notebook, arg(args, 0), e.stderr)
+			s, rel, m, _, code := openTask(arg(args, 0), e.stderr)
 			if code != exitOK {
 				return code
 			}
@@ -276,7 +276,7 @@ func taskSetCmd(e *env) *cobra.Command {
 			if (project != "" && clearProject) || (scheduled != "" && clearScheduled) || (waiting != "" && clearWaiting) {
 				return fail(e.stderr, errors.New("a value and its --clear flag cannot be given together"), exitUsage)
 			}
-			s, rel, m, body, code := openTask(e.notebook, arg(args, 0), e.stderr)
+			s, rel, m, body, code := openTask(arg(args, 0), e.stderr)
 			if code != exitOK {
 				return code
 			}
@@ -355,7 +355,7 @@ func taskMvCmd(e *env) *cobra.Command {
 			if !store.TaskStatus(status) {
 				return fail(e.stderr, fmt.Errorf("status must be one of %s: %s", strings.Join(store.TaskStatuses, ", "), status), exitUsage)
 			}
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -407,7 +407,7 @@ func taskRenameCmd(e *env) *cobra.Command {
 			if slug == newSlug {
 				return fail(e.stderr, fmt.Errorf("new slug is the same as the old one: %s", slug), exitUsage)
 			}
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -441,7 +441,7 @@ func taskRmCmd(e *env) *cobra.Command {
 			if !store.Slug(slug) {
 				return fail(e.stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
 			}
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -471,7 +471,7 @@ func taskReadCmd(e *env) *cobra.Command {
 		GroupID: "read",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
-			s, rel, _, _, code := openTask(e.notebook, arg(args, 0), e.stderr)
+			s, rel, _, _, code := openTask(arg(args, 0), e.stderr)
 			if code != exitOK {
 				return code
 			}
@@ -556,7 +556,7 @@ func taskLsCmd(e *env) *cobra.Command {
 			if status != "" && !store.TaskStatus(status) {
 				return fail(e.stderr, fmt.Errorf("status must be one of %s: %s", strings.Join(store.TaskStatuses, ", "), status), exitUsage)
 			}
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -622,7 +622,7 @@ func taskGrepCmd(e *env) *cobra.Command {
 		GroupID: "browse",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -695,11 +695,11 @@ func highlight(text, query string) string {
 
 // openTask finds the task by slug and splits it. On failure it has already
 // reported to stderr and returns the exit code.
-func openTask(notebook, slug string, stderr io.Writer) (*store.Store, string, meta, []byte, int) {
+func openTask(slug string, stderr io.Writer) (*store.Store, string, meta, []byte, int) {
 	if !store.Slug(slug) {
 		return nil, "", meta{}, nil, fail(stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
 	}
-	s, err := openStore(notebook)
+	s, err := openStore()
 	if err != nil {
 		return nil, "", meta{}, nil, fail(stderr, err, exitFail)
 	}
@@ -808,7 +808,7 @@ func taskValidateCmd(e *env) *cobra.Command {
 		GroupID: "browse",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: do(func(args []string) int {
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
