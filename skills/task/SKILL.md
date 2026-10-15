@@ -8,18 +8,19 @@ description: File and move the user's tasks as markdown files under tasks/ in th
 A task is a markdown file under `tasks/` in the user's nabu repository, and its
 status is the folder it sits in: `tasks/inbox/` (new), `tasks/doing/`
 (started), `tasks/done/` (finished), `tasks/dropped/` (decided against).
-`nabu task -h` is the source of truth
-for the contract; this file only says how to use it well.
+`nabu task -h` is the source of truth for the contract,
+[`frontmatter.go`](../../frontmatter.go) for every frontmatter key and the
+values it accepts, and [`shape.go`](../../shape.go) for the body shape; this
+file only says how to use them well.
 
 ## Commands
 
 ```bash
-nabu task new <slug> --area <work|personal> [--project <kebab>] [--scheduled <RFC3339|YYYY-MM-DD>] [--ticket <https-url>]... [--pr <https-url>]... [--link <https-url>]...  # tasks/inbox/<slug>.md, body on stdin
+nabu task new <slug> --area <area> [<frontmatter flags>]  # tasks/inbox/<slug>.md, body on stdin
 nabu task replace <slug>                     # new body on stdin; frontmatter is kept
 nabu task set <slug> --waiting "<who/what>"  # the ball is with someone else
 nabu task set <slug> --clear-waiting         # the ball is back
-nabu task set <slug> --area <work|personal> --project <kebab>  # --clear-project drops the project
-nabu task set <slug> --scheduled <RFC3339|YYYY-MM-DD> --ticket <https-url> --pr <https-url> --link <https-url>   # other metadata; --clear-* drops
+nabu task set <slug> <frontmatter flags>    # other metadata; --clear-* drops
 nabu task mv <slug> <inbox|doing|done|dropped>  # move a task to its status folder
 nabu task rename <slug> <new-slug>           # new slug, same status and content
 nabu task rm <slug>                          # delete a task, whatever its status
@@ -33,21 +34,13 @@ nabu task validate [slug]                    # which tasks are out of shape; not
 
 1. **Check what exists first.** `nabu task ls --json` before filing so a
    task is not filed twice. Every task read and write is a `task` command.
-2. **File with `task new`.** The slug is the filename (lowercase
-   kebab-case); the body (stdin) is markdown in the task shape below, and
-   nabu refuses any other. Metadata goes through flags, never hand-written
-   in the body: `--scheduled` is the time the work is planned to happen
-   (RFC3339 with offset, or `YYYY-MM-DD` when only the day is decided;
-   not a deadline). Do not invent a time the user did not give. `--area`
-   is required: `work` or `personal`. `--project` is what the task ships
-   into — a service at work (`cogmo-crawler`), a repo at home (`nabu`) —
-   and is left out when the task belongs to none, spans several, or the
-   repo does not exist yet; reuse a project already in `task ls --json`
-   rather than coining a near-duplicate. URLs are full `https` and
-   repeatable, sorted by what they point at, whoever opened them and
-   whatever they are to this task: `--ticket` is a work item (an issue,
-   a Wrike task, a Zendesk request), `--pr` is a pull request, `--link`
-   is everything else (a repo, an article, a post).
+2. **File with `task new`.** The slug is the filename; the body (stdin)
+   is markdown in the task shape, written as below. Metadata goes through
+   the flags `frontmatter.go` defines, never hand-written in the body.
+   Do not invent a `--scheduled` time the user did not give. Leave
+   `--project` out when the task spans several or the repo does not
+   exist yet, and reuse a project already in `task ls --json` rather
+   than coining a near-duplicate.
 
    ```markdown
    # <title>
@@ -56,11 +49,11 @@ nabu task validate [slug]                    # which tasks are out of shape; not
 
    ### Now
 
-   - <one fact about the current state, at most 30 characters>
+   - <one fact about the current state>
 
    ### Next
 
-   - [ ] <one action, at most 30 characters, ends in a verb>
+   - [ ] <one action, ends in a verb>
 
    ---
 
@@ -70,8 +63,7 @@ nabu task validate [slug]                    # which tasks are out of shape; not
    ```
 
    `For Human` is what the user reads to know where the task stands and
-   what comes next; every line in it is at most 30 characters (counted
-   in runes, prefix included). A fact that does not fit goes to `AI
+   what comes next. A fact that does not fit its line limit goes to `AI
    memo`, with a shorter line here. Checkboxes live in `Next` only, never
    in `AI memo`, so a task has one place that says what is done. `AI
    memo` is free markdown for the agent: as dense as the work needs.
@@ -79,25 +71,16 @@ nabu task validate [slug]                    # which tasks are out of shape; not
    starts and `... done` when it ends. Never write a status into the body or
    frontmatter; the folder is the status.
    A task the user decides not to do ("やらない", "見送り", "won't do")
-   goes to `dropped`, not `done`. First `task replace` the body so
-   `For Human` carries `### Why dropped` with the reason in 30-character
-   lines (the long version goes to `AI memo`), then `nabu task mv <slug>
-   dropped`; the move is refused without that heading.
-
-   ```markdown
-   ## For Human
-
-   ### Why dropped
-
-   - <one reason, at most 30 characters>
-   ```
+   goes to `dropped`, not `done`. First `task replace` the body into the
+   shape `dropped/` requires, with the reason under For Human (the long
+   version goes to `AI memo`), then `nabu task mv <slug> dropped`.
    A task that should not have been filed at all (a duplicate, a mistake,
    「消して」「削除して」) is deleted with `nabu task rm <slug>`, whatever its
    status. Delete only when the user asks; a decision not to do the work
    is `dropped`.
 4. **Revise with `task replace` and `task set`.** `task
-   replace` takes the new body on stdin, in the same shape `task new`
-   requires, and keeps the frontmatter; `task set` changes the frontmatter
+   replace` takes the new body on stdin, in the task shape, and keeps
+   the frontmatter; `task set` changes the frontmatter
    and keeps the body. Never write a frontmatter block by hand: a body
    that starts with `---` is refused. Rewrite `Now` as state ("password
    auth is off"), not as a log of what was done.
