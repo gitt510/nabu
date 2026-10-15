@@ -1,11 +1,13 @@
 name: publish
 
 # Publishes the tasks of the calling notebook repository to R2, where the
-# nabu viewer reads them. A notebook repository calls it on every push:
+# nabu viewer reads them. A notebook repository calls it once a night, and by
+# hand through `nabu publish` (workflow_dispatch):
 #
 #   on:
-#     push:
-#       branches: [main]
+#     schedule:
+#       - cron: "17 18 * * *" # 03:17 JST
+#     workflow_dispatch:
 #   jobs:
 #     publish:
 #       uses: gitt510/nabu/.github/workflows/publish.yml@main
@@ -17,7 +19,8 @@ name: publish
 # Contract with callers:
 #   - the notebook is the root of the calling repository
 #   - R2_EDIT can edit r2-bucket in the one account it carries
-#   - <r2-bucket>/tasks.json is replaced by the tasks of the pushed commit
+#   - the calling workflow is .github/workflows/publish.yml, so `nabu publish` finds it
+#   - <r2-bucket>/tasks.json is replaced by the tasks of the checked-out commit
 on:
   workflow_call:
     inputs:
@@ -36,7 +39,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    # A newer push supersedes an older one, so a stale tasks.json never lands last.
+    # A newer run supersedes an older one, so a stale tasks.json never lands last.
     concurrency:
       group: nabu-publish-${{ github.repository }}
       cancel-in-progress: true

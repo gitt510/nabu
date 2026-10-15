@@ -40,8 +40,9 @@ nabu init
 ```yaml
 # .github/workflows/publish.yml in the notebook repository
 on:
-  push:
-    branches: [main]
+  schedule:
+    - cron: "17 18 * * *" # 03:17 JST
+  workflow_dispatch:
 jobs:
   publish:
     uses: gitt510/nabu/.github/workflows/publish.yml@main
@@ -51,9 +52,11 @@ jobs:
       R2_EDIT: ${{ secrets.R2_EDIT }}
 ```
 
-- The publish workflow replaces `<r2-bucket>/tasks.json` with the tasks of each pushed commit
+- The publish workflow replaces `<r2-bucket>/tasks.json` with the tasks of the notebook's default branch
+- The schedule runs it once a night; a push alone publishes nothing
+- `nabu publish` pushes the notebook and runs the workflow at once, through `gh`
 - `R2_EDIT` is a Cloudflare API token with R2 edit permission in the account that holds `r2-bucket`
-- A newer push cancels an older publish still running
+- A newer run cancels an older one still running
 
 ## Agent skill
 

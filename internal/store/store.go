@@ -364,6 +364,22 @@ func (s *Store) Push() (string, error) {
 	return upstream, nil
 }
 
+// PublishWorkflow is the workflow file in the notebook repository that
+// publishes its tasks; Publish starts it.
+const PublishWorkflow = "publish.yml"
+
+// Publish starts PublishWorkflow on the notebook repository's default branch
+// through gh. It returns once GitHub has accepted the run, not when the run
+// ends.
+func (s *Store) Publish() error {
+	cmd := exec.Command("gh", "workflow", "run", PublishWorkflow)
+	cmd.Dir = s.Dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("gh workflow run %s: %s", PublishWorkflow, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 // Slug reports whether s is a single lowercase kebab-case filename segment
 // without a directory or extension.
 func Slug(s string) bool {

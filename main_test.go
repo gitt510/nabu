@@ -709,3 +709,45 @@ func TestAutoPushReportsEachCommit(t *testing.T) {
 		t.Fatalf("remote log: %s", log)
 	}
 }
+
+func TestPublishPushesThenRunsTheWorkflow(t *testing.T) {
+	dir, nabu := newNotebook(t)
+	// a stand-in gh that records where and how it was run
+	bin := t.TempDir()
+	calls := filepath.Join(bin, "calls")
+	script := "#!/bin/sh\necho \"$(pwd -P) $*\" >> " + calls + "\n"
+	if err := os.WriteFile(filepath.Join(bin, "gh"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	nabu(exitFail, "", "publish") // no upstream yet: nothing is started
+	if _, err := os.Stat(calls); err == nil {
+		t.Fatal("gh ran without a push")
+	}
+
+	bare := t.TempDir()
+	nabu(exitOK, shaped("A", ""), "task", "new", "a", "--area", "work")
+	for _, args := range [][]string{
+		{"init", "-q", "--bare", bare},
+		{"-C", dir, "remote", "add", "origin", bare},
+		{"-C", dir, "push", "-q", "-u", "origin", "main"},
+	} {
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	nabu(exitOK, "", "task", "mv", "a", "doing")
+	out := nabu(exitOK, "", "publish")
+	if !strings.Contains(out, `"workflow": "publish.yml"`) {
+		t.Fatalf("publish output: %s", out)
+	}
+	if log, _ := exec.Command("git", "-C", bare, "log", "-1", "--format=%s", "main").Output(); !strings.Contains(string(log), "task mv") {
+		t.Fatalf("not pushed: %s", log)
+	}
+	got, _ := os.ReadFile(calls)
+	real, _ := filepath.EvalSymlinks(dir)
+	if want := real + " workflow run publish.yml\n"; string(got) != want {
+		t.Fatalf("gh calls %q want %q", got, want)
+	}
+}

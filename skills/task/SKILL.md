@@ -1,6 +1,6 @@
 ---
 name: task
-description: File and move the user's tasks as markdown files under tasks/ in their nabu repository through the `nabu` CLI. Use when the user wants a task recorded, started, or finished — "add a task", "file this as a task", "I started X", "X is done", "drop X", "what am I working on" — including Japanese phrasings such as 「タスクにして」「タスク登録」「着手した」「完了にして」「やらないことにした」「今やってるタスク」. Never edit the repository directly; every read and write goes through nabu.
+description: File and move the user's tasks as markdown files under tasks/ in their nabu repository through the `nabu` CLI. Use when the user wants a task recorded, started, or finished — "add a task", "file this as a task", "I started X", "X is done", "drop X", "what am I working on" — including Japanese phrasings such as 「タスクにして」「タスク登録」「着手した」「完了にして」「やらないことにした」「今やってるタスク」, and when they want the viewer updated now — "publish", 「publish して」「viewer に反映して」. Never edit the repository directly; every read and write goes through nabu.
 ---
 
 # nabu task
@@ -28,6 +28,7 @@ nabu task ls [status] [--json]               # status, title, created; --json ad
 nabu task read <slug>                        # a task's content, any status
 nabu task grep <query> [--json]              # where something is written in tasks
 nabu task validate [slug]                    # which tasks are out of shape; nothing written
+nabu publish                                 # push, then update the viewer now instead of tonight
 ```
 
 ## How to work
@@ -100,6 +101,11 @@ nabu task validate [slug]                    # which tasks are out of shape; not
    `nabu task mv <slug> inbox`. A
    frontmatter refused by `task set` or `task replace` was edited by hand;
    tell the user and let them fix the file.
+
+8. **Publish on request.** The viewer updates once a night. When the user
+   asks to publish or to see a change in the viewer now, run `nabu
+   publish`; it returns when GitHub accepts the run, and the viewer
+   catches up a minute later.
 
 ## Do not
 
