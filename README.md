@@ -11,7 +11,7 @@ echo '{"notebook": "~/ghq/github.com/you/notes"}' > ~/.config/nabu/config.json
 nabu init
 ```
 
-- Building nabu needs Go 1.26+, which `mise install` provides
+- nabu needs Go 1.26+ to build
 - `nabu -h` and `nabu <command> -h` print the full contract of every command
 
 ## Configuration
@@ -26,7 +26,7 @@ nabu init
 ### notebook
 
 - Every nabu command that writes makes one git commit of the files it touched
-- `CANVAS.md` is the exception, ignored by git and never committed
+- `CANVAS.md` is the exception and is never committed
 - nabu never commits a change it did not make
 
 ### auto_push
@@ -116,12 +116,13 @@ agent: nabu canvas save pr68-comment --ticket https://github.com/o/r/pull/68
 
 ### Overview
 
-- `CANVAS.md` at the top of the notebook holds one draft at a time and is never committed
-- You edit `CANVAS.md` in your editor
-- The agent revises `CANVAS.md` through the CLI
-- The agent reads every hand edit before revising and never reverts one
-- The agent saves the draft when you call it final
-  - The saved draft hangs in `gallery/<slug>.md` and the canvas is emptied
+- `CANVAS.md` at the top of the notebook holds one draft at a time
+- `canvas open` starts a draft and refuses when one is there
+- `canvas diff` shows the hand edits since the last `canvas open` or `canvas write`
+- `canvas write` replaces the whole draft, hand edits included
+- `canvas save <slug>` writes the draft to `gallery/<slug>.md`, commits it, and empties the canvas
+- `canvas drop` empties the canvas without saving
+- The `nabu:canvas` skill runs `canvas diff` before every `canvas write`
 
 ## Development
 
