@@ -50,7 +50,7 @@ const VIEWS = [
   { id: "dropped", label: "Dropped", pick: (t) => t.status === "dropped", folder: true, icon: '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>' },
 ];
 // The list's order: newest first by the key the toggle names. created is the frontmatter stamp;
-// updated is the last commit touching the file (empty when the build had no repository: those go last).
+// updated is the last commit touching the file (empty before its first commit: those go last).
 const createdOf = (t) => t.frontmatter.created ?? t.updated;
 const SORTS = { updated: (t) => t.updated, created: createdOf };
 const PROPS = ["scheduled", "waiting", "area", "project", "tickets", "prs", "links", "created"];
@@ -218,7 +218,7 @@ function select(slug, push = true) {
   if (push) closeSide();
 }
 
-// The path line above the title; a click copies the file's path (absolute when the build knew the notebook).
+// The path line above the title; a click copies the file's path, relative to the notebook.
 function crumb(t) {
   const b = el("button", { class: "copy", type: "button", title: `${t.file}\nclick で copy` }, t.path);
   b.addEventListener("click", () => navigator.clipboard.writeText(t.file).then(() => {

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -234,5 +235,36 @@ func TestFindTask(t *testing.T) {
 	}
 	if got := s.FindTask("x"); got != "tasks/done/x.md" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestUpdatedIsTheLastCommitOfEachPath(t *testing.T) {
+	s := newRepo(t)
+	commit := func(when, rel, body string) {
+		t.Helper()
+		t.Setenv("GIT_COMMITTER_DATE", when)
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(s.Dir, rel)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(s.Dir, rel), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if ok, err := s.Commit("c", rel); err != nil || !ok {
+			t.Fatalf("commit %s: %v %v", rel, ok, err)
+		}
+	}
+	commit("2026-10-01T09:00:00+09:00", "tasks/inbox/a.md", "one")
+	commit("2026-10-02T09:00:00+09:00", "tasks/inbox/b.md", "one")
+	commit("2026-10-03T09:00:00+09:00", "tasks/inbox/a.md", "two")
+	if _, err := s.Write("tasks/inbox/c.md", []byte("never committed")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Updated("tasks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"tasks/inbox/a.md": "2026-10-03T09:00:00+09:00", "tasks/inbox/b.md": "2026-10-02T09:00:00+09:00"}
+	if !maps.Equal(got, want) {
+		t.Fatalf("got %v want %v", got, want)
 	}
 }

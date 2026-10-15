@@ -35,6 +35,22 @@ nabu init
 - The notebook needs an upstream branch and git credentials before the first push
 - A failed push keeps the commit and returns `"push": "failed: <reason>"` in the JSON result
 
+### publish
+
+```yaml
+# .github/workflows/publish.yml in the notebook repository
+on: { push: { branches: [main] } }
+jobs:
+  publish:
+    uses: gitt510/nabu/.github/workflows/publish.yml@main
+    with: { r2-bucket: nabu }
+    secrets: { CLOUDFLARE_API_TOKEN: ${{ secrets.R2_WRITE }} }
+```
+
+- The publish workflow replaces `<r2-bucket>/tasks.json` with the tasks of each pushed commit
+- The token needs write access to objects in `r2-bucket`
+- A newer push cancels an older publish still running
+
 ## Agent skill
 
 ```

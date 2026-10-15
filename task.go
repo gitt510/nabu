@@ -305,7 +305,9 @@ type taskEntry struct {
 	Status      string `json:"status"`
 	Title       string `json:"title"`
 	Frontmatter meta   `json:"frontmatter"`
-	Body        string `json:"body"`
+	// Updated is when the last commit touched the task; empty before its first.
+	Updated string `json:"updated,omitempty"`
+	Body    string `json:"body"`
 }
 
 // listTasks reads every task, or those in one status folder, as ls rows.
@@ -319,9 +321,13 @@ func listTasks(s *store.Store, status string) ([]taskEntry, error) {
 		}
 		return nil, err
 	}
+	updated, err := s.Updated("tasks")
+	if err != nil {
+		return nil, err
+	}
 	rows := []taskEntry{}
 	for _, e := range entries {
-		row := taskEntry{Path: e.Path, Slug: taskSlug(e.Path), Status: taskStatusOrStray(e.Path), Title: e.Title}
+		row := taskEntry{Path: e.Path, Slug: taskSlug(e.Path), Status: taskStatusOrStray(e.Path), Title: e.Title, Updated: updated[e.Path]}
 		if doc, err := s.Read(e.Path); err == nil {
 			if m, body, err := splitMeta(doc); err == nil {
 				row.Frontmatter = m
