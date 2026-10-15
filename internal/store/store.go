@@ -368,16 +368,31 @@ func (s *Store) Push() (string, error) {
 // publishes its tasks; Publish starts it.
 const PublishWorkflow = "publish.yml"
 
-// Publish starts PublishWorkflow on the notebook repository's default branch
-// through gh. It returns once GitHub has accepted the run, not when the run
-// ends.
-func (s *Store) Publish() error {
-	cmd := exec.Command("gh", "workflow", "run", PublishWorkflow)
-	cmd.Dir = s.Dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("gh workflow run %s: %s", PublishWorkflow, strings.TrimSpace(string(out)))
+// Publish starts PublishWorkflow on the current branch of the notebook
+// repository through gh, and returns the run's URL as gh prints it. It
+// returns once GitHub has accepted the run, not when the run ends.
+func (s *Store) Publish() (branch, run string, err error) {
+	out, err := exec.Command("git", "-C", s.Dir, "rev-parse", "--abbrev-ref", "HEAD").Output()
+	if err != nil {
+		return "", "", fmt.Errorf("git rev-parse: %w", err)
 	}
-	return nil
+	branch = strings.TrimSpace(string(out))
+	cmd := exec.Command("gh", "workflow", "run", PublishWorkflow, "--ref", branch)
+	cmd.Dir = s.Dir
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return branch, "", fmt.Errorf("gh workflow run %s: %w: %s", PublishWorkflow, err, msg)
+		}
+		return branch, "", fmt.Errorf("gh workflow run %s: %w", PublishWorkflow, err)
+	}
+	for _, line := range strings.Fields(stdout.String()) {
+		if strings.HasPrefix(line, "https://") {
+			run = line
+		}
+	}
+	return branch, run, nil
 }
 
 // Slug reports whether s is a single lowercase kebab-case filename segment

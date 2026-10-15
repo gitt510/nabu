@@ -52,9 +52,11 @@ jobs:
       R2_EDIT: ${{ secrets.R2_EDIT }}
 ```
 
-- The publish workflow replaces `<r2-bucket>/tasks.json` with the tasks of the notebook's default branch
+- The publish workflow replaces `<r2-bucket>/tasks.json` with the tasks of the branch the run starts on: the default branch on schedule
 - The schedule runs it once a night; a push alone publishes nothing
-- `nabu publish` pushes the notebook and runs the workflow at once, through `gh`
+- `nabu publish` pushes the notebook and starts the workflow on the current branch at once, through `gh`
+- `nabu publish` prints the URL of the run it started, and reports a push that landed without a run
+- `nabu publish` needs `gh` signed in, a single remote `origin`, and the caller workflow on the branch it starts
 - `R2_EDIT` is a Cloudflare API token with R2 edit permission in the account that holds `r2-bucket`
 - A newer run cancels an older one still running
 

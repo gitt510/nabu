@@ -104,8 +104,9 @@ nabu publish                                 # push, then update the viewer now 
 
 8. **Publish on request.** The viewer updates once a night. When the user
    asks to publish or to see a change in the viewer now, run `nabu
-   publish`; it returns when GitHub accepts the run, and the viewer
-   catches up a minute later.
+   publish` and tell them the `run` URL it prints: the viewer updates when
+   that run succeeds. When it fails, show the error as is; it says whether
+   the push or the run failed.
 
 ## Do not
 

@@ -39,7 +39,8 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    # A newer run supersedes an older one, so a stale tasks.json never lands last.
+    # A newer run cancels an older one still running; GitHub does not order
+    # runs started at nearly the same time.
     concurrency:
       group: nabu-publish-${{ github.repository }}
       cancel-in-progress: true
