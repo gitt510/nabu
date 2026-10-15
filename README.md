@@ -23,11 +23,17 @@ nabu init
 
 - The file is `~/.config/nabu/config.json` (`$XDG_CONFIG_HOME/nabu/config.json`)
 
+### notebook
+
+- Every nabu command that writes makes one git commit of the files it touched
+- `CANVAS.md` is the exception, ignored by git and never committed
+- nabu never commits a change it did not make
+
 ### auto_push
 
-- The remote and its credentials belong to git, set up with SSH or a credential helper
-- You run `git push -u origin main` in the notebook once to give it an upstream
-- The JSON result of each write carries `"push": "ok"`, or `"push": "failed: <reason>"` with the commit kept
+- `auto_push` pushes the current branch to its upstream after each commit
+- The notebook needs an upstream branch and git credentials before the first push
+- A failed push keeps the commit and returns `"push": "failed: <reason>"` in the JSON result
 
 ## Agent skill
 
@@ -60,7 +66,6 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 - `task rm` deletes a task that should not have been filed (a duplicate, a mistake), whatever its status
 - Git history keeps the content of a deleted task
 - The body has two sections: `## For Human` for the user, `## AI memo` for the agent
-- Every change is a git commit, pushed when `auto_push` is on or you run `nabu push`
 
 ### Frontmatter
 
