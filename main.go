@@ -28,7 +28,7 @@ read, and canvas diff print raw text; task ls, task grep, and task validate
 print a table on a terminal, plain text when piped, and JSON with --json.
 CANVAS.md is ignored by git.
 
-The notebook comes from --notebook <dir>, or else from notebook in %s`
+The notebook comes from notebook in %s`
 
 // exit codes: 0 ok, 1 the operation failed, 2 the invocation was wrong
 const (
@@ -52,7 +52,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	})
-	root.PersistentFlags().StringVar(&e.notebook, "notebook", "", "notebook directory (bypasses the config file)")
 	root.AddCommand(taskCmd(e), canvasCmd(e), pushCmd(e), initCmd(e))
 	root.SetArgs(args)
 	root.SetIn(stdin)
@@ -71,10 +70,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return exitUsage
 }
 
-// env is what every command runs against: the --notebook flag and the
-// process streams.
+// env is what every command runs against: the process streams.
 type env struct {
-	notebook       string
 	stdin          io.Reader
 	stdout, stderr io.Writer
 }
@@ -122,14 +119,11 @@ func arg(args []string, i int) string {
 var errNoNotebook = errors.New("no notebook declared")
 
 func setupMessage() string {
-	return fmt.Sprintf("no notebook declared.\n\ncreate %s like:\n\n%s\nor pass --notebook <dir>.\n", config.Path(), config.Example)
+	return fmt.Sprintf("no notebook declared.\n\ncreate %s like:\n\n%s", config.Path(), config.Example)
 }
 
-// resolveNotebook applies flag > config.
-func resolveNotebook(flagNotebook string) (string, error) {
-	if flagNotebook != "" {
-		return config.ExpandHome(flagNotebook), nil
-	}
+// resolveNotebook reads the notebook from the config file.
+func resolveNotebook() (string, error) {
 	cfg, err := config.Load()
 	if err != nil {
 		return "", err
@@ -140,18 +134,16 @@ func resolveNotebook(flagNotebook string) (string, error) {
 	return cfg.Notebook, nil
 }
 
-// openStore opens the resolved notebook. auto_push comes from the config
-// file, so a --notebook invocation, which bypasses the file, never pushes.
-func openStore(flagNotebook string) (*store.Store, error) {
-	dir, err := resolveNotebook(flagNotebook)
+// openStore opens the notebook the config file declares, with its auto_push.
+func openStore() (*store.Store, error) {
+	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
-	s, err := store.Open(dir)
-	if err != nil || flagNotebook != "" {
-		return s, err
+	if cfg.Notebook == "" {
+		return nil, errNoNotebook
 	}
-	cfg, err := config.Load()
+	s, err := store.Open(cfg.Notebook)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +171,7 @@ func initCmd(e *env) *cobra.Command {
 		Long:  "creates the directory, runs git init -b main, and seeds README.md and .gitignore with a first commit; every step is skipped when already done",
 		Args:  cobra.NoArgs,
 		RunE: do(func(args []string) int {
-			dir, err := resolveNotebook(e.notebook)
+			dir, err := resolveNotebook()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -201,7 +193,7 @@ func pushCmd(e *env) *cobra.Command {
 		Long:  "runs git push for the notebook's current branch; the branch must already have an upstream",
 		Args:  cobra.NoArgs,
 		RunE: do(func(args []string) int {
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -220,17 +212,17 @@ func pushCmd(e *env) *cobra.Command {
 // Frontmatter is the task frontmatter as written, for the commands that
 // change it (task new, task set).
 type writeResult struct {
-	Path        string    `json:"path"`
-	Action      string    `json:"action"`
-	Bytes       int       `json:"bytes"`
-	Committed   bool      `json:"committed"`
-	Push        string    `json:"push,omitempty"`
-	Frontmatter *taskMeta `json:"frontmatter,omitempty"`
+	Path        string `json:"path"`
+	Action      string `json:"action"`
+	Bytes       int    `json:"bytes"`
+	Committed   bool   `json:"committed"`
+	Push        string `json:"push,omitempty"`
+	Frontmatter *meta  `json:"frontmatter,omitempty"`
 }
 
 // finishWrite commits the written file as "nabu: <action> <path>" and
 // reports it, with fm when the command changed a task's frontmatter.
-func finishWrite(s *store.Store, rel, action string, n int, fm *taskMeta, stdout, stderr io.Writer) int {
+func finishWrite(s *store.Store, rel, action string, n int, fm *meta, stdout, stderr io.Writer) int {
 	committed, err := s.Commit(fmt.Sprintf("nabu: %s %s", action, rel), rel)
 	if err != nil {
 		return fail(stderr, err, exitFail)

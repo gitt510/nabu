@@ -3,8 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"net/url"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -58,7 +56,7 @@ func canvasPutCmd(e *env, action, short, long string) *cobra.Command {
 			if err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -86,7 +84,7 @@ func canvasShowCmd(e *env, action, short, long string) *cobra.Command {
 		Long:  long,
 		Args:  cobra.NoArgs,
 		RunE: do(func([]string) int {
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -117,11 +115,17 @@ func canvasSaveCmd(e *env) *cobra.Command {
 			if !store.Slug(slug) {
 				return fail(e.stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
 			}
-			fm, err := frontmatter(field{"created", now().Format(time.RFC3339)}, tk)
-			if err != nil {
-				return fail(e.stderr, err, exitUsage)
+			// a saved draft carries the task frontmatter keys it has: created and tickets
+			m := meta{Created: now().Format(time.RFC3339)}
+			tickets, _ := fieldByKey("tickets")
+			for _, t := range tk {
+				if err := tickets.checkValue(t); err != nil {
+					return fail(e.stderr, err, exitUsage)
+				}
+				m.Tickets = append(m.Tickets, t)
 			}
-			s, err := openStore(e.notebook)
+			fm := m.render()
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -151,7 +155,7 @@ func canvasDropCmd(e *env) *cobra.Command {
 		Long:  "empties CANVAS.md; the file stays so an open editor sees a reload, not a deletion",
 		Args:  cobra.NoArgs,
 		RunE: do(func(args []string) int {
-			s, err := openStore(e.notebook)
+			s, err := openStore()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -163,32 +167,4 @@ func canvasDropCmd(e *env) *cobra.Command {
 		}),
 	}
 	return cmd
-}
-
-// field is one scalar frontmatter entry; an empty value is left out.
-type field struct{ key, value string }
-
-// frontmatter renders the YAML block for the given field and tickets, or ""
-// when both are empty so a plain draft stays a plain file.
-func frontmatter(f field, tk []string) (string, error) {
-	if f.value == "" && len(tk) == 0 {
-		return "", nil
-	}
-	var b strings.Builder
-	b.WriteString("---\n")
-	if f.value != "" {
-		fmt.Fprintf(&b, "%s: %q\n", f.key, f.value)
-	}
-	if len(tk) > 0 {
-		b.WriteString("tickets:\n")
-		for _, t := range tk {
-			u, err := url.Parse(t)
-			if err != nil || u.Scheme != "https" || u.Host == "" {
-				return "", fmt.Errorf("--ticket must be a full https URL: %s", t)
-			}
-			fmt.Fprintf(&b, "  - %q\n", t)
-		}
-	}
-	b.WriteString("---\n")
-	return b.String(), nil
 }
