@@ -345,7 +345,7 @@ func taskLsCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "ls [status]",
 		Short:   "list tasks in workflow order",
-		Long:    "lists every task in workflow order (inbox, doing, done, dropped), or those in one status folder; a task outside every folder shows as stray, last.\non a terminal prints a table of status, title, and created (its date), colored by status;\npiped, prints the same columns tab-separated without a header or color; --json adds path, slug, the frontmatter, and the body",
+		Long:    "lists every task in workflow order (inbox, doing, done, dropped), or those in one status folder; a task outside every folder shows as stray, last.\non a terminal prints a table of status, title, and created (its date), colored by status;\npiped, prints the same columns tab-separated without a header or color; --json adds path, slug, the frontmatter, updated (when the last commit touched the task), and the body",
 		GroupID: "browse",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: do(func(args []string) int {
