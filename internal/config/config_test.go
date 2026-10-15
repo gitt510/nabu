@@ -13,17 +13,10 @@ func TestPathHonorsXDG(t *testing.T) {
 	}
 }
 
-func TestLogPathHonorsXDG(t *testing.T) {
-	t.Setenv("XDG_STATE_HOME", "/s")
-	if got := LogPath(); got != filepath.Join("/s", "nabu", "nabu.log") {
-		t.Fatalf("got %s", got)
-	}
-}
-
 func TestLoadMissingIsEmpty(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	cfg, err := Load()
-	if err != nil || cfg.Root != "" {
+	if err != nil || cfg.Notebook != "" {
 		t.Fatalf("got %+v, %v", cfg, err)
 	}
 }
@@ -42,7 +35,7 @@ func TestLoadExpandsHome(t *testing.T) {
 		t.Fatal(err)
 	}
 	home, _ := os.UserHomeDir()
-	if want := filepath.Join(home, "ghq/github.com/you/notes"); cfg.Root != want {
-		t.Fatalf("got %q want %q", cfg.Root, want)
+	if want := filepath.Join(home, "ghq/github.com/you/notes"); cfg.Notebook != want {
+		t.Fatalf("got %q want %q", cfg.Notebook, want)
 	}
 }

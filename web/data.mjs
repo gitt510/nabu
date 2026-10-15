@@ -7,9 +7,9 @@ import { marked } from "marked";
 const here = (name) => new URL(name, import.meta.url);
 
 // The notes repository, from nabu's own config; absent (a build away from that machine) leaves paths relative.
-const root = (() => {
+const notebook = (() => {
   try {
-    const r = JSON.parse(readFileSync(`${homedir()}/.config/nabu/config.json`, "utf8")).root ?? "";
+    const r = JSON.parse(readFileSync(`${homedir()}/.config/nabu/config.json`, "utf8")).notebook ?? "";
     return r.replace(/^~(?=\/|$)/, homedir()).replace(/\/$/, "");
   } catch { return ""; }
 })();
@@ -17,9 +17,9 @@ const root = (() => {
 // When each task was last committed, from the notes repository's history (newest first, so the first
 // mention of a path wins). Empty away from that machine; the viewer then sorts those tasks last.
 const updated = (() => {
-  if (!root) return {};
+  if (!notebook) return {};
   try {
-    const log = execFileSync("git", ["-C", root, "log", "--format=%x00%cI", "--name-only", "--", "tasks/"], { encoding: "utf8" });
+    const log = execFileSync("git", ["-C", notebook, "log", "--format=%x00%cI", "--name-only", "--", "tasks/"], { encoding: "utf8" });
     const at = {};
     let when = "";
     for (const line of log.split("\n")) {
@@ -37,7 +37,7 @@ const tasks = JSON.parse(readFileSync(here("data.json"), "utf8")).map((r) => {
   body = body.trim();
   return {
     path: r.path,
-    file: root ? `${root}/${r.path}` : r.path, // what the crumb copies
+    file: notebook ? `${notebook}/${r.path}` : r.path, // what the crumb copies
     slug: r.slug,
     status: r.status,
     title: r.title,

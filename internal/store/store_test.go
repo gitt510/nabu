@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 func newRepo(t *testing.T) *Store {
@@ -30,7 +29,7 @@ func newRepo(t *testing.T) *Store {
 
 func TestOpenRequiresGit(t *testing.T) {
 	if _, err := Open(t.TempDir()); err == nil {
-		t.Fatal("expected error for non-git root")
+		t.Fatal("expected error for a non-git notebook")
 	}
 }
 
@@ -65,7 +64,7 @@ func TestListAndGrep(t *testing.T) {
 	if _, err := s.Write("career/goal.md", []byte("# Goal\n\nIaC を進める")); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(s.Root, "notes.txt"), []byte("skip"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(s.Dir, "notes.txt"), []byte("skip"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	es, err := s.List("")
@@ -101,36 +100,36 @@ func TestCommit(t *testing.T) {
 	if err != nil || done {
 		t.Fatalf("second commit should be a no-op: %v, %v", done, err)
 	}
-	out, _ := exec.Command("git", "-C", s.Root, "log", "--format=%s").Output()
+	out, _ := exec.Command("git", "-C", s.Dir, "log", "--format=%s").Output()
 	if strings.TrimSpace(string(out)) != "nabu: write a.md" {
 		t.Fatalf("log: %s", out)
 	}
 }
 
 func TestInitIsIdempotent(t *testing.T) {
-	root := filepath.Join(t.TempDir(), "notes")
+	dir := filepath.Join(t.TempDir(), "notes")
 	t.Setenv("GIT_AUTHOR_NAME", "t")
 	t.Setenv("GIT_AUTHOR_EMAIL", "t@x")
 	t.Setenv("GIT_COMMITTER_NAME", "t")
 	t.Setenv("GIT_COMMITTER_EMAIL", "t@x")
-	r, err := Init(root)
+	r, err := Init(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !r.CreatedDir || !r.InitedGit || !r.Committed {
 		t.Fatalf("first init: %+v", r)
 	}
-	r, err = Init(root)
+	r, err = Init(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if r.CreatedDir || r.InitedGit || r.Committed {
 		t.Fatalf("second init should change nothing: %+v", r)
 	}
-	if _, err := Open(root); err != nil {
+	if _, err := Open(dir); err != nil {
 		t.Fatal(err)
 	}
-	out, _ := exec.Command("git", "-C", root, "log", "--format=%s").Output()
+	out, _ := exec.Command("git", "-C", dir, "log", "--format=%s").Output()
 	if strings.TrimSpace(string(out)) != "nabu: init" {
 		t.Fatalf("log: %s", out)
 	}
@@ -197,7 +196,7 @@ func TestCommitMove(t *testing.T) {
 	if err != nil || !done {
 		t.Fatalf("done=%v err=%v", done, err)
 	}
-	out, _ := exec.Command("git", "-C", s.Root, "status", "--porcelain").Output()
+	out, _ := exec.Command("git", "-C", s.Dir, "status", "--porcelain").Output()
 	if len(strings.TrimSpace(string(out))) != 0 {
 		t.Fatalf("worktree not clean: %s", out)
 	}
@@ -219,7 +218,7 @@ func TestRemoveRequiresExisting(t *testing.T) {
 	if err != nil || !done {
 		t.Fatalf("done=%v err=%v", done, err)
 	}
-	out, _ := exec.Command("git", "-C", s.Root, "status", "--porcelain").Output()
+	out, _ := exec.Command("git", "-C", s.Dir, "status", "--porcelain").Output()
 	if len(strings.TrimSpace(string(out))) != 0 {
 		t.Fatalf("worktree not clean: %s", out)
 	}
@@ -228,54 +227,12 @@ func TestRemoveRequiresExisting(t *testing.T) {
 func TestFindTask(t *testing.T) {
 	s := newRepo(t)
 	if s.FindTask("x") != "" {
-		t.Fatal("found a task in an empty root")
+		t.Fatal("found a task in an empty notebook")
 	}
 	if _, err := s.Write(TaskPath("done", "x"), []byte("# x")); err != nil {
 		t.Fatal(err)
 	}
 	if got := s.FindTask("x"); got != "tasks/done/x.md" {
 		t.Fatalf("got %q", got)
-	}
-}
-
-func TestCommitRunsPostCommit(t *testing.T) {
-	s := newRepo(t)
-	s.Log = filepath.Join(t.TempDir(), "state", "nabu.log")
-	s.PostCommit = "pwd; echo done; exit 3"
-	if _, err := s.Write("a.md", []byte("one")); err != nil {
-		t.Fatal(err)
-	}
-	if ok, err := s.Commit("add a", "a.md"); err != nil || !ok {
-		t.Fatalf("commit: %v %v", ok, err)
-	}
-	var log string
-	for i := 0; i < 100 && !strings.Contains(log, "exit"); i++ {
-		time.Sleep(20 * time.Millisecond)
-		b, _ := os.ReadFile(s.Log)
-		log = string(b)
-	}
-	for _, want := range []string{"post_commit start: pwd; echo done; exit 3", "post_commit exit 3: " + s.Root + "\ndone"} {
-		if !strings.Contains(log, want) {
-			t.Fatalf("log lacks %q:\n%s", want, log)
-		}
-	}
-}
-
-func TestCommitWithoutChangeRunsNoPostCommit(t *testing.T) {
-	s := newRepo(t)
-	if _, err := s.Write("a.md", []byte("one")); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.Commit("add a", "a.md"); err != nil {
-		t.Fatal(err)
-	}
-	s.Log = filepath.Join(t.TempDir(), "nabu.log")
-	s.PostCommit = "true"
-	if ok, err := s.Commit("again", "a.md"); err != nil || ok {
-		t.Fatalf("commit: %v %v", ok, err)
-	}
-	time.Sleep(100 * time.Millisecond)
-	if _, err := os.Stat(s.Log); err == nil {
-		t.Fatal("post_commit ran without a commit")
 	}
 }

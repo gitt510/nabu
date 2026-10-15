@@ -1,6 +1,6 @@
-// nabu keeps one markdown repository for tasks and drafts. Every task lives
-// under tasks/ and every write is a git commit, so an agent (or a human)
-// never edits the root by hand. One file, CANVAS.md, is the exception: a
+// nabu keeps one markdown repository, the notebook, for tasks and drafts.
+// Every task lives under tasks/ and every write is a git commit, so an agent
+// (or a human) never edits the notebook by hand. One file, CANVAS.md, is the exception: a
 // draft the user edits by hand and the agent revises through nabu.
 package main
 
@@ -19,15 +19,16 @@ import (
 	"github.com/gitt510/nabu/internal/store"
 )
 
-const rootLong = `nabu keeps one markdown repository for tasks and drafts.
+const rootLong = `nabu keeps one markdown repository, the notebook, for tasks and drafts.
 
-The root is a git repository; every change is committed as it is made.
-Commands that change the root report the result as JSON; task read, canvas
+The notebook is a git repository; every change is committed as it is made,
+and pushed to its upstream when auto_push is set in the config file.
+Commands that change the notebook report the result as JSON; task read, canvas
 read, and canvas diff print raw text; task ls, task grep, and task validate
 print a table on a terminal, plain text when piped, and JSON with --json.
 CANVAS.md is ignored by git.
 
-The root comes from --root <dir>, or else from root in %s`
+The notebook comes from --notebook <dir>, or else from notebook in %s`
 
 // exit codes: 0 ok, 1 the operation failed, 2 the invocation was wrong
 const (
@@ -51,7 +52,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	})
-	root.PersistentFlags().StringVar(&e.root, "root", "", "repository root (overrides the config file)")
+	root.PersistentFlags().StringVar(&e.notebook, "notebook", "", "notebook directory (bypasses the config file)")
 	root.AddCommand(taskCmd(e), canvasCmd(e), pushCmd(e), initCmd(e))
 	root.SetArgs(args)
 	root.SetIn(stdin)
@@ -70,10 +71,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return exitUsage
 }
 
-// env is what every command runs against: the --root flag and the process
-// streams.
+// env is what every command runs against: the --notebook flag and the
+// process streams.
 type env struct {
-	root           string
+	notebook       string
 	stdin          io.Reader
 	stdout, stderr io.Writer
 }
@@ -117,55 +118,68 @@ func arg(args []string, i int) string {
 	return ""
 }
 
-// errNoRoot is a setup problem, not an operation failure, so it exits 2.
-var errNoRoot = errors.New("no root declared")
+// errNoNotebook is a setup problem, not an operation failure, so it exits 2.
+var errNoNotebook = errors.New("no notebook declared")
 
 func setupMessage() string {
-	return fmt.Sprintf("no root declared.\n\ncreate %s like:\n\n%s\nor pass --root <dir>.\n", config.Path(), config.Example)
+	return fmt.Sprintf("no notebook declared.\n\ncreate %s like:\n\n%s\nor pass --notebook <dir>.\n", config.Path(), config.Example)
 }
 
-// resolveRoot applies flag > config.
-func resolveRoot(flagRoot string) (string, error) {
-	if flagRoot != "" {
-		return config.ExpandHome(flagRoot), nil
+// resolveNotebook applies flag > config.
+func resolveNotebook(flagNotebook string) (string, error) {
+	if flagNotebook != "" {
+		return config.ExpandHome(flagNotebook), nil
 	}
 	cfg, err := config.Load()
 	if err != nil {
 		return "", err
 	}
-	if cfg.Root == "" {
-		return "", errNoRoot
+	if cfg.Notebook == "" {
+		return "", errNoNotebook
 	}
-	return cfg.Root, nil
+	return cfg.Notebook, nil
 }
 
-// openStore opens the resolved root. post_commit comes from the config file,
-// so a --root invocation, which bypasses the file, runs no hook.
-func openStore(flagRoot string) (*store.Store, error) {
-	root, err := resolveRoot(flagRoot)
+// openStore opens the resolved notebook. auto_push comes from the config
+// file, so a --notebook invocation, which bypasses the file, never pushes.
+func openStore(flagNotebook string) (*store.Store, error) {
+	dir, err := resolveNotebook(flagNotebook)
 	if err != nil {
 		return nil, err
 	}
-	s, err := store.Open(root)
-	if err != nil || flagRoot != "" {
+	s, err := store.Open(dir)
+	if err != nil || flagNotebook != "" {
 		return s, err
 	}
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
-	s.PostCommit, s.Log = cfg.PostCommit, config.LogPath()
+	s.AutoPush = cfg.AutoPush
 	return s, nil
+}
+
+// pushAfter is the push field of a write's JSON document: "" when nothing
+// was committed or auto_push is off, "ok", or "failed: <reason>". A failed
+// push leaves the commit in place, so the write itself still succeeds.
+func pushAfter(s *store.Store, committed bool) string {
+	if !committed || !s.AutoPush {
+		return ""
+	}
+	if _, err := s.Push(); err != nil {
+		return "failed: " + err.Error()
+	}
+	return "ok"
 }
 
 func initCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "create the root declared in the config as a git repository",
+		Short: "create the notebook declared in the config as a git repository",
 		Long:  "creates the directory, runs git init -b main, and seeds README.md and .gitignore with a first commit; every step is skipped when already done",
 		Args:  cobra.NoArgs,
 		RunE: do(func(args []string) int {
-			dir, err := resolveRoot(e.root)
+			dir, err := resolveNotebook(e.notebook)
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -183,11 +197,11 @@ func initCmd(e *env) *cobra.Command {
 func pushCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "push",
-		Short: "git push the root to its upstream",
-		Long:  "runs git push for the root's current branch; the branch must already have an upstream",
+		Short: "git push the notebook to its upstream",
+		Long:  "runs git push for the notebook's current branch; the branch must already have an upstream",
 		Args:  cobra.NoArgs,
 		RunE: do(func(args []string) int {
-			s, err := openStore(e.root)
+			s, err := openStore(e.notebook)
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -210,6 +224,7 @@ type writeResult struct {
 	Action      string    `json:"action"`
 	Bytes       int       `json:"bytes"`
 	Committed   bool      `json:"committed"`
+	Push        string    `json:"push,omitempty"`
 	Frontmatter *taskMeta `json:"frontmatter,omitempty"`
 }
 
@@ -220,7 +235,7 @@ func finishWrite(s *store.Store, rel, action string, n int, fm *taskMeta, stdout
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	return emit(stdout, writeResult{Path: rel, Action: action, Bytes: n, Committed: committed, Frontmatter: fm})
+	return emit(stdout, writeResult{Path: rel, Action: action, Bytes: n, Committed: committed, Push: pushAfter(s, committed), Frontmatter: fm})
 }
 
 // mvResult is the JSON document of every command that moves a file.
@@ -229,6 +244,7 @@ type mvResult struct {
 	To        string `json:"to"`
 	Action    string `json:"action"`
 	Committed bool   `json:"committed"`
+	Push      string `json:"push,omitempty"`
 }
 
 // finishMv commits the move as "nabu: <action> <from> -> <to>" and
@@ -238,7 +254,7 @@ func finishMv(s *store.Store, from, to, action string, stdout, stderr io.Writer)
 	if err != nil {
 		return fail(stderr, err, exitFail)
 	}
-	return emit(stdout, mvResult{From: from, To: to, Action: action, Committed: committed})
+	return emit(stdout, mvResult{From: from, To: to, Action: action, Committed: committed, Push: pushAfter(s, committed)})
 }
 
 // rmResult is the JSON document of a command that deletes a file.
@@ -246,6 +262,7 @@ type rmResult struct {
 	Path      string `json:"path"`
 	Action    string `json:"action"`
 	Committed bool   `json:"committed"`
+	Push      string `json:"push,omitempty"`
 }
 
 // readBody returns --content when given, otherwise all of stdin.
@@ -278,7 +295,7 @@ func emit(w io.Writer, v any) int {
 }
 
 func fail(stderr io.Writer, err error, code int) int {
-	if errors.Is(err, errNoRoot) {
+	if errors.Is(err, errNoNotebook) {
 		fmt.Fprint(stderr, setupMessage())
 		return exitUsage
 	}

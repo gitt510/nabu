@@ -12,13 +12,13 @@ import (
 	"github.com/gitt510/nabu/internal/store"
 )
 
-// canvasCmd is the canvas command group: one file at the root, CANVAS.md,
+// canvasCmd is the canvas command group: one file at the top of the notebook, CANVAS.md,
 // edited by the user in an editor and by the agent through these commands.
 func canvasCmd(e *env) *cobra.Command {
 	cmd := parentCmd(e, &cobra.Command{
 		Use:   "canvas",
 		Short: "co-write a draft in CANVAS.md",
-		Long:  "The canvas is one file at the root, CANVAS.md, edited by the user in an\neditor and by the agent through these commands. Git ignores it.",
+		Long:  "The canvas is one file at the top of the notebook, CANVAS.md, edited by the user in an\neditor and by the agent through these commands. Git ignores it.",
 	})
 	cmd.AddCommand(
 		canvasPutCmd(e, "open", "start a draft in CANVAS.md (refuses when one is there)",
@@ -58,7 +58,7 @@ func canvasPutCmd(e *env, action, short, long string) *cobra.Command {
 			if err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
-			s, err := openStore(e.root)
+			s, err := openStore(e.notebook)
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -86,7 +86,7 @@ func canvasShowCmd(e *env, action, short, long string) *cobra.Command {
 		Long:  long,
 		Args:  cobra.NoArgs,
 		RunE: do(func([]string) int {
-			s, err := openStore(e.root)
+			s, err := openStore(e.notebook)
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -121,7 +121,7 @@ func canvasSaveCmd(e *env) *cobra.Command {
 			if err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
-			s, err := openStore(e.root)
+			s, err := openStore(e.notebook)
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
@@ -151,7 +151,7 @@ func canvasDropCmd(e *env) *cobra.Command {
 		Long:  "empties CANVAS.md; the file stays so an open editor sees a reload, not a deletion",
 		Args:  cobra.NoArgs,
 		RunE: do(func(args []string) int {
-			s, err := openStore(e.root)
+			s, err := openStore(e.notebook)
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}

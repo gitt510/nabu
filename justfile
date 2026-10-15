@@ -41,10 +41,6 @@ publish:
     out=$(pnpm exec wrangler r2 object put nabu/tasks.json --file dist/tasks.json --content-type "application/json; charset=utf-8" --remote 2>&1) || { echo "$out"; exit 1; }
     echo "ok ${SECONDS}s $(( $(wc -c < dist/tasks.json) / 1024 ))KB"
 
-# Show the tail of nabu's log, where each post_commit run lands
-log lines="40":
-    tail -n {{lines}} "${XDG_STATE_HOME:-$HOME/.local/state}/nabu/nabu.log"
-
 # Build the viewer and deploy it with the Worker that serves what publish uploads
 deploy:
     pnpm install --frozen-lockfile --silent

@@ -7,7 +7,7 @@ nabu is an agent-integrated task manager.
 ```bash
 go install github.com/gitt510/nabu@latest
 mkdir -p ~/.config/nabu
-echo '{"root": "~/ghq/github.com/you/notes"}' > ~/.config/nabu/config.json
+echo '{"notebook": "~/ghq/github.com/you/notes"}' > ~/.config/nabu/config.json
 nabu init
 ```
 
@@ -80,7 +80,7 @@ agent: nabu canvas save pr68-comment --ticket https://github.com/o/r/pull/68
 
 ### Overview
 
-- `CANVAS.md` at the root holds one draft at a time and is never committed
+- `CANVAS.md` at the top of the notebook holds one draft at a time and is never committed
 - You edit `CANVAS.md` in your editor; the agent revises it through the CLI
 - Every hand edit is yours: the agent reads it before revising and never reverts it
 - When the draft is final, ask the agent to save it
@@ -94,15 +94,16 @@ agent: nabu canvas save pr68-comment --ticket https://github.com/o/r/pull/68
 - A push to `main` runs `go test` and deploys the same way (`.github/workflows/deploy.yml`)
 - A publish started while another is running exits with `skip`
 
-### Publish on every commit
+## Push on every commit
 
 ```json
-{"root": "~/ghq/github.com/you/notes", "post_commit": "just -f ~/ghq/github.com/you/nabu/justfile publish"}
+{"notebook": "~/ghq/github.com/you/notes", "auto_push": true}
 ```
 
-- `post_commit` in the config runs in the background after each commit nabu makes; the command never blocks or fails the commit
-- Its output and exit status are appended to `~/.local/state/nabu/nabu.log` (`$XDG_STATE_HOME/nabu/nabu.log`); `just log` shows the tail
-- `--root` bypasses the config file, so no `post_commit` runs
+- `auto_push` runs `git push` right after each commit nabu makes
+- The remote and its credentials are git's: run `git push -u origin main` in the notebook once, with SSH or a credential helper set up
+- The JSON result of each write carries `"push": "ok"`, or `"push": "failed: <reason>"` with the commit kept
+- `--notebook` bypasses the config file, so nothing is pushed
 
 ## Agent skill
 

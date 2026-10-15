@@ -218,7 +218,7 @@ function select(slug, push = true) {
   if (push) closeSide();
 }
 
-// The path line above the title; a click copies the file's path (absolute when the build knew the root).
+// The path line above the title; a click copies the file's path (absolute when the build knew the notebook).
 function crumb(t) {
   const b = el("button", { class: "copy", type: "button", title: `${t.file}\nclick で copy` }, t.path);
   b.addEventListener("click", () => navigator.clipboard.writeText(t.file).then(() => {
