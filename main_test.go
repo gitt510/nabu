@@ -463,7 +463,7 @@ func TestTaskStray(t *testing.T) {
 
 func TestTaskTable(t *testing.T) {
 	rows := []taskEntry{
-		{Status: "inbox", Title: "検索UI", Frontmatter: taskMeta{Created: "2026-10-06T09:00:00+09:00"}},
+		{Status: "inbox", Title: "検索UI", Frontmatter: meta{Created: "2026-10-06T09:00:00+09:00"}},
 		{Status: "doing", Title: "ssh"},
 	}
 	want := `╭────────┬────────┬────────────╮

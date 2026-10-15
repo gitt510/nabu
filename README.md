@@ -42,10 +42,7 @@ nabu init
 /plugin install nabu@nabu
 ```
 
-| skill | covers |
-| --- | --- |
-| `nabu:task` | filing, moving, and revising tasks |
-| `nabu:canvas` | the co-writing loop on `CANVAS.md` |
+- `skills/` holds one directory per skill
 
 ## Tasks
 
@@ -53,7 +50,7 @@ nabu init
 
 ```
 user:  この PR のレビュー待ち、task にしといて
-agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
+agent: nabu task new review-pr-68 --area work --ticket https://github.com/o/r/pull/68
 → tasks/inbox/review-pr-68.md
 ```
 
@@ -61,38 +58,9 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 
 - A task is one file, `tasks/<status>/<slug>.md`
 - The folder is the status: `inbox`, `doing`, `done`, `dropped`
-- `done` holds finished work
-- `dropped` holds work decided against, with the reason in its `For Human`
-- `task rm` deletes a task that should not have been filed (a duplicate, a mistake), whatever its status
-- Git history keeps the content of a deleted task
 - The body has two sections: `## For Human` for the user, `## AI memo` for the agent
-
-### Frontmatter
-
-| key | meaning | format |
-| --- | --- | --- |
-| `created` | filing time, stamped by nabu and never changed | RFC3339 with offset |
-| `area` | side of life, required | `work` or `personal` |
-| `project` | destination of the work: a service at work, a repo at home, or none | lowercase kebab-case |
-| `scheduled` | when the work is planned to happen | RFC3339 with offset, or `YYYY-MM-DD` for the whole day |
-| `waiting` | who or what the next action waits on | free text |
-| `tickets` | work items: an issue, a Wrike task, a Zendesk request | full `https` URLs |
-| `prs` | pull requests | full `https` URLs |
-| `links` | everything else: a repo, an article, a post | full `https` URLs |
-
-- A URL goes by what it points at, whoever opened it and whatever it is to this task
-- Frontmatter is set only through flags (`--area`, `--project`, `--scheduled`, `--waiting`, `--ticket`, `--pr`, `--link`, `--clear-*`)
-- A body that carries its own `---` block is refused
-
-### Validation
-
-- A slug is lowercase kebab-case and unique across every status folder
-- The body is `# <title>`, `## For Human`, a `---` line, `## AI memo`, in that order
-- Every line in `For Human` section is at most 30 characters
-- Every task carries an `area`
-- `task new` refuses a task without `--area`, and `task validate` reports one
-- A task in `dropped/` carries `### Why dropped` under `For Human` with at least one line
-- `task mv ... dropped` refuses a task without it
+- [`frontmatter.go`](frontmatter.go) defines every frontmatter key, its flag, and the values it accepts
+- [`shape.go`](shape.go) defines the body shape that `task validate` checks
 
 ## Canvas
 
@@ -117,12 +85,8 @@ agent: nabu canvas save pr68-comment --ticket https://github.com/o/r/pull/68
 ### Overview
 
 - `CANVAS.md` at the top of the notebook holds one draft at a time
-- `canvas open` starts a draft and refuses when one is there
-- `canvas diff` shows the hand edits since the last `canvas open` or `canvas write`
-- `canvas write` replaces the whole draft, hand edits included
-- `canvas save <slug>` writes the draft to `gallery/<slug>.md`, commits it, and empties the canvas
-- `canvas drop` empties the canvas without saving
-- The `nabu:canvas` skill runs `canvas diff` before every `canvas write`
+- `canvas save <slug>` moves the draft to `gallery/<slug>.md` and commits it
+- The `nabu:canvas` skill reads the hand edits with `canvas diff` before every `canvas write`
 
 ## Development
 
