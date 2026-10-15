@@ -49,7 +49,7 @@ nabu init
 
 ## Tasks
 
-### Use case
+### Example
 
 ```
 user:  この PR のレビュー待ち、task にしといて
@@ -96,7 +96,7 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 
 ## Canvas
 
-### Use case
+### Example
 
 ```
 user:  PR #68 のコメント、一緒に書きたい
