@@ -14,6 +14,33 @@ nabu init
 - Go 1.26+ to build (`mise install` provides it)
 - `nabu -h` and `nabu <command> -h` print the full contract of every command
 
+## Configuration
+
+| key | default | meaning |
+| --- | --- | --- |
+| `notebook` | (required) | the git repository nabu reads and writes |
+| `auto_push` | `false` | `git push` after each commit nabu makes |
+
+- The file is `~/.config/nabu/config.json` (`$XDG_CONFIG_HOME/nabu/config.json`)
+- `--notebook <dir>` overrides `notebook` and bypasses the file, so nothing is pushed
+
+### auto_push
+
+- The remote and its credentials are git's: run `git push -u origin main` in the notebook once, with SSH or a credential helper set up
+- The JSON result of each write carries `"push": "ok"`, or `"push": "failed: <reason>"` with the commit kept
+
+## Agent skill
+
+```
+/plugin marketplace add gitt510/nabu
+/plugin install nabu@nabu
+```
+
+| skill | covers |
+| --- | --- |
+| `nabu:task` | filing, moving, and revising tasks |
+| `nabu:canvas` | the co-writing loop on `CANVAS.md` |
+
 ## Tasks
 
 ### Use case
@@ -31,7 +58,7 @@ agent: nabu task new review-pr-68 --ticket https://github.com/o/r/pull/68
 - `done` is finished work; `dropped` is work decided against, and its `For Human` says why
 - `task rm` deletes a task that should not have been filed (a duplicate, a mistake), whatever its status; git history keeps the content
 - The body has two sections: `## For Human` for the user, `## AI memo` for the agent
-- Every change is a git commit; nothing is pushed until you ask for `nabu push`
+- Every change is a git commit, pushed when `auto_push` is on or you run `nabu push`
 
 ### Frontmatter
 
@@ -86,41 +113,6 @@ agent: nabu canvas save pr68-comment --ticket https://github.com/o/r/pull/68
 - When the draft is final, ask the agent to save it
   - it hangs in `gallery/<slug>.md` and the canvas is emptied
 
-## Viewer
-
-- `just view` renders `tasks/` and the viewer into `web/dist/` and serves them on `localhost:8000`
-- `just publish` uploads the tasks as `tasks.json` to the R2 bucket `nabu`; the `nabu` Worker serves it behind Cloudflare Access
-- `just deploy` builds the viewer and deploys it as the Worker's static assets (`web/wrangler.jsonc`)
-- A push to `main` runs `go test` and deploys the same way (`.github/workflows/deploy.yml`)
-- A publish started while another is running exits with `skip`
-
-## Push on every commit
-
-```json
-{"notebook": "~/ghq/github.com/you/notes", "auto_push": true}
-```
-
-- `auto_push` runs `git push` right after each commit nabu makes
-- The remote and its credentials are git's: run `git push -u origin main` in the notebook once, with SSH or a credential helper set up
-- The JSON result of each write carries `"push": "ok"`, or `"push": "failed: <reason>"` with the commit kept
-- `--notebook` bypasses the config file, so nothing is pushed
-
-## Agent skill
-
-```
-/plugin marketplace add gitt510/nabu
-/plugin install nabu@nabu
-```
-
-| skill | covers |
-| --- | --- |
-| `nabu:task` | filing, moving, and revising tasks |
-| `nabu:canvas` | the co-writing loop on `CANVAS.md` |
-
 ## Development
 
-```bash
-just test     # go test ./...
-just check    # gofmt, go vet, golangci-lint
-just run ...  # go run . <args>
-```
+- `just` lists the recipes, such as `just test` and `just check`
