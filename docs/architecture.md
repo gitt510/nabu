@@ -77,10 +77,13 @@ flowchart TD
   schema -- "Imported [build.mjs]" --> page
   api -- "Task contract [JSON Schema]" --> cli["nabu CLI (nabu task schema)"]
   api -- "422 and the reason [JSON]" --> cli
+  cli -- "Task contract [JSON]" --> agent["Agent (nabu:task skill)"]
 ```
 
 - `web/src/schema.ts` defines every rule a task must meet
 - The API refuses every write that breaks the task contract, and names every problem
 - The API serves the task contract at `/api/schema`
 - `nabu task schema` prints the task contract the API serves
+- The nabu CLI checks no value itself and relays the API's reason when it refuses one
+- The nabu:task skill reads the task contract through `nabu task schema` before it writes
 - The viewer page takes the task contract from `web/src/schema.ts` at build

@@ -246,14 +246,8 @@ func TestSignedOutExits2(t *testing.T) {
 func TestTaskNewViaCLI(t *testing.T) {
 	f, nabu := newAPI(t)
 	ok := body("Ok", "- 未定\n")
+	// the CLI refuses a body out of shape itself; every value it passes to the API, whose 422 it relays
 	for _, args := range [][]string{
-		{"task", "new", "Bad Slug", "--area", "work", "--content", ok},
-		{"task", "new", "a/b", "--area", "work", "--content", ok},
-		{"task", "new", "ok", "--content", ok},
-		{"task", "new", "ok", "--area", "life", "--content", ok},
-		{"task", "new", "ok", "--area", "work", "--content", ok, "--scheduled", "2026-09-15T18:00"},
-		{"task", "new", "ok", "--area", "work", "--content", ok, "--ticket", "http://example.com/1"},
-		{"task", "new", "ok", "--area", "work", "--content", ok, "--project", "Not Kebab"},
 		{"task", "new", "ok", "--area", "work", "--content", "---\na: b\n---\n" + ok},
 		{"task", "new", "ok", "--area", "work", "--content", "# Ok\n\n- 見出しの前\n"},
 		{"task", "new", "ok", "--area", "work", "--content", body("Ok", "- x\n") + "\n## AI memo\n\nnotes\n"},
@@ -311,7 +305,6 @@ func TestTaskReadPrintsWhatNewTakes(t *testing.T) {
 		t.Fatalf("read:\n%s", got)
 	}
 	nabu(exitFail, "", "task", "read", "missing")
-	nabu(exitUsage, "", "task", "read", "Bad")
 }
 
 func TestTaskReplaceAndSetViaCLI(t *testing.T) {
@@ -349,7 +342,6 @@ func TestTaskMvRenameRmViaCLI(t *testing.T) {
 	f, nabu := newAPI(t)
 	nabu(exitOK, body("Ok", "- 未定\n"), "task", "new", "ok", "--area", "work")
 
-	nabu(exitUsage, "", "task", "mv", "ok", "later")
 	nabu(exitFail, "", "task", "mv", "ok", "inbox")
 	if got := nabu(exitOK, "", "task", "mv", "ok", "doing"); !strings.Contains(got, `"from": "inbox"`) || !strings.Contains(got, `"to": "doing"`) {
 		t.Fatalf("mv: %s", got)
