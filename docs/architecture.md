@@ -42,10 +42,9 @@ sequenceDiagram
   CLI->>GitHub: Dispatches publish.yml on the branch [gh/HTTPS]
   GitHub-->>CLI: Run URL
   CLI-->>User: Upstream, ref, and run URL [JSON]
-  GitHub->>Actions: Starts the publish run [workflow_dispatch]
-  Actions->>GitHub: Clones the notebook with full history [git/HTTPS]
-  GitHub-->>Actions: Commits
-  Actions->>R2: Replaces tasks.json [Wrangler/HTTPS]
+  GitHub->>Actions: Starts the publish run with R2_EDIT [workflow_dispatch]
+  Actions->>R2: Replaces tasks.json [Wrangler/HTTPS, API token]
+  R2->>R2: Verifies the API token
   R2-->>Actions: 200 OK
 ```
 
@@ -83,10 +82,9 @@ sequenceDiagram
   participant Cloudflare as Cloudflare Workers
 
   Developer->>GitHub: Merges into main [git/HTTPS]
-  GitHub->>Actions: Starts the deploy run [push]
-  Actions->>GitHub: Clones nabu [git/HTTPS]
-  GitHub-->>Actions: Commits
+  GitHub->>Actions: Starts the deploy run with CLOUDFLARE_API_TOKEN [push]
   Actions->>Actions: Runs the Go tests
-  Actions->>Cloudflare: Deploys the Worker and the viewer page [Wrangler/HTTPS]
+  Actions->>Cloudflare: Deploys the Worker and the viewer page [Wrangler/HTTPS, API token]
+  Cloudflare->>Cloudflare: Verifies the API token
   Cloudflare-->>Actions: Deployed version
 ```
