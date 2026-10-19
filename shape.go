@@ -35,7 +35,7 @@ func renderBody(t api.Task) string {
 	for _, s := range all {
 		b.WriteString("\n" + s.heading + "\n\n")
 		for _, l := range s.lines(&t) {
-			b.WriteString(l + "\n")
+			b.WriteString("- " + l + "\n")
 		}
 	}
 	return b.String()

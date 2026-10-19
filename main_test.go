@@ -162,9 +162,9 @@ func stderrOf(args []string, stdin string) (int, string) {
 func content(title string, answer ...string) string {
 	b, _ := json.Marshal(map[string]any{
 		"title":        title,
-		"situation":    []string{"- 本番と検証が旧 runtime"},
-		"complication": []string{"- 旧 runtime はサポートが切れる"},
-		"question":     []string{"- 期限前に止めずに移れる？"},
+		"situation":    []string{"本番と検証が旧 runtime"},
+		"complication": []string{"旧 runtime はサポートが切れる"},
+		"question":     []string{"期限前に止めずに移れる？"},
 		"answer":       append([]string{}, answer...),
 	})
 	return string(b)
@@ -257,12 +257,12 @@ func TestSignedOutExits2(t *testing.T) {
 
 func TestTaskNewViaCLI(t *testing.T) {
 	f, nabu := newAPI(t)
-	ok := content("Ok", "- 未定")
+	ok := content("Ok", "未定")
 	// the CLI refuses a body that is not a JSON object; every value it passes to the API, whose 422 it relays
 	for _, args := range [][]string{
 		{"task", "new", "ok", "--area", "work", "--content", body("Ok", "- 未定\n")},
 		{"task", "new", "ok", "--area", "work", "--content", "[]"},
-		{"task", "new", "ok", "--area", "work", "--content", content("Ok", "- "+strings.Repeat("あ", 44))},
+		{"task", "new", "ok", "--area", "work", "--content", content("Ok", strings.Repeat("あ", 46))},
 	} {
 		nabu(exitUsage, "", args...)
 	}
@@ -288,7 +288,7 @@ func TestTaskNewViaCLI(t *testing.T) {
 		t.Fatalf("new:\n%s", got)
 	}
 	// the body reaches the API as it is; what the task lacks is left out
-	if f.last["title"] != "Ok" || !slices.Equal(toStrings(f.last["answer"]), []string{"- 未定"}) {
+	if f.last["title"] != "Ok" || !slices.Equal(toStrings(f.last["answer"]), []string{"未定"}) {
 		t.Fatalf("sent %v", f.last)
 	}
 	for _, k := range []string{"project", "scheduled", "waiting", "prs", "status", "created", "why_dropped"} {
@@ -309,7 +309,7 @@ func toStrings(v any) []string {
 
 func TestTaskReadPrintsMarkdown(t *testing.T) {
 	_, nabu := newAPI(t)
-	nabu(exitOK, content("Ok", "- 検証 → 本番の順で切り替える"), "task", "new", "ok", "--area", "work", "--project", "nabu")
+	nabu(exitOK, content("Ok", "検証 → 本番の順で切り替える"), "task", "new", "ok", "--area", "work", "--project", "nabu")
 	want := "---\ncreated: \"2026-10-06T09:00:00+09:00\"\narea: \"work\"\nproject: \"nabu\"\n---\n" + body("Ok", "- 検証 → 本番の順で切り替える\n")
 	if got := nabu(exitOK, "", "task", "read", "ok"); got != want {
 		t.Fatalf("read:\n%s", got)
@@ -319,12 +319,12 @@ func TestTaskReadPrintsMarkdown(t *testing.T) {
 
 func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 	f, nabu := newAPI(t)
-	nabu(exitOK, content("Ok", "- 未定"), "task", "new", "ok", "--area", "work", "--project", "nabu", "--link", "https://example.com/a")
+	nabu(exitOK, content("Ok", "未定"), "task", "new", "ok", "--area", "work", "--project", "nabu", "--link", "https://example.com/a")
 
-	if got := nabu(exitOK, `{"title": "Renamed", "answer": ["- 決めた"]}`, "task", "replace", "ok"); strings.Contains(got, "frontmatter") {
+	if got := nabu(exitOK, `{"title": "Renamed", "answer": ["決めた"]}`, "task", "replace", "ok"); strings.Contains(got, "frontmatter") {
 		t.Fatalf("replace prints frontmatter: %s", got)
 	}
-	if tk := f.tasks["ok"]; tk.Title != "Renamed" || tk.Answer[0] != "- 決めた" || tk.Project != "nabu" {
+	if tk := f.tasks["ok"]; tk.Title != "Renamed" || tk.Answer[0] != "決めた" || tk.Project != "nabu" {
 		t.Fatalf("after replace: %+v", tk)
 	}
 	for _, k := range []string{"area", "project", "status"} {
@@ -350,7 +350,7 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 
 func TestTaskMvRenameRmViaCLI(t *testing.T) {
 	f, nabu := newAPI(t)
-	nabu(exitOK, content("Ok", "- 未定"), "task", "new", "ok", "--area", "work")
+	nabu(exitOK, content("Ok", "未定"), "task", "new", "ok", "--area", "work")
 
 	nabu(exitFail, "", "task", "mv", "ok", "inbox")
 	if got := nabu(exitOK, "", "task", "mv", "ok", "doing"); !strings.Contains(got, `"from": "inbox"`) || !strings.Contains(got, `"to": "doing"`) {
@@ -362,7 +362,7 @@ func TestTaskMvRenameRmViaCLI(t *testing.T) {
 	if code != exitUsage || !strings.Contains(stderr, "needs why_dropped") || !strings.Contains(stderr, "task replace first") {
 		t.Fatalf("dropped: exit %d stderr=%q", code, stderr)
 	}
-	nabu(exitOK, `{"why_dropped": ["- 今は使い道がない"]}`, "task", "replace", "ok")
+	nabu(exitOK, `{"why_dropped": ["今は使い道がない"]}`, "task", "replace", "ok")
 	nabu(exitOK, "", "task", "mv", "ok", "dropped")
 	if f.tasks["ok"].Status != "dropped" {
 		t.Fatalf("not dropped: %+v", f.tasks["ok"])
@@ -386,10 +386,10 @@ func TestTaskMvRenameRmViaCLI(t *testing.T) {
 
 func TestTaskLsAndGrepViaCLI(t *testing.T) {
 	_, nabu := newAPI(t)
-	nabu(exitOK, content("B doing", "- 未定"), "task", "new", "b", "--area", "work")
-	nabu(exitOK, content("A inbox", "- PING them"), "task", "new", "a", "--area", "personal")
+	nabu(exitOK, content("B doing", "未定"), "task", "new", "b", "--area", "work")
+	nabu(exitOK, content("A inbox", "PING them"), "task", "new", "a", "--area", "personal")
 	nabu(exitOK, "", "task", "set", "a", "--waiting", "their reply")
-	nabu(exitOK, content("C inbox", "- 未定"), "task", "new", "c", "--area", "work")
+	nabu(exitOK, content("C inbox", "未定"), "task", "new", "c", "--area", "work")
 	nabu(exitOK, "", "task", "mv", "b", "doing")
 
 	if got := nabu(exitOK, "", "task", "ls"); got != "inbox\tA inbox\t2026-10-06\ninbox\tC inbox\t2026-10-06\ndoing\tB doing\t2026-10-06\n" {
@@ -436,7 +436,7 @@ func TestCreatedDateIsLocal(t *testing.T) {
 }
 
 func TestRenderBodyLeavesOutAnEmptyReason(t *testing.T) {
-	if got := renderBody(api.Task{Title: "T", Answer: []string{"- x"}, WhyDropped: []string{"- w"}}); !strings.HasSuffix(got, "## Answer\n\n- x\n\n## Why dropped\n\n- w\n") {
+	if got := renderBody(api.Task{Title: "T", Answer: []string{"x"}, WhyDropped: []string{"w"}}); !strings.HasSuffix(got, "## Answer\n\n- x\n\n## Why dropped\n\n- w\n") {
 		t.Fatalf("%q", got)
 	}
 	if strings.Contains(renderBody(api.Task{Title: "T"}), "Why dropped") {

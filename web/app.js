@@ -12,7 +12,7 @@ const tasks = (await (await fetch("api/tasks", { cache: "no-store" })).json())
     for (const k of LISTS) if (r[k].length) frontmatter[k] = r[k];
     // an empty reason is left out, as nabu task read leaves it out
     const body = SECTIONS.filter(([, k]) => k !== "why_dropped" || r.why_dropped.length)
-      .map(([h, k]) => `## ${h}\n\n${r[k].join("\n")}`).join("\n\n");
+      .map(([h, k]) => `## ${h}\n\n${r[k].map((l) => `- ${l}`).join("\n")}`).join("\n\n");
     return {
       slug: r.slug,
       status: r.status,
@@ -330,7 +330,7 @@ async function move(t, status) {
 }
 $("drop-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const why = $("drop-why").value.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => (l.startsWith("- ") ? l : `- ${l}`));
+  const why = $("drop-why").value.split("\n").map((l) => l.trim()).filter(Boolean);
   if (!why.length) return ($("drop-error").textContent = "理由を 1 行以上書いてください");
   $("drop-error").textContent = (await patch($("drop").dataset.slug, { status: "dropped", why_dropped: why })) ?? "";
 });

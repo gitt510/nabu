@@ -45,16 +45,17 @@ nabu task grep <query> [--json]              # where something is written in tas
    ```json
    {
      "title": "<title>",
-     "situation": ["- <what is so now>"],
-     "complication": ["- <what goes wrong with it, and why now>"],
-     "question": ["- <what the task has to answer>"],
-     "answer": ["- <the answer, or 未定 until there is one>"]
+     "situation": ["<what is so now>"],
+     "complication": ["<what goes wrong with it, and why now>"],
+     "question": ["<what the task has to answer>"],
+     "answer": ["<the answer, or 未定 until there is one>"]
    }
    ```
 
    The sections are SCQA, the introduction Barbara Minto lays out in *The
    Pyramid Principle*. The body is only what the user reads: no steps,
-   commands, or notes for the agent, and no other key. A line
+   commands, or notes for the agent, and no other key. Each string is one
+item, without a leading `- `. A line
    holds at most the `maxLength` `nabu task schema` gives; a fact that does
    not fit is cut, not moved elsewhere. The agent finds the details again when it does the work.
    Load the `gitt510-skills:writing-documents` skill, when it is
@@ -65,7 +66,7 @@ nabu task grep <query> [--json]              # where something is written in tas
    or the frontmatter.
    A task the user decides not to do ("やらない", "見送り", "won't do")
    goes to `dropped`, not `done`. First `task replace` with the reason in
-   `why_dropped` (`{"why_dropped": ["- <reason>"]}`), then
+   `why_dropped` (`{"why_dropped": ["<reason>"]}`), then
    `nabu task mv <slug> dropped`.
    A task that should not have been filed at all (a duplicate, a mistake,
    「消して」「削除して」) is deleted with `nabu task rm <slug>`, whatever its

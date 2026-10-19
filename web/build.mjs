@@ -73,7 +73,7 @@ ${css}
 <dialog id="drop"><button class="close" type="button" aria-label="閉じる">Esc</button><h2>Drop</h2>
   <form class="drop" id="drop-form">
     <label for="drop-why">やらない理由</label>
-    <p class="hint" id="drop-hint">1 行 1 項目、${LINE_LIMIT - "- ".length} 字まで</p>
+    <p class="hint" id="drop-hint">1 行 1 項目、${LINE_LIMIT} 字まで</p>
     <textarea id="drop-why" rows="3" aria-describedby="drop-hint"></textarea>
     <p class="error" id="drop-error" role="alert"></p>
     <p class="settings-foot"><button type="submit">dropped にする</button></p>
