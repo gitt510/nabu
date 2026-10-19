@@ -65,5 +65,6 @@ agent: nabu task new review-pr-68 --area work --pr https://github.com/o/r/pull/6
 ## Development
 
 - `just` lists the recipes, such as `just test` and `just check`
+- `just dev` serves the viewer from the working tree and relays `/api/*` to the Worker with the token `cloudflared` holds
 - `web/migrations/` holds the D1 schema, applied with `wrangler d1 migrations apply nabu --remote`
 - [`docs/architecture.md`](docs/architecture.md) draws the routes that cross containers and how the task contract reaches each consumer

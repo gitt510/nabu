@@ -27,8 +27,8 @@
   --area-foreground: #ffffff;
   --project: #6d28d9;
   --project-foreground: #ffffff;
-  --views-w: 240px;
-  --side-w: 300px;
+  --views-w: 208px;
+  --side-w: 264px;
   --doc-w: 50rem;
   --font-sans: "Noto Sans JP", -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: "Noto Sans Mono", ui-monospace, monospace;
@@ -217,16 +217,14 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 8px 4px; }
 .list-head { display: flex; align-items: center; padding: 10px 10px 4px 18px; font-size: 12px; color: var(--muted-foreground); }
 .list-head .n { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.sort { margin-left: auto; display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-.sort button { font: inherit; font-size: 12px; color: var(--muted-foreground); background: var(--background); border: 0; padding: 1px 8px; cursor: pointer; }
-.sort button + button { }
-.sort button:hover { background: var(--accent); }
-.sort button[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
+.order { margin-left: auto; display: inline-flex; gap: 2px; align-items: center; font: inherit; font-family: var(--font-mono); color: inherit; background: none; border: 0; border-radius: 4px; padding: 1px 4px; cursor: pointer; }
+.order:hover { background: var(--accent); color: var(--foreground); }
+.order svg { width: 12px; height: 12px; }
 .views, .files, .main { scrollbar-width: none; }
 .views::-webkit-scrollbar, .files::-webkit-scrollbar, .main::-webkit-scrollbar { display: none; }
 .files { flex: 1; overflow-y: auto; list-style: none; margin: 0; padding: 4px 8px 16px; }
 .file {
-  display: block; width: 100%; text-align: left;
+  display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left;
   border: 0; background: none; font: inherit; letter-spacing: inherit; color: var(--foreground);
   padding: 6px 10px; border-radius: 6px;
   cursor: pointer;
@@ -234,13 +232,11 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .file:hover { background: var(--accent); }
 .file.active { background: var(--accent); } /* grey while the document column has the keyboard, accent while the list does, as in Finder */
 .files:focus-within .file.active { background: var(--primary); color: var(--primary-foreground); }
-.files:focus-within .file.active .sub, .files:focus-within .file.active .late { color: inherit; }
+.files:focus-within .file.active .name, .files:focus-within .file.active .when { color: inherit; }
 .file:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
-.file .name, .file .sub { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.file .sub { font-family: var(--font-mono); font-size: 12px; color: var(--muted-foreground); }
+.file .name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.file .when { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted-foreground); white-space: nowrap; }
 .file[data-status="done"] .name, .file[data-status="dropped"] .name { color: var(--muted-foreground); }
-.file .flag { margin-left: 8px; }
-.file .late { color: var(--destructive); }
 .files .empty { padding: 8px 10px; }
 .home-list { list-style: none; margin: 0 -12px 1em; padding: 0; }
 .home-list li { display: flex; gap: 12px; align-items: baseline; padding: 8px 12px; border-radius: 6px; }
@@ -258,19 +254,28 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .hidden { display: none !important; }
 
 /* Main */
-.main { min-width: 0; overflow-y: auto; }
+.main { min-width: 0; overflow-y: auto; container-type: inline-size; }
 .main:focus { outline: none; }
 .main:focus-visible { box-shadow: inset 0 0 0 2px var(--ring); } /* the doc column has the keyboard */
-.doc { max-width: var(--doc-w, 50rem); padding: 32px 32px 96px; }
+/* The body keeps the width the settings name; the properties rail sits beside it. */
+.doc { max-width: calc(var(--doc-w, 50rem) + 14rem); padding: 32px 32px 96px; --gutter: 32px; --top: 32px; }
+.doc-head { position: sticky; top: 0; z-index: 1; background: var(--background); margin: calc(-1 * var(--top)) calc(-1 * var(--gutter)) 24px; padding: var(--top) var(--gutter) 0; border-bottom: 1px solid var(--border); }
 .crumb { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; font-family: var(--font-mono); font-size: 0.875rem; letter-spacing: 0; color: var(--muted-foreground); margin: 0 0 12px; }
 .crumb .copy { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 .crumb .copy:hover { color: var(--foreground); }
 .doc h1 { font-size: 1.5rem; line-height: 1.5; letter-spacing: 0.01em; margin: 0 0 16px; }
-.meta { display: grid; grid-template-columns: max-content 1fr; gap: 4px 24px; margin: 0 0 32px; padding: 0 0 16px; border-bottom: 1px solid var(--border); }
+.railed { display: grid; grid-template-columns: minmax(0, 1fr) 14rem; gap: 32px; align-items: start; }
+.meta { position: sticky; top: calc(var(--head-h, 0px) + 24px); display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px 16px; align-items: baseline; margin: 0; padding: 4px 0 0 20px; border-left: 1px solid var(--border); font-size: 0.875rem; }
 .meta > div { display: contents; }
-.meta dt { color: var(--muted-foreground); font-family: var(--font-mono); font-size: 0.875rem; letter-spacing: 0; margin: 0; }
-.meta dd { margin: 0; }
-.meta dd a + a::before { content: " · "; color: var(--muted-foreground); text-decoration: none; display: inline-block; }
+.meta dt { color: var(--muted-foreground); font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0; margin: 0; }
+.meta dd { margin: 0; overflow-wrap: anywhere; }
+.meta .none { color: var(--muted-foreground); }
+.meta dd a { display: block; }
+/* Narrow: the rail goes above the body. */
+@container (max-width: 40rem) {
+  .railed { grid-template-columns: 1fr; gap: 24px; }
+  .meta { position: static; order: -1; padding: 0 0 16px; border-left: 0; border-bottom: 1px solid var(--border); }
+}
 .body > :first-child { margin-top: 0; }
 .body h2, .body h3 { font-size: 1.125rem; line-height: 1.6; margin: 32px 0 8px; }
 .body ul { padding-left: 1.4em; }
@@ -284,7 +289,7 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .empty { color: var(--muted-foreground); }
 
 @media (max-width: 720px) {
-  .doc { padding: 24px 16px 64px; }
+  .doc { padding: 24px 16px 64px; --gutter: 16px; --top: 24px; }
 }
 
 /* Narrow: the sidebar leaves the grid and becomes a popover drawer under the header. */
