@@ -2,7 +2,7 @@
 // from /api/tasks and renders the markdown itself.
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { LINE_LIMIT } from "./src/schema.ts";
+import { AREAS, LINE_LIMIT, LISTS, SECTIONS, STATUSES } from "./src/schema.ts";
 
 const here = (name) => new URL(name, import.meta.url);
 const read = (name) => readFileSync(here(name), "utf8");
@@ -13,7 +13,15 @@ const faviconStyle = "<style>svg{color:#1b1c1f}@media (prefers-color-scheme:dark
 const favicon = `data:image/svg+xml,${encodeURIComponent(icon.replace(/^(<svg[^>]*>)/, `$1${faviconStyle}`))}`;
 
 const css = read("app.css");
-const js = read("app.js");
+// The page takes the task contract from schema.ts: these lines go above app.js, which uses them as its own.
+const heading = (k) => k[0].toUpperCase() + k.slice(1).replace("_", " ");
+const contract = [
+  `const AREAS = ${JSON.stringify(AREAS)};`,
+  `const STATUSES = ${JSON.stringify(STATUSES)};`,
+  `const LISTS = ${JSON.stringify(LISTS)};`,
+  `const SECTIONS = ${JSON.stringify(SECTIONS.map((k) => [heading(k), k]))};`,
+].join("\n");
+const js = `${contract}\n${read("app.js")}`;
 
 const page = `<!doctype html>
 <html lang="ja">
@@ -64,8 +72,9 @@ ${css}
 </dialog>
 <dialog id="drop"><button class="close" type="button" aria-label="閉じる">Esc</button><h2>Drop</h2>
   <form class="drop" id="drop-form">
-    <label for="drop-why">やらない理由（1 行 1 項目、${LINE_LIMIT - "- ".length} 字まで）</label>
-    <textarea id="drop-why" rows="3"></textarea>
+    <label for="drop-why">やらない理由</label>
+    <p class="hint" id="drop-hint">1 行 1 項目、${LINE_LIMIT - "- ".length} 字まで</p>
+    <textarea id="drop-why" rows="3" aria-describedby="drop-hint"></textarea>
     <p class="error" id="drop-error" role="alert"></p>
     <p class="settings-foot"><button type="submit">dropped にする</button></p>
   </form>
