@@ -5,7 +5,7 @@ import { z } from "zod";
 export const STATUSES = ["inbox", "doing", "done", "dropped"] as const;
 
 // LINE_LIMIT is the most characters a section line may carry: one fact a reader takes in at a glance.
-export const LINE_LIMIT = 30;
+export const LINE_LIMIT = 45;
 
 // SECTIONS are SCQA, the introduction Barbara Minto lays out in The Pyramid Principle, then the reason a
 // dropped task was decided against.

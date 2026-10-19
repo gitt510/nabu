@@ -50,7 +50,7 @@ describe("/api/tasks", () => {
     for (const bad of [
       { ...task, slug: "Bad Slug" },
       { ...task, area: "hobby" },
-      { ...task, situation: ["- " + "あ".repeat(29)] },
+      { ...task, situation: ["- " + "あ".repeat(44)] },
       { ...task, situation: ["## AI memo"] },
       { ...task, situation: [" "] },
       { ...task, scheduled: "tomorrow" },
@@ -67,7 +67,7 @@ describe("/api/tasks", () => {
   });
 
   it("accepts a line of exactly the limit", async () => {
-    const res = await call("POST", "/api/tasks", { ...task, situation: ["- " + "あ".repeat(28)] });
+    const res = await call("POST", "/api/tasks", { ...task, situation: ["- " + "あ".repeat(43)] });
     expect(res.status).toBe(201);
   });
 

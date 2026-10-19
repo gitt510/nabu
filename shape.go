@@ -27,7 +27,7 @@ var whyDropped = section{"## Why dropped", "why_dropped", func(t *api.Task) []st
 
 // shapeHelp is the task shape as the help states it; every command that
 // takes a body points here instead of restating it.
-var shapeHelp = fmt.Sprintf("the body is \"# <title>\", then %q, %q, %q, %q in that order, each followed by its lines, and no other \"## \" heading; %q may follow, and a dropped task needs it.\nthe API refuses a line over 30 characters, a heading inside a section, and a dropped task without a reason.", sections[0].heading, sections[1].heading, sections[2].heading, sections[3].heading, whyDropped.heading)
+var shapeHelp = fmt.Sprintf("the body is \"# <title>\", then %q, %q, %q, %q in that order, each followed by its lines, and no other \"## \" heading; %q may follow, and a dropped task needs it.\nthe API refuses a line over 45 characters, a heading inside a section, and a dropped task without a reason.", sections[0].heading, sections[1].heading, sections[2].heading, sections[3].heading, whyDropped.heading)
 
 // parseBody splits a task body into its title and the API fields of its
 // sections. It checks only the structure; the API checks every line.
