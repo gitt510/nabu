@@ -228,7 +228,7 @@ function select(slug, push = true) {
   for (const key of PROPS) if (fm[key]?.length) meta.append(el("div", {}, el("dt", {}, key), el("dd", {}, ...value(key, fm[key]))));
   const body = el("div", { class: "body" });
   body.innerHTML = t.html;
-  doc.replaceChildren(el("p", { class: "crumb" }, crumb(t)), el("h1", {}, t.title), meta, body);
+  doc.replaceChildren(el("div", { class: "crumb" }, crumb(t), statusControl(t)), el("p", { class: "error", id: "doc-error", role: "alert" }), el("h1", {}, t.title), meta, body);
   if (push) history.replaceState(null, "", `#${slug}`);
   main.scrollTop = 0;
   if (push) closeSide();
@@ -243,6 +243,47 @@ function crumb(t) {
   }));
   return b;
 }
+
+// ---- writes ----------------------------------------------------------------
+// The page changes a task through the API and then reloads, so tasks.json stays the one source of what it shows.
+// patch returns why the API refused, or reloads on success.
+async function patch(slug, fields) {
+  let res;
+  try {
+    res = await fetch(`api/tasks/${encodeURIComponent(slug)}`, {
+      method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(fields), redirect: "manual",
+    });
+  } catch { return "保存できませんでした。通信を確かめてください"; }
+  // Access answers an expired session with a redirect to its sign-in page.
+  if (res.type === "opaqueredirect" || res.status === 401) return "session が切れました。reload して sign in し直してください";
+  if (!res.ok) return (await res.json().catch(() => ({}))).error ?? `保存できませんでした (${res.status})`;
+  location.reload();
+}
+
+// The status of the open task, in workflow order; dropped asks why first.
+function statusControl(t) {
+  const group = el("div", { class: "status", role: "group", "aria-label": "status" });
+  for (const s of ["inbox", "doing", "done", "dropped"]) {
+    group.append(el("button", { type: "button", "aria-pressed": String(t.status === s), onclick: () => move(t, s) }, s));
+  }
+  return group;
+}
+async function move(t, status) {
+  if (t.status === status) return;
+  if (status === "dropped") {
+    $("drop").dataset.slug = t.slug;
+    $("drop-why").value = "";
+    $("drop-error").textContent = "";
+    return $("drop").showModal();
+  }
+  $("doc-error").textContent = (await patch(t.slug, { status })) ?? "";
+}
+$("drop-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const why = $("drop-why").value.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => (l.startsWith("- ") ? l : `- ${l}`));
+  if (!why.length) return ($("drop-error").textContent = "理由を 1 行以上書いてください");
+  $("drop-error").textContent = (await patch($("drop").dataset.slug, { status: "dropped", why_dropped: why })) ?? "";
+});
 
 // Open the task adjacent to the current one, regardless of focus.
 function step(delta) {

@@ -135,11 +135,19 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .settings label, .settings .label { color: var(--muted-foreground); }
 .settings output { font-family: var(--font-mono); letter-spacing: 0; color: var(--muted-foreground); min-width: 4ch; text-align: right; }
 .settings input[type="range"] { width: 100%; }
-.theme { grid-column: 2 / -1; display: inline-flex; justify-self: start; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-.theme button { font: inherit; font-size: 0.8125rem; color: var(--muted-foreground); background: none; border: 0; padding: 3px 12px; cursor: pointer; }
-.theme button + button { }
-.theme button:hover { background: var(--accent); }
-.theme button[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
+.theme { grid-column: 2 / -1; justify-self: start; }
+/* A segmented control: the theme in the settings, the status of the open task. */
+.theme, .status { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.theme button, .status button { font: inherit; font-size: 0.8125rem; color: var(--muted-foreground); background: none; border: 0; padding: 3px 12px; cursor: pointer; }
+.theme button:hover, .status button:hover { background: var(--accent); }
+.theme button[aria-pressed="true"], .status button[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
+.error { color: var(--destructive); font-size: 0.8125rem; margin: 0 0 8px; }
+.error:empty { display: none; }
+.drop { display: grid; gap: 8px; font-size: 0.875rem; }
+.drop label { color: var(--muted-foreground); }
+.drop textarea { font: inherit; color: var(--foreground); background: var(--background); border: 1px solid var(--input); border-radius: 6px; padding: 6px 8px; resize: vertical; }
+.drop textarea:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.drop .settings-foot { margin: 0; }
 .settings-foot { margin: 16px 0 0; text-align: right; }
 .settings-foot button { font: inherit; font-size: 0.8125rem; color: var(--muted-foreground); background: none; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
 .settings-foot button:hover { background: var(--accent); }
@@ -242,7 +250,7 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .main:focus { outline: none; }
 .main:focus-visible { box-shadow: inset 0 0 0 2px var(--ring); } /* the doc column has the keyboard */
 .doc { max-width: var(--doc-w, 50rem); padding: 32px 32px 96px; }
-.crumb { font-family: var(--font-mono); font-size: 0.875rem; letter-spacing: 0; color: var(--muted-foreground); margin: 0 0 12px; }
+.crumb { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; font-family: var(--font-mono); font-size: 0.875rem; letter-spacing: 0; color: var(--muted-foreground); margin: 0 0 12px; }
 .crumb .copy { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 .crumb .copy:hover { color: var(--foreground); }
 .doc h1 { font-size: 1.5rem; line-height: 1.5; letter-spacing: 0.01em; margin: 0 0 16px; }

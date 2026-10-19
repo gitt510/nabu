@@ -419,14 +419,14 @@ func taskTable(tasks []api.Task, width int) string {
 	})
 }
 
-// createdDate shows the date created was stamped on, in the offset it was
-// stamped with, or "-" when it cannot be read.
+// createdDate shows the local date created falls on, whatever offset the
+// API stamped it with, or "-" when it cannot be read.
 func createdDate(created string) string {
 	t, err := time.Parse(time.RFC3339, created)
 	if err != nil {
 		return "-"
 	}
-	return t.Format(time.DateOnly)
+	return t.Local().Format(time.DateOnly) //nolint:gosmopolitan // the user reads the date in their own zone
 }
 
 // match is one line of task grep: a line of the task as task read prints it.
