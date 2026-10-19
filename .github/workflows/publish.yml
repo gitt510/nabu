@@ -14,11 +14,11 @@ name: publish
 #       with:
 #         r2-bucket: nabu
 #       secrets:
-#         R2_EDIT: ${{ secrets.R2_EDIT }}
+#         CLOUDFLARE_R2_EDIT_API_TOKEN: ${{ secrets.CLOUDFLARE_R2_EDIT_API_TOKEN }}
 #
 # Contract with callers:
 #   - the notebook is the root of the calling repository
-#   - R2_EDIT can edit r2-bucket in the one account it carries
+#   - CLOUDFLARE_R2_EDIT_API_TOKEN can edit r2-bucket in the one account it carries
 #   - the calling workflow is .github/workflows/publish.yml, so `nabu publish` finds it
 #   - <r2-bucket>/tasks.json is replaced by the tasks of the checked-out commit
 on:
@@ -29,7 +29,7 @@ on:
         type: string
         required: true
     secrets:
-      R2_EDIT:
+      CLOUDFLARE_R2_EDIT_API_TOKEN:
         description: Cloudflare API token with R2 edit permission in the account that holds r2-bucket.
         required: true
 
@@ -75,7 +75,7 @@ jobs:
       - name: Upload to R2
         working-directory: nabu/web
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.R2_EDIT }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_R2_EDIT_API_TOKEN }}
         run: |
           pnpm install --frozen-lockfile
           pnpm exec wrangler r2 object put "${{ inputs.r2-bucket }}/tasks.json" \
