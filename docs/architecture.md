@@ -64,23 +64,8 @@ sequenceDiagram
 
 ## Task contract
 
-```mermaid
-flowchart LR
-  schema["web/src/schema.ts"]
-
-  subgraph worker_box["Worker (nabu)"]
-    api["API"]
-    page["Viewer page"]
-  end
-
-  schema -- "Bundled [wrangler deploy]" --> api
-  schema -- "Imported [build.mjs]" --> page
-  api -- "Task contract [JSON Schema]" --> cli["nabu CLI"]
-  api -- "422 and the reason [JSON]" --> cli
-  page -- "Page [HTML]" --> browser["Browser"]
-```
-
 - `web/src/schema.ts` defines every rule a task must meet
 - The API refuses every write that breaks the task contract
-- The API serves the task contract at `/api/schema`
+- The API serves the task contract as JSON Schema at `/api/schema`
+- `nabu task schema` prints the task contract the API serves
 - The viewer page takes the task contract from `web/src/schema.ts` at build
