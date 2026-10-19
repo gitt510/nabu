@@ -67,19 +67,20 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   autonumber
-  actor Agent as Agent (nabu:task skill)
+  actor User
+  participant Agent as Agent (Claude Code + nabu:task skill)
   participant CLI as nabu CLI
   participant Access as Cloudflare Access
   participant Worker as Worker (nabu)
   participant D1 as Cloudflare D1
 
+  User->>Agent: Asks for a task [chat]
   Agent->>CLI: Runs nabu task schema [exec]
   CLI->>Access: Requests the task contract [HTTPS]
   Access->>Worker: Forwards the request [JWT]
   Worker-->>CLI: Task contract [JSON Schema]
   CLI-->>Agent: Task contract [JSON]
   Agent->>CLI: Runs nabu task new with a body [exec]
-  CLI->>CLI: Checks the headings of the body
   CLI->>Access: Sends the task [HTTPS/JSON]
   Access->>Worker: Forwards the request [JWT]
   Worker->>Worker: Validates the task against the task contract
@@ -92,8 +93,9 @@ sequenceDiagram
     Worker-->>CLI: Task [JSON]
     CLI-->>Agent: Result [JSON]
   end
+  Agent-->>User: Slug and status [chat]
 ```
 
 - `web/src/schema.ts` defines every rule a task must meet
 - One deploy builds the Worker and the viewer page from `web/src/schema.ts`
-- The nabu CLI checks the headings of a body, and no value
+- The nabu CLI turns the markdown body into the fields of a task, and checks no value
