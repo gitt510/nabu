@@ -3,15 +3,10 @@ package main
 import (
 	"io"
 	"os"
-	"path"
-	"slices"
-	"strings"
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
 	"github.com/charmbracelet/x/term"
-
-	"github.com/gitt510/nabu/internal/store"
 )
 
 // terminal reports whether w is a terminal and, if so, its width in cells
@@ -36,7 +31,6 @@ var statusColors = map[string]string{
 	"doing":   "3", // yellow
 	"done":    "2", // green
 	"dropped": "8", // gray
-	"stray":   "1", // red
 }
 
 var cellStyle = lipgloss.NewStyle().Padding(0, 1)
@@ -66,30 +60,4 @@ func drawTable(headers []string, rows [][]string, width int, style func(row, col
 		return out
 	}
 	return t.Width(width).String()
-}
-
-// taskStatusOrStray is the status folder of a task path, or "stray" for a
-// tasks/<slug>.md outside every folder.
-func taskStatusOrStray(rel string) string {
-	if st := store.TaskStatusOf(rel); st != "" {
-		return st
-	}
-	return "stray"
-}
-
-func taskSlug(rel string) string {
-	return strings.TrimSuffix(path.Base(rel), ".md")
-}
-
-// byWorkflow orders task paths by status in workflow order (inbox, doing,
-// done, dropped), stray last. Paths within a status compare equal, so a
-// stable sort keeps their path order.
-func byWorkflow(a, b string) int {
-	rank := func(rel string) int {
-		if i := slices.Index(store.TaskStatuses, store.TaskStatusOf(rel)); i >= 0 {
-			return i
-		}
-		return len(store.TaskStatuses)
-	}
-	return rank(a) - rank(b)
 }

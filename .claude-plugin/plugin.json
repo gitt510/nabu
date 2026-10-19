@@ -1,6 +1,6 @@
 {
   "name": "nabu",
-  "description": "Agent skill for the nabu task CLI: task (tasks/ with status folders). Every read and write of the repository goes through nabu.",
+  "description": "Agent skill for the nabu task CLI: task (file and move tasks through the nabu API). Every read and write goes through nabu.",
   "author": {
     "name": "Taichi Goto",
     "url": "https://github.com/gitt510"

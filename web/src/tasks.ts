@@ -4,7 +4,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono, type Context } from "hono";
 import { LISTS, SECTIONS, type Task, TaskCreate, TaskPatch, TaskQuery, whole } from "./schema";
 
-type Row = Omit<Task, (typeof LISTS)[number] | (typeof SECTIONS)[number]> & { id: number } & Record<
+export type Row = Omit<Task, (typeof LISTS)[number] | (typeof SECTIONS)[number]> & { id: number } & Record<
     (typeof LISTS)[number] | (typeof SECTIONS)[number],
     string
   >;
@@ -12,7 +12,7 @@ type Row = Omit<Task, (typeof LISTS)[number] | (typeof SECTIONS)[number]> & { id
 const JSON_COLUMNS = [...LISTS, ...SECTIONS];
 const COLUMNS = ["slug", "title", "status", "area", "project", "scheduled", "waiting", ...JSON_COLUMNS, "created", "updated"] as const;
 
-const toTask = ({ id: _, ...row }: Row): Task => {
+export const toTask = ({ id: _, ...row }: Row): Task => {
   const t = { ...row } as Record<string, unknown>;
   for (const k of JSON_COLUMNS) t[k] = JSON.parse(row[k]);
   return t as Task;

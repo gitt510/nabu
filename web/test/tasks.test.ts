@@ -1,11 +1,15 @@
 import { env, exports } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
+import { token } from "./access";
 
-const call = (method: string, path: string, body?: unknown) =>
+const call = async (method: string, path: string, body?: unknown) =>
   exports.default.fetch(
     new Request(`https://nabu.test${path}`, {
       method,
-      headers: body === undefined ? {} : { "content-type": "application/json" },
+      headers: {
+        "cf-access-jwt-assertion": await token(),
+        ...(body === undefined ? {} : { "content-type": "application/json" }),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     }),
   );
@@ -130,5 +134,21 @@ describe("/api/tasks", () => {
       { task_id: 1, action: "create" },
       { task_id: 1, action: "delete" },
     ]);
+  });
+});
+
+describe("/tasks.json", () => {
+  it("serves every task in the shape of nabu task ls --json", async () => {
+    await call("POST", "/api/tasks", { ...task, project: "nabu", links: ["https://example.com/1"] });
+    await call("PATCH", "/api/tasks/move-runtime", { status: "dropped", why_dropped: ["- 今は使い道がない"] });
+    const res = await call("GET", "/tasks.json");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const [row] = (await res.json()) as any[];
+    expect(Object.keys(row)).toEqual(["slug", "status", "title", "frontmatter", "updated", "body"]);
+    expect(row.frontmatter).toEqual({ created: row.frontmatter.created, area: "work", project: "nabu", links: ["https://example.com/1"] });
+    expect(row.body).toBe(
+      "# runtime を新しい version へ移行\n\n## Situation\n\n- 本番と検証が旧 runtime\n\n## Complication\n\n- 旧 runtime はサポートが切れる\n\n" +
+        "## Question\n\n- 期限前に止めずに移れる？\n\n## Answer\n\n- 未定\n\n## Why dropped\n\n- 今は使い道がない\n",
+    );
   });
 });

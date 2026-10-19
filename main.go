@@ -1,6 +1,6 @@
-// nabu keeps one markdown repository, the notebook, for tasks.
-// Every task lives under tasks/ and every write is a git commit, so an agent
-// (or a human) never edits the notebook by hand.
+// nabu files and moves tasks through the API of the nabu Worker, which keeps
+// them in D1. An agent (or a human) never edits a task by hand: every read and
+// write is a nabu command, signed in through Cloudflare Access.
 package main
 
 import (
@@ -14,19 +14,21 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gitt510/nabu/internal/api"
 	"github.com/gitt510/nabu/internal/config"
-	"github.com/gitt510/nabu/internal/store"
 )
 
-const rootLong = `nabu keeps one markdown repository, the notebook, for tasks.
+const rootLong = `nabu files and moves tasks through the API of the nabu Worker.
 
-The notebook is a git repository; every change is committed as it is made,
-and pushed to its upstream when auto_push is set in the config file.
-Commands that change the notebook report the result as JSON; task read prints
-raw text; task ls, task grep, and task validate print a table on a terminal,
-plain text when piped, and JSON with --json.
+Commands that change a task report the result as JSON; task read prints raw
+text; task ls and task grep print a table on a terminal, plain text when piped,
+and JSON with --json.
 
-The notebook comes from notebook in %s`
+Every request is signed in through Cloudflare Access with the token
+cloudflared holds: run cloudflared access login <url> once, and again when
+the session expires.
+
+The Worker comes from url in %s`
 
 // exit codes: 0 ok, 1 the operation failed, 2 the invocation was wrong
 const (
@@ -45,12 +47,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	e := &env{stdin: stdin, stdout: stdout, stderr: stderr}
 	root := parentCmd(e, &cobra.Command{
 		Use:           "nabu",
-		Short:         "keep tasks in one markdown repository",
+		Short:         "file and move tasks through the nabu API",
 		Long:          fmt.Sprintf(rootLong, config.Path()),
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	})
-	root.AddCommand(taskCmd(e), pushCmd(e), publishCmd(e), initCmd(e))
+	root.AddCommand(taskCmd(e))
 	root.SetArgs(args)
 	root.SetIn(stdin)
 	root.SetOut(stdout)
@@ -113,172 +115,23 @@ func arg(args []string, i int) string {
 	return ""
 }
 
-// errNoNotebook is a setup problem, not an operation failure, so it exits 2.
-var errNoNotebook = errors.New("no notebook declared")
+// errNoURL is a setup problem, not an operation failure, so it exits 2.
+var errNoURL = errors.New("no url declared")
 
 func setupMessage() string {
-	return fmt.Sprintf("no notebook declared.\n\ncreate %s like:\n\n%s", config.Path(), config.Example)
+	return fmt.Sprintf("no url declared.\n\ncreate %s like:\n\n%s\nthen sign in with cloudflared access login <url>\n", config.Path(), config.Example)
 }
 
-// resolveNotebook reads the notebook from the config file.
-func resolveNotebook() (string, error) {
-	cfg, err := config.Load()
-	if err != nil {
-		return "", err
-	}
-	if cfg.Notebook == "" {
-		return "", errNoNotebook
-	}
-	return cfg.Notebook, nil
-}
-
-// openStore opens the notebook the config file declares, with its auto_push.
-func openStore() (*store.Store, error) {
+// client is the API client for the Worker the config file declares.
+var client = func() (*api.Client, error) {
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
-	if cfg.Notebook == "" {
-		return nil, errNoNotebook
+	if cfg.URL == "" {
+		return nil, errNoURL
 	}
-	s, err := store.Open(cfg.Notebook)
-	if err != nil {
-		return nil, err
-	}
-	s.AutoPush = cfg.AutoPush
-	return s, nil
-}
-
-// pushAfter is the push field of a write's JSON document: "" when nothing
-// was committed or auto_push is off, "ok", or "failed: <reason>". A failed
-// push leaves the commit in place, so the write itself still succeeds.
-func pushAfter(s *store.Store, committed bool) string {
-	if !committed || !s.AutoPush {
-		return ""
-	}
-	if _, err := s.Push(); err != nil {
-		return "failed: " + err.Error()
-	}
-	return "ok"
-}
-
-func initCmd(e *env) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "init",
-		Short: "create the notebook declared in the config as a git repository",
-		Long:  "creates the directory, runs git init -b main, and seeds README.md and .gitignore with a first commit; every step is skipped when already done",
-		Args:  cobra.NoArgs,
-		RunE: do(func(args []string) int {
-			dir, err := resolveNotebook()
-			if err != nil {
-				return fail(e.stderr, err, exitFail)
-			}
-			r, err := store.Init(dir)
-			if err != nil {
-				return fail(e.stderr, err, exitFail)
-			}
-			return emit(e.stdout, r)
-
-		}),
-	}
-	return cmd
-}
-
-func pushCmd(e *env) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "push",
-		Short: "git push the notebook to its upstream",
-		Long:  "runs git push for the notebook's current branch; the branch must already have an upstream",
-		Args:  cobra.NoArgs,
-		RunE: do(func(args []string) int {
-			s, err := openStore()
-			if err != nil {
-				return fail(e.stderr, err, exitFail)
-			}
-			upstream, err := s.Push()
-			if err != nil {
-				return fail(e.stderr, err, exitFail)
-			}
-			return emit(e.stdout, map[string]string{"action": "push", "upstream": upstream})
-
-		}),
-	}
-	return cmd
-}
-
-func publishCmd(e *env) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "publish",
-		Short: "push the notebook and run its publish workflow now",
-		Long:  "pushes the notebook to its upstream, then starts the notebook repository's " + store.PublishWorkflow + " on the current branch through gh, so the viewer shows the pushed tasks without waiting for the schedule.\nprints the run's URL; the viewer updates when that run succeeds. a failed push starts nothing; a push that lands but a run that cannot start is reported as such.\nthe workflow must take workflow_dispatch, and gh must be signed in",
-		Args:  cobra.NoArgs,
-		RunE: do(func(args []string) int {
-			s, err := openStore()
-			if err != nil {
-				return fail(e.stderr, err, exitFail)
-			}
-			upstream, err := s.Push()
-			if err != nil {
-				return fail(e.stderr, err, exitFail)
-			}
-			branch, run, err := s.Publish()
-			if err != nil {
-				return fail(e.stderr, fmt.Errorf("pushed to %s, but the publish run did not start: %w", upstream, err), exitFail)
-			}
-			return emit(e.stdout, map[string]string{"action": "publish", "upstream": upstream, "workflow": store.PublishWorkflow, "ref": branch, "run": run})
-
-		}),
-	}
-	return cmd
-}
-
-// writeResult is the JSON document of every command that writes a file.
-// Frontmatter is the task frontmatter as written, for the commands that
-// change it (task new, task set).
-type writeResult struct {
-	Path        string `json:"path"`
-	Action      string `json:"action"`
-	Bytes       int    `json:"bytes"`
-	Committed   bool   `json:"committed"`
-	Push        string `json:"push,omitempty"`
-	Frontmatter *meta  `json:"frontmatter,omitempty"`
-}
-
-// finishWrite commits the written file as "nabu: <action> <path>" and
-// reports it, with fm when the command changed a task's frontmatter.
-func finishWrite(s *store.Store, rel, action string, n int, fm *meta, stdout, stderr io.Writer) int {
-	committed, err := s.Commit(fmt.Sprintf("nabu: %s %s", action, rel), rel)
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	return emit(stdout, writeResult{Path: rel, Action: action, Bytes: n, Committed: committed, Push: pushAfter(s, committed), Frontmatter: fm})
-}
-
-// mvResult is the JSON document of every command that moves a file.
-type mvResult struct {
-	From      string `json:"from"`
-	To        string `json:"to"`
-	Action    string `json:"action"`
-	Committed bool   `json:"committed"`
-	Push      string `json:"push,omitempty"`
-}
-
-// finishMv commits the move as "nabu: <action> <from> -> <to>" and
-// reports it.
-func finishMv(s *store.Store, from, to, action string, stdout, stderr io.Writer) int {
-	committed, err := s.Commit(fmt.Sprintf("nabu: %s %s -> %s", action, from, to), from, to)
-	if err != nil {
-		return fail(stderr, err, exitFail)
-	}
-	return emit(stdout, mvResult{From: from, To: to, Action: action, Committed: committed, Push: pushAfter(s, committed)})
-}
-
-// rmResult is the JSON document of a command that deletes a file.
-type rmResult struct {
-	Path      string `json:"path"`
-	Action    string `json:"action"`
-	Committed bool   `json:"committed"`
-	Push      string `json:"push,omitempty"`
+	return api.New(cfg.URL), nil
 }
 
 // readBody returns --content when given, otherwise all of stdin.
@@ -310,10 +163,19 @@ func emit(w io.Writer, v any) int {
 	return exitOK
 }
 
+// fail reports err and returns its exit code: 2 for a setup problem or a
+// request the API refused as malformed, otherwise code.
 func fail(stderr io.Writer, err error, code int) int {
-	if errors.Is(err, errNoNotebook) {
+	var signedOut *api.SignedOutError
+	var refused *api.Error
+	switch {
+	case errors.Is(err, errNoURL):
 		fmt.Fprint(stderr, setupMessage())
 		return exitUsage
+	case errors.As(err, &signedOut):
+		code = exitUsage
+	case errors.As(err, &refused) && (refused.Status == 400 || refused.Status == 422):
+		code = exitUsage
 	}
 	fmt.Fprintln(stderr, err)
 	return code

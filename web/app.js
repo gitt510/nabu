@@ -1,6 +1,6 @@
 import { marked } from "./marked.js";
 
-// tasks.json is `nabu task ls --json` as published; no-store, so a reload shows the latest publish.
+// tasks.json is every task in the shape of `nabu task ls --json`, read from D1; no-store, so a reload shows the latest write.
 // Each row gains what the page shows: the body as HTML without its title line, and a lowercase search text.
 const tasks = (await (await fetch("tasks.json", { cache: "no-store" })).json())
   .map((r) => {
@@ -234,12 +234,12 @@ function select(slug, push = true) {
   if (push) closeSide();
 }
 
-// The path line above the title; a click copies the file's path, relative to the notebook.
+// The slug line above the title; a click copies the slug, the name every nabu task command takes.
 function crumb(t) {
-  const b = el("button", { class: "copy", type: "button", title: `${t.path}\nclick で copy` }, t.path);
-  b.addEventListener("click", () => navigator.clipboard.writeText(t.path).then(() => {
+  const b = el("button", { class: "copy", type: "button", title: `${t.slug}\nclick で copy` }, t.slug);
+  b.addEventListener("click", () => navigator.clipboard.writeText(t.slug).then(() => {
     b.textContent = "copied";
-    setTimeout(() => { b.textContent = t.path; }, 1200);
+    setTimeout(() => { b.textContent = t.slug; }, 1200);
   }));
   return b;
 }

@@ -23,7 +23,7 @@ check:
 install:
     go install .
 
-# Render tasks/ and the viewer into web/dist/ and serve them on localhost:8000
+# Render the tasks and the viewer into web/dist/ and serve them on localhost:8000
 view:
     pnpm install --frozen-lockfile --silent
     cd web && pnpm --silent build
@@ -31,7 +31,7 @@ view:
     open http://localhost:8000
     python3 -m http.server -d web/dist 8000
 
-# Build the viewer and deploy it with the Worker that serves the API and what the publish workflow uploads
+# Build the viewer and deploy it with the Worker that serves the API
 deploy:
     pnpm install --frozen-lockfile --silent
     cd web && pnpm --silent build && pnpm exec wrangler deploy

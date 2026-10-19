@@ -1,16 +1,20 @@
 {
-  // Serves the viewer: the page from dist/ as static assets, built on deploy, and its data from R2, which the publish workflow uploads.
-  // Also serves /api/tasks from D1, the store the CLI and the viewer are moving to.
-  // The data lives only in the bucket and the database, never in the repo or the Worker.
-  // Access (sign-in) is set on the Worker in the Zero Trust dashboard, not here.
+  // Serves the viewer: the page from dist/ as static assets, built on deploy, and its data from D1,
+  // where /api/tasks, the API the CLI talks to, keeps every task.
+  // The data lives only in the database, never in the repo or the Worker.
+  // Access (sign-in) is set on the Worker in the Zero Trust dashboard, not here; the Worker checks the token
+  // Access signs against the team and the application below. Neither value is a secret.
   "name": "nabu",
   "main": "src/index.ts",
   "assets": { "directory": "dist" },
   // Pinned on purpose: a moving date would change the Worker's behavior silently.
   "compatibility_date": "2026-10-11",
-  "r2_buckets": [{ "binding": "VIEW", "bucket_name": "nabu" }],
   // Schema changes are files in migrations/, applied with `wrangler d1 migrations apply nabu`.
   "d1_databases": [{ "binding": "DB", "database_name": "nabu", "database_id": "b56c5b0a-b0d0-41bc-a686-ee0a69dc41fc" }],
+  "vars": {
+    "ACCESS_TEAM_DOMAIN": "rapid-hall-57f2.cloudflareaccess.com",
+    "ACCESS_AUD": "3e3890f23a5a9f73811e7ead2d21bf3fadccd4f470665919120aba129a67d9f5"
+  },
   // Version preview URLs would sit outside Access.
   "preview_urls": false
 }
