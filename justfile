@@ -28,6 +28,11 @@ deploy:
     pnpm install --frozen-lockfile --silent
     cd web && pnpm --silent build && pnpm exec wrangler deploy
 
+# Serve the viewer from the working tree at http://localhost:8787, rebuilt on each page load; writes reach the production D1
+dev:
+    pnpm install --frozen-lockfile --silent
+    cd web && node dev.mjs
+
 # Upload the working tree as a preview at https://preview-nabu.gitt510.workers.dev; production keeps serving, but writes reach the production D1
 preview:
     pnpm install --frozen-lockfile --silent

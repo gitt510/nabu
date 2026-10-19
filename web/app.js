@@ -73,10 +73,9 @@ const VIEWS = [
   { id: "done", label: "Done", pick: (t) => t.status === "done", folder: true, icon: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>' },
   { id: "dropped", label: "Dropped", pick: (t) => t.status === "dropped", folder: true, icon: '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>' },
 ];
-// The list's order: newest first by the key the toggle names. created is the frontmatter stamp;
-// updated is the last commit touching the file (empty before its first commit: those go last).
-const createdOf = (t) => t.frontmatter.created ?? t.updated;
-const SORTS = { updated: (t) => t.updated, created: createdOf };
+// The list's order: newest first by the key the toggle names. created is when the task was filed;
+// updated is the API's last write to it, a status change included.
+const SORTS = { updated: (t) => t.updated, created: (t) => t.frontmatter.created };
 const PROPS = ["scheduled", "waiting", "area", "project", "tickets", "prs", "links", "created"];
 const today = new Date().toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
 const dayOf = (iso) => instant(iso).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
@@ -100,10 +99,11 @@ const listed = (v) => {
 
 function fileButton(t) {
   const fm = t.frontmatter;
-  const when = SORTS[sort](t);
-  // One date: the scheduled one when there is one (red once it has passed), else the sort key's.
-  const date = fm.scheduled ? el("span", { class: isLate(fm.scheduled) ? "late" : "" }, fmt(fm.scheduled).split(" ")[0]) : when ? fmt(when).split(" ")[0] : "—";
-  const sub = el("span", { class: "sub" }, t.status, " · ", date);
+  const day = (iso) => fmt(iso).split(" ")[0];
+  // Each date names its key: the scheduled one first when there is one (red once it has passed), then the sort key's.
+  const sub = el("span", { class: "sub" }, t.status);
+  if (fm.scheduled) sub.append(" · scheduled ", el("span", { class: isLate(fm.scheduled) ? "late" : "" }, day(fm.scheduled)));
+  sub.append(` · ${sort} ${day(SORTS[sort](t))}`);
   if (fm.waiting) sub.append(el("span", { class: "flag" }, "⏳"));
   return el("button", { class: "file", "data-slug": t.slug, "data-status": t.status, type: "button", tabindex: "-1", title: t.slug, onclick: () => select(t.slug) }, el("span", { class: "name" }, t.title), sub);
 }
