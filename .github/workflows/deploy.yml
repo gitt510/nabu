@@ -23,7 +23,7 @@ jobs:
       - run: pnpm --silent test
         working-directory: web
 
-  # Deploys the viewer page and the API; the tasks the page shows come from the publish workflow, not from here.
+  # Deploys the Worker: the viewer page and the API. The tasks live in D1, not here.
   deploy:
     needs: test
     uses: gitt510/.github/.github/workflows/deploy-worker-pnpm.yml@6b1d55c320755e6cd34095a80ed064a0ca367d72

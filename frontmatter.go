@@ -1,17 +1,15 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
-	"github.com/gitt510/nabu/internal/store"
+	"github.com/gitt510/nabu/internal/api"
 )
 
 // meta is a task's frontmatter, and also its JSON form in every result.
@@ -49,7 +47,7 @@ type field struct {
 }
 
 // fields is the frontmatter, in the order render writes it. It is the one
-// definition of every key; render, splitMeta, the flags, and their help
+// definition of every key; render, the API fields, the flags, and their help
 // derive from it.
 var fields = []field{
 	{
@@ -68,7 +66,7 @@ var fields = []field{
 		usage: "the service or repo the task ships into, lowercase kebab-case",
 		doc:   "--project is what the task ships into: a service at work, a repo at home; leave it out when the task belongs to none.",
 		clear: "drop project: the task belongs to none",
-		valid: func(v string) string { return unless(store.Slug(v), "be lowercase kebab-case") },
+		valid: func(v string) string { return unless(isSlug(v), "be lowercase kebab-case") },
 		str:   func(m *meta) *string { return &m.Project },
 	},
 	{
@@ -150,32 +148,8 @@ func (f field) checkValue(v string) error {
 	return nil
 }
 
-// checkStored validates frontmatter as read from a file: every required key
-// is there and every value is accepted.
-func (m *meta) checkStored() error {
-	for _, f := range fields {
-		var vals []string
-		if f.str != nil {
-			if v := *f.str(m); v != "" {
-				vals = []string{v}
-			}
-		} else {
-			vals = *f.list(m)
-		}
-		if f.required && len(vals) == 0 {
-			return fmt.Errorf("frontmatter has no %s; set it with task set --%s", f.key, f.flag)
-		}
-		for _, v := range vals {
-			if err := f.checkValue(v); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-// render writes the YAML block, or "" when every field is empty so a plain
-// task stays a plain file. Only this function writes task frontmatter.
+// render writes the YAML block task read prints above the body, or "" when
+// every field is empty.
 func (m *meta) render() string {
 	var b strings.Builder
 	for _, f := range fields {
@@ -198,60 +172,30 @@ func (m *meta) render() string {
 	return "---\n" + b.String() + "---\n"
 }
 
-// splitMeta separates a task document into its frontmatter and body. It
-// reads only the shape render writes; a block in any other shape is an
-// error, because nabu never wrote it and cannot promise to keep it.
-func splitMeta(doc []byte) (meta, []byte, error) {
-	var m meta
-	text := string(doc)
-	if !strings.HasPrefix(text, "---\n") {
-		return m, doc, nil
-	}
-	rest := text[len("---\n"):]
-	var inList *[]string
-	for {
-		line, after, ok := strings.Cut(rest, "\n")
-		if !ok {
-			return m, nil, errors.New("frontmatter block is not closed by ---")
-		}
-		rest = after
-		if line == "---" {
-			return m, []byte(rest), nil
-		}
-		if item, ok := strings.CutPrefix(line, "  - "); ok && inList != nil {
-			v, err := strconv.Unquote(item)
-			if err != nil {
-				return m, nil, fmt.Errorf("frontmatter: unreadable list item: %s", line)
-			}
-			*inList = append(*inList, v)
-			continue
-		}
-		inList = nil
-		if key, ok := strings.CutSuffix(line, ":"); ok {
-			if f, ok := fieldByKey(key); ok && f.list != nil {
-				inList = f.list(&m)
-				continue
-			}
-		}
-		key, raw, ok := strings.Cut(line, ": ")
-		v, err := strconv.Unquote(raw)
-		if !ok || err != nil {
-			return m, nil, fmt.Errorf("frontmatter: unreadable line: %s", line)
-		}
-		f, known := fieldByKey(key)
-		if !known || f.str == nil {
-			return m, nil, fmt.Errorf("frontmatter: unknown key %s", key)
-		}
-		*f.str(&m) = v
-	}
+// metaOf is a task's frontmatter.
+func metaOf(t api.Task) meta {
+	return meta{Created: t.Created, Area: t.Area, Project: t.Project, Scheduled: t.Scheduled, Waiting: t.Waiting, Tickets: t.Tickets, Prs: t.Prs, Links: t.Links}
 }
 
-func fieldByKey(key string) (field, bool) {
-	i := slices.IndexFunc(fields, func(f field) bool { return f.key == key })
-	if i < 0 {
-		return field{}, false
+// apiFields are the API fields of every key a flag sets, with null for an
+// empty scalar so the API drops it.
+func (m *meta) apiFields() map[string]any {
+	out := map[string]any{}
+	for _, f := range fields {
+		if f.flag == "" {
+			continue
+		}
+		if f.str != nil {
+			if v := *f.str(m); v != "" {
+				out[f.key] = v
+			} else {
+				out[f.key] = nil
+			}
+			continue
+		}
+		out[f.key] = append([]string{}, *f.list(m)...)
 	}
-	return fields[i], true
+	return out
 }
 
 // metaFlags holds the frontmatter flags of task new or task set as parsed.

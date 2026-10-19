@@ -13,15 +13,12 @@ import (
 
 // Config is the source of truth.
 type Config struct {
-	// Notebook is the git repository every path is relative to.
-	Notebook string `json:"notebook"`
-	// AutoPush pushes the notebook to its upstream after each commit nabu
-	// makes. A failed push is reported but never undoes the commit.
-	AutoPush bool `json:"auto_push,omitempty"`
+	// URL is the nabu Worker: the viewer and the API behind one Access application.
+	URL string `json:"url"`
 }
 
 // Example is the config shown when none is found.
-const Example = `{"notebook": "~/ghq/github.com/you/notes"}
+const Example = `{"url": "https://nabu.<you>.workers.dev"}
 `
 
 // Path is where the config file lives. os.UserConfigDir is avoided because
@@ -38,7 +35,7 @@ func Path() string {
 }
 
 // Load reads the config file. A missing file is not an error: it yields an
-// empty Config and the caller decides whether a notebook is required.
+// empty Config and the caller decides whether a URL is required.
 func Load() (Config, error) {
 	var cfg Config
 	b, err := os.ReadFile(Path())
@@ -51,16 +48,6 @@ func Load() (Config, error) {
 	if err := json.Unmarshal(b, &cfg); err != nil {
 		return cfg, fmt.Errorf("%s: %w", Path(), err)
 	}
-	cfg.Notebook = ExpandHome(cfg.Notebook)
+	cfg.URL = strings.TrimRight(cfg.URL, "/")
 	return cfg, nil
-}
-
-// ExpandHome replaces a leading ~ with the home directory.
-func ExpandHome(p string) string {
-	if p == "~" || strings.HasPrefix(p, "~/") {
-		if home, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(home, p[1:])
-		}
-	}
-	return p
 }

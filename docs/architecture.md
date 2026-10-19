@@ -1,25 +1,48 @@
 # Architecture
 
-## nabu publish
+## nabu task
 
 ```mermaid
 sequenceDiagram
   autonumber
   actor User
   participant CLI as nabu CLI
-  participant GitHub as GitHub (notebook repository)
-  participant Actions as GitHub Actions (publish workflow)
-  participant R2 as Cloudflare R2
+  participant Cloudflared as cloudflared
+  participant Access as Cloudflare Access
+  participant Worker as Worker (nabu)
+  participant D1 as Cloudflare D1
 
-  User->>CLI: Runs nabu publish
-  CLI->>CLI: Checks the branch has an upstream
-  CLI->>GitHub: Pushes the current branch [git/HTTPS]
-  GitHub-->>CLI: Push accepted
-  CLI->>GitHub: Dispatches publish.yml on the branch [gh/HTTPS]
-  GitHub-->>CLI: Run URL
-  CLI-->>User: Upstream, ref, and run URL [JSON]
-  GitHub->>Actions: Starts the publish run<br>with CLOUDFLARE_R2_EDIT_API_TOKEN [workflow_dispatch]
-  Actions->>R2: Replaces tasks.json [Wrangler/HTTPS, API token]
-  R2->>R2: Verifies the API token
-  R2-->>Actions: 200 OK
+  User->>CLI: Runs a nabu task command
+  CLI->>Cloudflared: Asks for the Access token of the Worker [exec]
+  Cloudflared-->>CLI: Token, or not signed in
+  CLI->>Access: Sends the request with the token [HTTPS/JSON]
+  Access->>Access: Verifies the token
+  Access->>Worker: Forwards the request [JWT]
+  Worker->>Worker: Verifies the JWT (signature, iss, aud, exp)
+  Worker->>Worker: Validates the task (shape, line limit, reason to drop)
+  Worker->>D1: Writes the task and its event in one batch [binding/SQL]
+  D1-->>Worker: Rows
+  Worker-->>CLI: Task [JSON]
+  CLI-->>User: Result [JSON or markdown]
+```
+
+## Viewer
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User
+  participant Browser
+  participant Access as Cloudflare Access
+  participant Worker as Worker (nabu)
+  participant D1 as Cloudflare D1
+
+  User->>Browser: Opens the viewer
+  Browser->>Access: Requests the page and tasks.json [HTTPS]
+  Access->>Access: Verifies the session
+  Access->>Worker: Forwards the request [JWT]
+  Worker->>Worker: Verifies the JWT (signature, iss, aud, exp)
+  Worker->>D1: Reads every task [binding/SQL]
+  D1-->>Worker: Rows
+  Worker-->>Browser: Page [HTML] and tasks [JSON]
 ```

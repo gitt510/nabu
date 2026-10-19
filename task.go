@@ -3,9 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
-	"io/fs"
-	"path"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -14,30 +12,77 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 
-	"github.com/gitt510/nabu/internal/store"
+	"github.com/gitt510/nabu/internal/api"
 )
 
-// now is the clock task new stamps created with; tests pin it.
-var now = time.Now
-
 // taskCmd is the task command group. Its help lists the commands by what
-// they do: browse and check, read one task, create and update.
+// they do: browse, read one task, create and update.
 func taskCmd(e *env) *cobra.Command {
 	cmd := parentCmd(e, &cobra.Command{
 		Use:   "task",
-		Short: "file and move tasks under tasks/",
+		Short: "file and move tasks",
 	})
 	cmd.AddGroup(
-		&cobra.Group{ID: "browse", Title: "Browse and check:"},
+		&cobra.Group{ID: "browse", Title: "Browse:"},
 		&cobra.Group{ID: "read", Title: "Read content:"},
 		&cobra.Group{ID: "update", Title: "Create and update:"},
 	)
 	cmd.AddCommand(
-		taskLsCmd(e), taskGrepCmd(e), taskValidateCmd(e),
+		taskLsCmd(e), taskGrepCmd(e),
 		taskReadCmd(e),
 		taskNewCmd(e), taskReplaceCmd(e), taskSetCmd(e), taskMvCmd(e), taskRenameCmd(e), taskRmCmd(e),
 	)
 	return cmd
+}
+
+var slugPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
+
+// isSlug reports whether s is lowercase kebab-case, the shape of a slug and a project.
+func isSlug(s string) bool { return slugPattern.MatchString(s) }
+
+func checkSlug(slug string) error {
+	if !isSlug(slug) {
+		return fmt.Errorf("slug must be lowercase kebab-case: %s", slug)
+	}
+	return nil
+}
+
+func checkStatus(status string) error {
+	if !slices.Contains(api.Statuses, status) {
+		return fmt.Errorf("status must be one of %s: %s", strings.Join(api.Statuses, ", "), status)
+	}
+	return nil
+}
+
+// result is the JSON document of every command that changes a task.
+// Frontmatter is the frontmatter as stored, for the commands that change it
+// (task new, task set); From and To are the old and new status or slug.
+type result struct {
+	Action      string `json:"action"`
+	Slug        string `json:"slug"`
+	Status      string `json:"status,omitempty"`
+	From        string `json:"from,omitempty"`
+	To          string `json:"to,omitempty"`
+	Frontmatter *meta  `json:"frontmatter,omitempty"`
+}
+
+// readTaskBody reads a body and splits it into its title and section fields.
+// It refuses a body that opens with a frontmatter block: task metadata comes
+// from flags only.
+func readTaskBody(content string, e *env) (map[string]any, error) {
+	body, err := readBody(content, e.stdin)
+	if err != nil {
+		return nil, err
+	}
+	if hasFrontmatter(body) {
+		return nil, errors.New("body starts with a frontmatter block; task metadata comes from flags (see task set)")
+	}
+	title, fields, err := parseBody(body)
+	if err != nil {
+		return nil, err
+	}
+	fields["title"] = title
+	return fields, nil
 }
 
 func taskNewCmd(e *env) *cobra.Command {
@@ -45,40 +90,43 @@ func taskNewCmd(e *env) *cobra.Command {
 	var mf *metaFlags
 	cmd := &cobra.Command{
 		Use:     "new <slug>",
-		Short:   "create tasks/inbox/<slug>.md",
-		Long:    "creates tasks/inbox/<slug>.md; the body is read from stdin unless --content is given.\na slug already present under tasks/ is refused.\nflags become the task's frontmatter, with created stamped as now; the body must not carry one of its own; the frontmatter as written is printed.\nthe body must be in the task shape (see task validate).",
+		Short:   "file a new task in inbox",
+		Long:    "files a task in inbox; the body is read from stdin unless --content is given.\na slug already taken is refused.\nflags become the task's frontmatter, with created stamped by the API; the body must not carry one of its own; the frontmatter as stored is printed.\n" + shapeHelp,
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
 			slug := arg(args, 0)
-			if !store.Slug(slug) {
-				return fail(e.stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
+			if err := checkSlug(slug); err != nil {
+				return fail(e.stderr, err, exitUsage)
 			}
-			m := meta{Created: now().Format(time.RFC3339)}
+			var m meta
 			if err := mf.apply(&m); err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
 			if err := mf.missing(&m); err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
-			body, err := readTaskBody("inbox", content, e.stdin)
+			fields, err := readTaskBody(content, e)
 			if err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
-			s, err := openStore()
+			fields["slug"] = slug
+			// a new task leaves out what it does not have; null is for dropping a value
+			for k, v := range m.apiFields() {
+				if l, ok := v.([]string); v != nil && (!ok || len(l) > 0) {
+					fields[k] = v
+				}
+			}
+			c, err := client()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			if have := s.FindTask(slug); have != "" {
-				return fail(e.stderr, fmt.Errorf("%s: %w", have, store.ErrExists), exitFail)
-			}
-			doc := append([]byte(m.render()), body...)
-			rel, err := s.Write(store.TaskPath("inbox", slug), doc)
+			t, err := c.Create(fields)
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			return finishWrite(s, rel, "task", len(doc), &m, e.stdout, e.stderr)
-
+			stored := metaOf(t)
+			return emit(e.stdout, result{Action: "task new", Slug: t.Slug, Status: t.Status, Frontmatter: &stored})
 		}),
 	}
 	cmd.Flags().StringVar(&content, "content", "", "task body; stdin is read when omitted")
@@ -92,24 +140,27 @@ func taskReplaceCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "replace <slug>",
 		Short:   "replace a task's body, keeping its frontmatter",
-		Long:    "replaces the body of a task in any status folder; its frontmatter is kept as is (see task set).\nthe body is read from stdin unless --content is given and must not carry a frontmatter block.\nit must be in the task shape (see task validate)",
+		Long:    "replaces the title and every section of a task in any status; its frontmatter is kept as is (see task set).\nthe body is read from stdin unless --content is given and must not carry a frontmatter block.\n" + shapeHelp,
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
-			s, rel, m, _, code := openTask(arg(args, 0), e.stderr)
-			if code != exitOK {
-				return code
+			slug := arg(args, 0)
+			if err := checkSlug(slug); err != nil {
+				return fail(e.stderr, err, exitUsage)
 			}
-			body, err := readTaskBody(store.TaskStatusOf(rel), content, e.stdin)
+			fields, err := readTaskBody(content, e)
 			if err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
-			doc := append([]byte(m.render()), body...)
-			if _, err := s.Replace(rel, doc); err != nil {
+			c, err := client()
+			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			return finishWrite(s, rel, "task replace", len(doc), nil, e.stdout, e.stderr)
-
+			t, err := c.Patch(slug, fields)
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			return emit(e.stdout, result{Action: "task replace", Slug: t.Slug, Status: t.Status})
 		}),
 	}
 	cmd.Flags().StringVar(&content, "content", "", "new body; stdin is read when omitted")
@@ -121,26 +172,34 @@ func taskSetCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "set <slug>",
 		Short:   "change a task's frontmatter (area, project, scheduled, waiting, tickets, prs, links)",
-		Long:    "rewrites the frontmatter of a task in any status folder and prints it as written; the body is kept as is (see task replace).",
+		Long:    "changes the frontmatter of a task in any status and prints it as stored; the body is kept as is (see task replace).",
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
+			slug := arg(args, 0)
+			if err := checkSlug(slug); err != nil {
+				return fail(e.stderr, err, exitUsage)
+			}
 			if !mf.given() {
 				return fail(e.stderr, errors.New("nothing to set: pass at least one frontmatter flag"), exitUsage)
 			}
-			s, rel, m, body, code := openTask(arg(args, 0), e.stderr)
-			if code != exitOK {
-				return code
+			c, err := client()
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
 			}
+			t, err := c.Get(slug)
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			m := metaOf(t)
 			if err := mf.apply(&m); err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
-			doc := append([]byte(m.render()), body...)
-			if _, err := s.Replace(rel, doc); err != nil {
+			if t, err = c.Patch(slug, m.apiFields()); err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			return finishWrite(s, rel, "task set", len(doc), &m, e.stdout, e.stderr)
-
+			stored := metaOf(t)
+			return emit(e.stdout, result{Action: "task set", Slug: t.Slug, Status: t.Status, Frontmatter: &stored})
 		}),
 	}
 	mf = addMetaFlags(cmd, true)
@@ -151,48 +210,37 @@ func taskSetCmd(e *env) *cobra.Command {
 func taskMvCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "mv <slug> <status>",
-		Short:   "move a task to tasks/<status>/ (inbox, doing, done, dropped)",
-		Long:    "moves tasks/<current>/<slug>.md to tasks/<status>/<slug>.md; the folder is the task's only status.\ndone is finished work; dropped is work decided against, and is refused until the body is in the task shape for dropped/ (see task validate)",
+		Short:   "move a task to a status (inbox, doing, done, dropped)",
+		Long:    "sets the status of a task.\ndone is finished work; dropped is work decided against, and is refused until the body carries " + strconv.Quote(whyDropped.heading) + " (see task replace)",
 		GroupID: "update",
 		Args:    cobra.ExactArgs(2),
 		RunE: do(func(args []string) int {
 			slug, status := arg(args, 0), arg(args, 1)
-			if !store.Slug(slug) {
-				return fail(e.stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
+			if err := checkSlug(slug); err != nil {
+				return fail(e.stderr, err, exitUsage)
 			}
-			if !store.TaskStatus(status) {
-				return fail(e.stderr, fmt.Errorf("status must be one of %s: %s", strings.Join(store.TaskStatuses, ", "), status), exitUsage)
+			if err := checkStatus(status); err != nil {
+				return fail(e.stderr, err, exitUsage)
 			}
-			s, err := openStore()
+			c, err := client()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			from := s.FindTask(slug)
-			if from == "" {
-				return fail(e.stderr, fmt.Errorf("no task %s under tasks/", slug), exitFail)
-			}
-			to := store.TaskPath(status, slug)
-			if from == to {
-				return fail(e.stderr, fmt.Errorf("%s is already %s", slug, status), exitFail)
-			}
-			if status == "dropped" {
-				doc, err := s.Read(from)
-				if err != nil {
-					return fail(e.stderr, err, exitFail)
-				}
-				_, body, err := splitMeta(doc)
-				if err != nil {
-					return fail(e.stderr, fmt.Errorf("%s: %w (not written by nabu; fix it by hand)", from, err), exitFail)
-				}
-				if err := checkTaskShape(status, body); err != nil {
-					return fail(e.stderr, fmt.Errorf("%s: %w (write it with task replace first)", from, err), exitUsage)
-				}
-			}
-			if _, _, err := s.Move(from, to); err != nil {
+			t, err := c.Get(slug)
+			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			return finishMv(s, from, to, "task mv", e.stdout, e.stderr)
-
+			if t.Status == status {
+				return fail(e.stderr, fmt.Errorf("%s is already %s", slug, status), exitFail)
+			}
+			if _, err := c.Patch(slug, map[string]any{"status": status}); err != nil {
+				var refused *api.Error
+				if errors.As(err, &refused) && status == "dropped" {
+					err = fmt.Errorf("%w (write it with task replace first)", err)
+				}
+				return fail(e.stderr, err, exitFail)
+			}
+			return emit(e.stdout, result{Action: "task mv", Slug: slug, From: t.Status, To: status})
 		}),
 	}
 	return cmd
@@ -202,36 +250,28 @@ func taskRenameCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "rename <slug> <new-slug>",
 		Short:   "give a task a new slug, keeping its status and content",
-		Long:    "moves tasks/<status>/<slug>.md to tasks/<status>/<new-slug>.md; status, frontmatter, and body stay as they are.\na new slug already present under tasks/ is refused",
+		Long:    "changes the slug of a task; status, frontmatter, body, and history stay as they are.\na new slug already taken is refused",
 		GroupID: "update",
 		Args:    cobra.ExactArgs(2),
 		RunE: do(func(args []string) int {
 			slug, newSlug := arg(args, 0), arg(args, 1)
 			for _, v := range []string{slug, newSlug} {
-				if !store.Slug(v) {
-					return fail(e.stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", v), exitUsage)
+				if err := checkSlug(v); err != nil {
+					return fail(e.stderr, err, exitUsage)
 				}
 			}
 			if slug == newSlug {
 				return fail(e.stderr, fmt.Errorf("new slug is the same as the old one: %s", slug), exitUsage)
 			}
-			s, err := openStore()
+			c, err := client()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			from := s.FindTask(slug)
-			if from == "" {
-				return fail(e.stderr, fmt.Errorf("no task %s under tasks/", slug), exitFail)
-			}
-			if taken := s.FindTask(newSlug); taken != "" {
-				return fail(e.stderr, fmt.Errorf("%s: %w", taken, store.ErrExists), exitFail)
-			}
-			to := path.Dir(from) + "/" + newSlug + ".md"
-			if _, _, err := s.Move(from, to); err != nil {
+			t, err := c.Patch(slug, map[string]any{"slug": newSlug})
+			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			return finishMv(s, from, to, "task rename", e.stdout, e.stderr)
-
+			return emit(e.stdout, result{Action: "task rename", Slug: t.Slug, Status: t.Status, From: slug, To: newSlug})
 		}),
 	}
 	return cmd
@@ -241,103 +281,76 @@ func taskRmCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "rm <slug>",
 		Short:   "delete a task, whatever its status",
-		Long:    "deletes tasks/<status>/<slug>.md and commits the deletion, so git history keeps the content.\nfor a task that should not have been filed (a duplicate, a mistake); work decided against goes to dropped (see task mv)",
+		Long:    "deletes a task; the API keeps its history.\nfor a task that should not have been filed (a duplicate, a mistake); work decided against goes to dropped (see task mv)",
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
 			slug := arg(args, 0)
-			if !store.Slug(slug) {
-				return fail(e.stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
+			if err := checkSlug(slug); err != nil {
+				return fail(e.stderr, err, exitUsage)
 			}
-			s, err := openStore()
+			c, err := client()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			rel := s.FindTask(slug)
-			if rel == "" {
-				return fail(e.stderr, fmt.Errorf("no task %s under tasks/", slug), exitFail)
-			}
-			if _, err := s.Remove(rel); err != nil {
+			if err := c.Delete(slug); err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			committed, err := s.Commit("nabu: task rm "+rel, rel)
-			if err != nil {
-				return fail(e.stderr, err, exitFail)
-			}
-			return emit(e.stdout, rmResult{Path: rel, Action: "task rm", Committed: committed, Push: pushAfter(s, committed)})
-
+			return emit(e.stdout, result{Action: "task rm", Slug: slug})
 		}),
 	}
 	return cmd
+}
+
+// document is a task as task read prints it: its frontmatter, then its body.
+func document(t api.Task) string {
+	m := metaOf(t)
+	return m.render() + renderBody(t)
 }
 
 func taskReadCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "read <slug>",
 		Short:   "print a task, whatever its status",
-		Long:    "prints the task found by slug in any status folder, frontmatter included",
+		Long:    "prints a task as markdown: its frontmatter block, then its body in the shape task new and task replace take",
 		GroupID: "read",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
-			s, rel, _, _, code := openTask(arg(args, 0), e.stderr)
-			if code != exitOK {
-				return code
+			slug := arg(args, 0)
+			if err := checkSlug(slug); err != nil {
+				return fail(e.stderr, err, exitUsage)
 			}
-			b, err := s.Read(rel)
+			c, err := client()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			_, _ = e.stdout.Write(b)
+			t, err := c.Get(slug)
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			fmt.Fprint(e.stdout, document(t))
 			return exitOK
-
 		}),
 	}
 	return cmd
 }
 
-// taskEntry is one row of task ls. Path, slug, status, and title are the
-// values nabu derives by its own rules (status is the folder, or "stray"
-// for a tasks/<slug>.md outside every folder); frontmatter and body are
-// the file as written, so a consumer never has to know those rules.
+// taskEntry is one row of task ls: the task's frontmatter apart from its
+// body, as task read prints them.
 type taskEntry struct {
-	Path        string `json:"path"`
 	Slug        string `json:"slug"`
 	Status      string `json:"status"`
 	Title       string `json:"title"`
 	Frontmatter meta   `json:"frontmatter"`
-	// Updated is when the last commit touched the task; empty before its first.
-	Updated string `json:"updated,omitempty"`
-	Body    string `json:"body"`
+	Updated     string `json:"updated"`
+	Body        string `json:"body"`
 }
 
-// listTasks reads every task, or those in one status folder, as ls rows.
-func listTasks(s *store.Store, status string) ([]taskEntry, error) {
-	entries, err := s.List(path.Join("tasks", status))
-	if err != nil {
-		// a status folder appears with the first task moved into it;
-		// until then the status is simply empty
-		if status != "" && errors.Is(err, fs.ErrNotExist) {
-			return []taskEntry{}, nil
-		}
-		return nil, err
-	}
-	updated, err := s.Updated("tasks")
-	if err != nil {
-		return nil, err
-	}
-	rows := []taskEntry{}
-	for _, e := range entries {
-		row := taskEntry{Path: e.Path, Slug: taskSlug(e.Path), Status: taskStatusOrStray(e.Path), Title: e.Title, Updated: updated[e.Path]}
-		if doc, err := s.Read(e.Path); err == nil {
-			if m, body, err := splitMeta(doc); err == nil {
-				row.Frontmatter = m
-				row.Body = string(body)
-			}
-		}
-		rows = append(rows, row)
-	}
-	slices.SortStableFunc(rows, func(a, b taskEntry) int { return byWorkflow(a.Path, b.Path) })
-	return rows, nil
+// byWorkflow orders tasks by status in workflow order (inbox, doing, done,
+// dropped). Tasks within a status compare equal, so a stable sort keeps the
+// API's slug order.
+func byWorkflow(a, b api.Task) int {
+	return slices.Index(api.Statuses, a.Status) - slices.Index(api.Statuses, b.Status)
 }
 
 func taskLsCmd(e *env) *cobra.Command {
@@ -345,38 +358,44 @@ func taskLsCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "ls [status]",
 		Short:   "list tasks in workflow order",
-		Long:    "lists every task in workflow order (inbox, doing, done, dropped), or those in one status folder; a task outside every folder shows as stray, last.\non a terminal prints a table of status, title, and created (its date), colored by status;\npiped, prints the same columns tab-separated without a header or color; --json adds path, slug, the frontmatter, updated (when the last commit touched the task), and the body",
+		Long:    "lists every task in workflow order (inbox, doing, done, dropped), or those in one status.\non a terminal prints a table of status, title, and created (its date), colored by status;\npiped, prints the same columns tab-separated without a header or color; --json adds slug, the frontmatter, updated, and the body",
 		GroupID: "browse",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: do(func(args []string) int {
 			status := arg(args, 0)
-			if status != "" && !store.TaskStatus(status) {
-				return fail(e.stderr, fmt.Errorf("status must be one of %s: %s", strings.Join(store.TaskStatuses, ", "), status), exitUsage)
+			if status != "" {
+				if err := checkStatus(status); err != nil {
+					return fail(e.stderr, err, exitUsage)
+				}
 			}
-			s, err := openStore()
+			c, err := client()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			rows, err := listTasks(s, status)
+			tasks, err := c.List(status, "")
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
+			slices.SortStableFunc(tasks, byWorkflow)
 			if asJSON {
+				rows := make([]taskEntry, len(tasks))
+				for i, t := range tasks {
+					rows[i] = taskEntry{Slug: t.Slug, Status: t.Status, Title: t.Title, Frontmatter: metaOf(t), Updated: t.Updated, Body: renderBody(t)}
+				}
 				return emit(e.stdout, rows)
 			}
-			if len(rows) == 0 {
+			if len(tasks) == 0 {
 				return exitOK
 			}
 			width, tty := terminal(e.stdout)
 			if !tty {
-				for _, r := range rows {
-					fmt.Fprintf(e.stdout, "%s\t%s\t%s\n", r.Status, r.Title, createdDate(r.Frontmatter.Created))
+				for _, t := range tasks {
+					fmt.Fprintf(e.stdout, "%s\t%s\t%s\n", t.Status, t.Title, createdDate(t.Created))
 				}
 				return exitOK
 			}
-			_, _ = lipgloss.Fprintln(e.stdout, taskTable(rows, width))
+			_, _ = lipgloss.Fprintln(e.stdout, taskTable(tasks, width))
 			return exitOK
-
 		}),
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print the result as JSON")
@@ -384,15 +403,15 @@ func taskLsCmd(e *env) *cobra.Command {
 }
 
 // taskTable renders task ls rows for a terminal width wide (0 for no limit).
-func taskTable(rows []taskEntry, width int) string {
-	cells := make([][]string, len(rows))
-	for i, r := range rows {
-		cells[i] = []string{r.Status, r.Title, createdDate(r.Frontmatter.Created)}
+func taskTable(tasks []api.Task, width int) string {
+	cells := make([][]string, len(tasks))
+	for i, t := range tasks {
+		cells[i] = []string{t.Status, t.Title, createdDate(t.Created)}
 	}
 	return drawTable([]string{"STATUS", "TITLE", "CREATED"}, cells, width, func(row, col int) lipgloss.Style {
 		switch col {
 		case 0:
-			return statusStyle(rows[row].Status)
+			return statusStyle(tasks[row].Status)
 		case 2:
 			return cellStyle.Faint(true)
 		}
@@ -401,7 +420,7 @@ func taskTable(rows []taskEntry, width int) string {
 }
 
 // createdDate shows the date created was stamped on, in the offset it was
-// stamped with, or "-" for a task filed before nabu stamped one.
+// stamped with, or "-" when it cannot be read.
 func createdDate(created string) string {
 	t, err := time.Parse(time.RFC3339, created)
 	if err != nil {
@@ -410,39 +429,56 @@ func createdDate(created string) string {
 	return t.Format(time.DateOnly)
 }
 
+// match is one line of task grep: a line of the task as task read prints it.
+type match struct {
+	Slug   string `json:"slug"`
+	Status string `json:"status"`
+	Line   int    `json:"line"`
+	Text   string `json:"text"`
+}
+
 func taskGrepCmd(e *env) *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{
 		Use:     "grep <query>",
 		Short:   "find lines containing query in tasks (case-insensitive)",
-		Long:    "finds lines containing query under tasks/, case-insensitive, in workflow order.\non a terminal prints a table of status, task, line, and text with the query highlighted;\npiped, prints path:line: text",
+		Long:    "finds lines containing query, case-insensitive, in every task as task read prints it, in workflow order.\non a terminal prints a table of status, task, line, and text with the query highlighted;\npiped, prints slug:line: text",
 		GroupID: "browse",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
-			s, err := openStore()
+			query := arg(args, 0)
+			c, err := client()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			matches, err := s.Grep("tasks", arg(args, 0))
+			tasks, err := c.List("", query)
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			slices.SortStableFunc(matches, func(a, b store.Match) int { return byWorkflow(a.Path, b.Path) })
+			slices.SortStableFunc(tasks, byWorkflow)
+			matches := []match{}
+			q := strings.ToLower(query)
+			for _, t := range tasks {
+				for i, l := range strings.Split(document(t), "\n") {
+					if strings.Contains(strings.ToLower(l), q) {
+						matches = append(matches, match{Slug: t.Slug, Status: t.Status, Line: i + 1, Text: l})
+					}
+				}
+			}
 			if asJSON {
 				return emit(e.stdout, matches)
 			}
 			width, tty := terminal(e.stdout)
 			if !tty {
 				for _, m := range matches {
-					fmt.Fprintf(e.stdout, "%s:%d: %s\n", m.Path, m.Line, m.Text)
+					fmt.Fprintf(e.stdout, "%s:%d: %s\n", m.Slug, m.Line, m.Text)
 				}
 				return exitOK
 			}
 			if len(matches) > 0 {
-				_, _ = lipgloss.Fprintln(e.stdout, grepTable(matches, arg(args, 0), width))
+				_, _ = lipgloss.Fprintln(e.stdout, grepTable(matches, query, width))
 			}
 			return exitOK
-
 		}),
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print the result as JSON")
@@ -451,17 +487,15 @@ func taskGrepCmd(e *env) *cobra.Command {
 
 // grepTable renders task grep matches for a terminal, with the query
 // highlighted in each line.
-func grepTable(matches []store.Match, query string, width int) string {
+func grepTable(matches []match, query string, width int) string {
 	cells := make([][]string, len(matches))
-	statuses := make([]string, len(matches))
 	for i, m := range matches {
-		statuses[i] = taskStatusOrStray(m.Path)
-		cells[i] = []string{statuses[i], taskSlug(m.Path), strconv.Itoa(m.Line), highlight(m.Text, query)}
+		cells[i] = []string{m.Status, m.Slug, strconv.Itoa(m.Line), highlight(m.Text, query)}
 	}
 	return drawTable([]string{"STATUS", "TASK", "LINE", "TEXT"}, cells, width, func(row, col int) lipgloss.Style {
 		switch col {
 		case 0:
-			return statusStyle(statuses[row])
+			return statusStyle(matches[row].Status)
 		case 2:
 			return cellStyle.Faint(true).Align(lipgloss.Right)
 		}
@@ -488,156 +522,4 @@ func highlight(text, query string) string {
 		b.WriteString(mark.Render(text[i : i+len(q)]))
 		text, lower = text[i+len(q):], lower[i+len(q):]
 	}
-}
-
-// openTask finds the task by slug and splits it. On failure it has already
-// reported to stderr and returns the exit code.
-func openTask(slug string, stderr io.Writer) (*store.Store, string, meta, []byte, int) {
-	if !store.Slug(slug) {
-		return nil, "", meta{}, nil, fail(stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
-	}
-	s, err := openStore()
-	if err != nil {
-		return nil, "", meta{}, nil, fail(stderr, err, exitFail)
-	}
-	rel := s.FindTask(slug)
-	if rel == "" {
-		return nil, "", meta{}, nil, fail(stderr, fmt.Errorf("no task %s under tasks/", slug), exitFail)
-	}
-	doc, err := s.Read(rel)
-	if err != nil {
-		return nil, "", meta{}, nil, fail(stderr, err, exitFail)
-	}
-	m, body, err := splitMeta(doc)
-	if err != nil {
-		return nil, "", meta{}, nil, fail(stderr, fmt.Errorf("%s: %w (not written by nabu; fix it by hand)", rel, err), exitFail)
-	}
-	return s, rel, m, body, exitOK
-}
-
-// readTaskBody reads a body and refuses one that opens with a frontmatter
-// block (task metadata comes from flags only) or that is not in the task
-// shape for the status it will sit in (see checkTaskShape).
-func readTaskBody(status, content string, stdin io.Reader) ([]byte, error) {
-	body, err := readBody(content, stdin)
-	if err != nil {
-		return nil, err
-	}
-	if hasFrontmatter(body) {
-		return nil, errors.New("body starts with a frontmatter block; task metadata comes from flags (see task set)")
-	}
-	if err := checkTaskShape(status, body); err != nil {
-		return nil, err
-	}
-	return body, nil
-}
-
-// verdict is one task validate result; Error is empty when the task is in shape.
-type verdict struct {
-	Path  string `json:"path"`
-	Error string `json:"error,omitempty"`
-}
-
-func taskValidateCmd(e *env) *cobra.Command {
-	var asJSON bool
-	cmd := &cobra.Command{
-		Use:     "validate [slug]",
-		Short:   "check one task, or every task, against the task shape",
-		Long:    "checks a task's body against the task shape and its frontmatter against the keys task set takes.\n" + shapeHelp + "\nwithout a slug every task is checked. prints one line per task (a colored table on a terminal); exit 1 when any task is out of shape.\nnothing is written",
-		GroupID: "browse",
-		Args:    cobra.MaximumNArgs(1),
-		RunE: do(func(args []string) int {
-			s, err := openStore()
-			if err != nil {
-				return fail(e.stderr, err, exitFail)
-			}
-			var paths []string
-			if slug := arg(args, 0); slug != "" {
-				if !store.Slug(slug) {
-					return fail(e.stderr, fmt.Errorf("slug must be lowercase kebab-case without / or .md: %s", slug), exitUsage)
-				}
-				rel := s.FindTask(slug)
-				if rel == "" {
-					return fail(e.stderr, fmt.Errorf("no task %s under tasks/", slug), exitFail)
-				}
-				paths = []string{rel}
-			} else {
-				entries, err := s.List("tasks")
-				if err != nil {
-					return fail(e.stderr, err, exitFail)
-				}
-				for _, e := range entries {
-					paths = append(paths, e.Path)
-				}
-				slices.SortStableFunc(paths, byWorkflow)
-			}
-			rows := []verdict{}
-			bad := false
-			for _, rel := range paths {
-				v := verdict{Path: rel}
-				doc, err := s.Read(rel)
-				if err != nil {
-					v.Error = err.Error()
-				} else if m, body, err := splitMeta(doc); err != nil {
-					v.Error = err.Error() + " (not written by nabu; fix it by hand)"
-				} else if err := checkTaskShape(store.TaskStatusOf(rel), body); err != nil {
-					v.Error = err.Error()
-				} else if err := m.checkStored(); err != nil {
-					v.Error = err.Error()
-				}
-				if v.Error != "" {
-					bad = true
-				}
-				rows = append(rows, v)
-			}
-			width, tty := terminal(e.stdout)
-			switch {
-			case asJSON:
-				emit(e.stdout, rows)
-			case tty && len(rows) > 0:
-				_, _ = lipgloss.Fprintln(e.stdout, validateTable(rows, width))
-			case !tty:
-				for _, v := range rows {
-					if v.Error == "" {
-						fmt.Fprintf(e.stdout, "ok    %s\n", v.Path)
-					} else {
-						fmt.Fprintf(e.stdout, "bad   %s: %s\n", v.Path, v.Error)
-					}
-				}
-			}
-			if bad {
-				return exitFail
-			}
-			return exitOK
-
-		}),
-	}
-	cmd.Flags().BoolVar(&asJSON, "json", false, "print the result as JSON")
-	return cmd
-}
-
-// validateTable renders task validate verdicts for a terminal.
-func validateTable(rows []verdict, width int) string {
-	cells := make([][]string, len(rows))
-	statuses := make([]string, len(rows))
-	for i, v := range rows {
-		statuses[i] = taskStatusOrStray(v.Path)
-		result := "ok"
-		if v.Error != "" {
-			result = "bad"
-		}
-		cells[i] = []string{result, statuses[i], taskSlug(v.Path), v.Error}
-	}
-	return drawTable([]string{"RESULT", "STATUS", "TASK", "PROBLEM"}, cells, width, func(row, col int) lipgloss.Style {
-		switch col {
-		case 0:
-			if rows[row].Error != "" {
-				return cellStyle.Foreground(lipgloss.Color("1")).Bold(true)
-			}
-			return cellStyle.Foreground(lipgloss.Color("2"))
-		case 1:
-			return statusStyle(statuses[row])
-		}
-		return cellStyle
-	})
 }
