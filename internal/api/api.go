@@ -123,6 +123,12 @@ func (c *Client) Delete(slug string) error {
 	return c.do(http.MethodDelete, taskPath(slug), nil, nil)
 }
 
+// Schema returns the task contract as JSON Schema, the rules every write must meet.
+func (c *Client) Schema() (json.RawMessage, error) {
+	var out json.RawMessage
+	return out, c.do(http.MethodGet, "/api/schema", nil, &out)
+}
+
 func taskPath(slug string) string { return "/api/tasks/" + url.PathEscape(slug) }
 
 func (c *Client) do(method, path string, in, out any) error {

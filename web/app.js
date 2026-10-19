@@ -1,17 +1,18 @@
 import { marked } from "./marked.js";
 
+// AREAS, STATUSES, LISTS, and SECTIONS come from web/src/schema.ts: build.mjs writes them above this file.
+
 // Every task comes from the API in one request, and the page narrows them in memory; no-store, so a reload
 // shows the latest write. Each task gains what the page shows: its frontmatter as `nabu task read` prints it,
 // the body as HTML under the title, and a lowercase search text.
-const SECTIONS = [["Situation", "situation"], ["Complication", "complication"], ["Question", "question"], ["Answer", "answer"], ["Why dropped", "why_dropped"]];
 const tasks = (await (await fetch("api/tasks", { cache: "no-store" })).json())
   .map((r) => {
     const frontmatter = { created: r.created, area: r.area };
     for (const k of ["project", "scheduled", "waiting"]) if (r[k]) frontmatter[k] = r[k];
-    for (const k of ["tickets", "prs", "links"]) if (r[k].length) frontmatter[k] = r[k];
+    for (const k of LISTS) if (r[k].length) frontmatter[k] = r[k];
     // an empty reason is left out, as nabu task read leaves it out
     const body = SECTIONS.filter(([, k]) => k !== "why_dropped" || r.why_dropped.length)
-      .map(([h, k]) => `## ${h}\n\n${r[k].join("\n")}`).join("\n\n");
+      .map(([h, k]) => `## ${h}\n\n${r[k].map((l) => `- ${l}`).join("\n")}`).join("\n\n");
     return {
       slug: r.slug,
       status: r.status,
@@ -108,7 +109,6 @@ function fileButton(t) {
 }
 
 // Area, then the projects in it. Each is a single choice; pressing the chosen one again lets everything through.
-const AREAS = ["work", "personal"];
 function renderViews() {
   const row = (label, on, onclick, icon, ...rest) => {
     const b = el("button", { class: "view", type: "button", tabindex: on ? "0" : "-1", "data-key": label, "aria-current": String(on), onclick });
@@ -270,7 +270,6 @@ async function patch(slug, fields) {
 // The status of the open task: a button that opens a menu of the statuses, each with its sidebar icon.
 // Dropped sits apart below a rule and asks why first. The menu follows the ARIA menu pattern: arrows,
 // Home / End, 1–4, Enter; Esc and a click outside close it (popover="auto").
-const STATUSES = ["inbox", "doing", "done", "dropped"];
 const statusLabel = (s) => (s === "dropped" ? "Drop…" : s[0].toUpperCase() + s.slice(1));
 const statusIcon = (s) => svg(VIEWS.find((v) => v.id === s).icon);
 const chevron = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
@@ -331,7 +330,7 @@ async function move(t, status) {
 }
 $("drop-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const why = $("drop-why").value.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => (l.startsWith("- ") ? l : `- ${l}`));
+  const why = $("drop-why").value.split("\n").map((l) => l.trim()).filter(Boolean);
   if (!why.length) return ($("drop-error").textContent = "理由を 1 行以上書いてください");
   $("drop-error").textContent = (await patch($("drop").dataset.slug, { status: "dropped", why_dropped: why })) ?? "";
 });

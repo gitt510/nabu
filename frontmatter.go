@@ -2,10 +2,8 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -37,10 +35,7 @@ type field struct {
 	// cannot be dropped.
 	clear string
 	// onNew says task new takes the flag too; task set takes every flag.
-	onNew    bool
-	required bool
-	// valid returns "" for an accepted value, else what the value must be.
-	valid func(v string) string
+	onNew bool
 	// one of these points at the value: a scalar or a list.
 	str  func(m *meta) *string
 	list func(m *meta) *[]string
@@ -55,26 +50,23 @@ var fields = []field{
 		str: func(m *meta) *string { return &m.Created },
 	},
 	{
-		key: "area", flag: "area", onNew: true, required: true,
-		usage: "work or personal",
-		doc:   "--area is which side of life the task belongs to: work or personal.",
-		valid: oneOf("work", "personal"),
+		key: "area", flag: "area", onNew: true,
+		usage: "which side of life the task belongs to; required",
+		doc:   "--area is which side of life the task belongs to.",
 		str:   func(m *meta) *string { return &m.Area },
 	},
 	{
 		key: "project", flag: "project", onNew: true,
-		usage: "the service or repo the task ships into, lowercase kebab-case",
+		usage: "the service or repo the task ships into",
 		doc:   "--project is what the task ships into: a service at work, a repo at home; leave it out when the task belongs to none.",
 		clear: "drop project: the task belongs to none",
-		valid: func(v string) string { return unless(isSlug(v), "be lowercase kebab-case") },
 		str:   func(m *meta) *string { return &m.Project },
 	},
 	{
 		key: "scheduled", flag: "scheduled", onNew: true,
-		usage: "planned work time, RFC3339 with offset (2026-09-15T18:00:00+09:00) or a date for the whole day (2026-09-15)",
-		doc:   "--scheduled is the time the work is planned to happen, not a deadline: RFC3339 with an offset, or a date (YYYY-MM-DD) for the whole day.",
+		usage: "planned work time, or a date for the whole day",
+		doc:   "--scheduled is the time the work is planned to happen, not a deadline, or a date for the whole day.",
 		clear: "drop scheduled",
-		valid: rfc3339OrDate,
 		str:   func(m *meta) *string { return &m.Scheduled },
 	},
 	{
@@ -82,71 +74,30 @@ var fields = []field{
 		usage: "who or what the next action waits on",
 		doc:   "--waiting names who or what the next action waits on: while it is set the ball is with someone else, so the task stays in doing/.",
 		clear: "drop waiting: the ball is back",
-		valid: func(v string) string { return unless(strings.TrimSpace(v) != "", "not be blank") },
 		str:   func(m *meta) *string { return &m.Waiting },
 	},
 	{
 		key: "tickets", flag: "ticket", onNew: true,
-		usage: "work item URL: issue, Wrike, Zendesk (`https-url`); repeatable",
+		usage: "work item URL: issue, Wrike, Zendesk; repeatable",
 		clear: "drop every ticket",
-		valid: httpsURL,
 		list:  func(m *meta) *[]string { return &m.Tickets },
 	},
 	{
 		key: "prs", flag: "pr", onNew: true,
-		usage: "pull request URL (`https-url`); repeatable",
+		usage: "pull request URL; repeatable",
 		clear: "drop every pr",
-		valid: httpsURL,
 		list:  func(m *meta) *[]string { return &m.Prs },
 	},
 	{
 		key: "links", flag: "link", onNew: true,
-		usage: "any other URL: repo, article, post (`https-url`); repeatable",
+		usage: "any other URL: repo, article, post; repeatable",
 		clear: "drop every link",
-		valid: httpsURL,
 		list:  func(m *meta) *[]string { return &m.Links },
 	},
 }
 
 // urlDoc says how the three URL lists are told apart.
 const urlDoc = "a URL goes by what it points at, whoever opened it and whatever it is to this task: --ticket is a work item (an issue, a Wrike task, a Zendesk request), --pr is a pull request, --link is everything else (a repo, an article, a post). each URL is added once."
-
-func oneOf(vals ...string) func(string) string {
-	return func(v string) string {
-		return unless(slices.Contains(vals, v), "be "+strings.Join(vals, " or "))
-	}
-}
-
-// rfc3339OrDate accepts a date alone, meaning the whole day, or a time that
-// carries its offset, so the instant is never guessed.
-func rfc3339OrDate(v string) string {
-	_, errTime := time.Parse(time.RFC3339, v)
-	_, errDate := time.Parse(time.DateOnly, v)
-	return unless(errTime == nil || errDate == nil, "be RFC3339 with an offset (2026-09-15T18:00:00+09:00) or a date (2026-09-15)")
-}
-
-func httpsURL(v string) string {
-	u, err := url.Parse(v)
-	return unless(err == nil && u.Scheme == "https" && u.Host != "", "be a full https URL")
-}
-
-func unless(ok bool, must string) string {
-	if ok {
-		return ""
-	}
-	return must
-}
-
-// checkValue validates one value given to f.
-func (f field) checkValue(v string) error {
-	if f.valid == nil {
-		return nil
-	}
-	if must := f.valid(v); must != "" {
-		return fmt.Errorf("--%s must %s: %s", f.flag, must, v)
-	}
-	return nil
-}
 
 // render writes the YAML block task read prints above the body, or "" when
 // every field is empty.
@@ -211,14 +162,10 @@ type metaFlags struct {
 func addMetaFlags(cmd *cobra.Command, set bool) *metaFlags {
 	mf := &metaFlags{set: set, str: map[string]*string{}, list: map[string]*[]string{}, clear: map[string]*bool{}}
 	for _, f := range mf.fields() {
-		usage := f.usage
-		if f.required && !set {
-			usage += "; required"
-		}
 		if f.str != nil {
-			mf.str[f.key] = cmd.Flags().String(f.flag, "", usage)
+			mf.str[f.key] = cmd.Flags().String(f.flag, "", f.usage)
 		} else {
-			mf.list[f.key] = cmd.Flags().StringArray(f.flag, nil, usage)
+			mf.list[f.key] = cmd.Flags().StringArray(f.flag, nil, f.usage)
 		}
 		if set && f.clear != "" {
 			mf.clear[f.key] = cmd.Flags().Bool("clear-"+f.key, false, f.clear)
@@ -281,9 +228,6 @@ func (mf *metaFlags) apply(m *meta) error {
 			if v == "" {
 				continue
 			}
-			if err := f.checkValue(v); err != nil {
-				return err
-			}
 			*f.str(m) = v
 			continue
 		}
@@ -292,22 +236,9 @@ func (mf *metaFlags) apply(m *meta) error {
 			*dst = nil
 		}
 		for _, v := range *mf.list[f.key] {
-			if err := f.checkValue(v); err != nil {
-				return err
-			}
 			if !slices.Contains(*dst, v) {
 				*dst = append(*dst, v)
 			}
-		}
-	}
-	return nil
-}
-
-// missing returns the first required key m lacks, as an error.
-func (mf *metaFlags) missing(m *meta) error {
-	for _, f := range mf.fields() {
-		if f.required && *f.str(m) == "" {
-			return fmt.Errorf("--%s is required: %s", f.flag, f.usage)
 		}
 	}
 	return nil

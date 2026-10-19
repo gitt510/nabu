@@ -152,10 +152,11 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .menu .label { flex-grow: 1; }
 .menu .key { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0; color: var(--muted-foreground); }
 .menu .sep { height: 1px; margin: 4px 0; background: var(--border); }
-.error { color: var(--destructive); font-size: 0.8125rem; margin: 0 0 8px; }
+.error { color: var(--destructive); font-size: 0.8125rem; margin: 0 0 8px; white-space: pre-line; }
 .error:empty { display: none; }
 .drop { display: grid; gap: 8px; font-size: 0.875rem; }
 .drop label { color: var(--muted-foreground); }
+.drop .hint { color: var(--muted-foreground); font-size: 0.8125rem; margin: -4px 0 0; }
 .drop textarea { font: inherit; color: var(--foreground); background: var(--background); border: 1px solid var(--input); border-radius: 6px; padding: 6px 8px; resize: vertical; }
 .drop textarea:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
 .drop .settings-foot { margin: 0; }

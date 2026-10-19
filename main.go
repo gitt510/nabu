@@ -149,11 +149,6 @@ func readBody(content string, stdin io.Reader) ([]byte, error) {
 	return b, nil
 }
 
-// hasFrontmatter reports whether a body opens with a YAML block of its own.
-func hasFrontmatter(body []byte) bool {
-	return strings.HasPrefix(strings.TrimLeft(string(body), "\n"), "---")
-}
-
 func emit(w io.Writer, v any) int {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
