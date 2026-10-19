@@ -77,7 +77,6 @@ flowchart TD
   schema -- "Imported [build.mjs]" --> page
   api -- "Task contract [JSON Schema]" --> cli["nabu CLI (nabu task schema)"]
   api -- "422 and the reason [JSON]" --> cli
-  page -- "Page [HTML]" --> browser["Browser"]
 ```
 
 - `web/src/schema.ts` defines every rule a task must meet
