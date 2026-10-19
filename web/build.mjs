@@ -2,6 +2,7 @@
 // from /api/tasks and renders the markdown itself.
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { LINE_LIMIT } from "./src/schema.ts";
 
 const here = (name) => new URL(name, import.meta.url);
 const read = (name) => readFileSync(here(name), "utf8");
@@ -63,7 +64,7 @@ ${css}
 </dialog>
 <dialog id="drop"><button class="close" type="button" aria-label="閉じる">Esc</button><h2>Drop</h2>
   <form class="drop" id="drop-form">
-    <label for="drop-why">やらない理由（1 行 1 項目、28 字まで）</label>
+    <label for="drop-why">やらない理由（1 行 1 項目、${LINE_LIMIT - "- ".length} 字まで）</label>
     <textarea id="drop-why" rows="3"></textarea>
     <p class="error" id="drop-error" role="alert"></p>
     <p class="settings-foot"><button type="submit">dropped にする</button></p>
