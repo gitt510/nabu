@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -53,24 +54,21 @@ type result struct {
 	Frontmatter *meta  `json:"frontmatter,omitempty"`
 }
 
-// readTaskBody reads a body and splits it into its title and section fields.
-// It refuses a body that opens with a frontmatter block: task metadata comes
-// from flags only.
+// readTaskBody reads a body: a JSON object of a task's title and sections, sent to the API as it is.
 func readTaskBody(content string, e *env) (map[string]any, error) {
 	body, err := readBody(content, e.stdin)
 	if err != nil {
 		return nil, err
 	}
-	if hasFrontmatter(body) {
-		return nil, errors.New("body starts with a frontmatter block; task metadata comes from flags (see task set)")
+	var fields map[string]any
+	if err := json.Unmarshal(body, &fields); err != nil || fields == nil {
+		return nil, errors.New("the body must be a JSON object of the task's title and sections (see task schema)")
 	}
-	title, fields, err := parseBody(body)
-	if err != nil {
-		return nil, err
-	}
-	fields["title"] = title
 	return fields, nil
 }
+
+// bodyHelp is the body as the help states it; every command that takes one points here.
+const bodyHelp = "the body is a JSON object of the task's title and sections, one string per line, as task schema gives them; the API refuses one that breaks the task contract, and says why."
 
 func taskNewCmd(e *env) *cobra.Command {
 	var content string
@@ -78,7 +76,7 @@ func taskNewCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "new <slug>",
 		Short:   "file a new task in inbox",
-		Long:    "files a task in inbox; the body is read from stdin unless --content is given.\na slug already taken is refused.\nflags become the task's frontmatter, with created stamped by the API; the body must not carry one of its own; the frontmatter as stored is printed.\n" + shapeHelp,
+		Long:    "files a task in inbox; the body is read from stdin unless --content is given.\na slug already taken is refused.\nflags become the task's frontmatter, with created stamped by the API; the frontmatter as stored is printed.\n" + bodyHelp,
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
@@ -121,7 +119,7 @@ func taskReplaceCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "replace <slug>",
 		Short:   "replace a task's body, keeping its frontmatter",
-		Long:    "replaces the title and every section of a task in any status; its frontmatter is kept as is (see task set).\nthe body is read from stdin unless --content is given and must not carry a frontmatter block.\n" + shapeHelp,
+		Long:    "replaces the title and the sections the body gives, in a task of any status; its frontmatter is kept as is (see task set).\nthe body is read from stdin unless --content is given.\n" + bodyHelp,
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
@@ -186,7 +184,7 @@ func taskMvCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "mv <slug> <status>",
 		Short:   "move a task to a status (inbox, doing, done, dropped)",
-		Long:    "sets the status of a task.\ndone is finished work; dropped is work decided against, and is refused until the body carries " + strconv.Quote(whyDropped.heading) + " (see task replace)",
+		Long:    "sets the status of a task.\ndone is finished work; dropped is work decided against, and is refused until the task carries why_dropped (see task replace)",
 		GroupID: "update",
 		Args:    cobra.ExactArgs(2),
 		RunE: do(func(args []string) int {
@@ -285,7 +283,7 @@ func taskSchemaCmd(e *env) *cobra.Command {
 	return cmd
 }
 
-// document is a task as task read prints it: its frontmatter, then its body.
+// document is a task as task read prints it: its frontmatter, then its title and sections.
 func document(t api.Task) string {
 	m := metaOf(t)
 	return m.render() + renderBody(t)
@@ -295,7 +293,7 @@ func taskReadCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "read <slug>",
 		Short:   "print a task, whatever its status",
-		Long:    "prints a task as markdown: its frontmatter block, then its body in the shape task new and task replace take",
+		Long:    "prints a task as markdown to read: its frontmatter block, then its title and sections",
 		GroupID: "read",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {

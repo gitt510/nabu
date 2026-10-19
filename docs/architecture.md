@@ -80,7 +80,7 @@ sequenceDiagram
   Access->>Worker: Forwards the request [JWT]
   Worker-->>CLI: Task contract [JSON Schema]
   CLI-->>Agent: Task contract [JSON]
-  Agent->>CLI: Runs nabu task new with a body [exec]
+  Agent->>CLI: Runs nabu task new with the task [exec/JSON]
   CLI->>Access: Sends the task [HTTPS/JSON]
   Access->>Worker: Forwards the request [JWT]
   Worker->>Worker: Validates the task against the task contract
@@ -98,4 +98,4 @@ sequenceDiagram
 
 - `web/src/schema.ts` defines every rule a task must meet
 - One deploy builds the Worker and the viewer page from `web/src/schema.ts`
-- The nabu CLI turns the markdown body into the fields of a task, and checks no value
+- The nabu CLI passes the task to the API as it is, and checks no value

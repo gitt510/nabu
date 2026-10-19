@@ -20,10 +20,10 @@ const task = {
   slug: "move-runtime",
   title: "runtime を新しい version へ移行",
   area: "work",
-  situation: ["- 本番と検証が旧 runtime"],
-  complication: ["- 旧 runtime はサポートが切れる"],
-  question: ["- 期限前に止めずに移れる？"],
-  answer: ["- 未定"],
+  situation: ["本番と検証が旧 runtime"],
+  complication: ["旧 runtime はサポートが切れる"],
+  question: ["期限前に止めずに移れる？"],
+  answer: ["未定"],
 };
 
 const events = async () =>
@@ -50,7 +50,8 @@ describe("/api/tasks", () => {
     for (const bad of [
       { ...task, slug: "Bad Slug" },
       { ...task, area: "hobby" },
-      { ...task, situation: ["- " + "あ".repeat(44)] },
+      { ...task, situation: ["あ".repeat(46)] },
+      { ...task, situation: ["- 箇条書きの記号"] },
       { ...task, situation: ["## AI memo"] },
       { ...task, situation: [" "] },
       { ...task, scheduled: "tomorrow" },
@@ -73,7 +74,7 @@ describe("/api/tasks", () => {
   });
 
   it("accepts a line of exactly the limit", async () => {
-    const res = await call("POST", "/api/tasks", { ...task, situation: ["- " + "あ".repeat(43)] });
+    const res = await call("POST", "/api/tasks", { ...task, situation: ["あ".repeat(45)] });
     expect(res.status).toBe(201);
   });
 
@@ -87,10 +88,10 @@ describe("/api/tasks", () => {
   it("changes fields, drops optional ones with null, and records the row before and after", async () => {
     await call("POST", "/api/tasks", { ...task, project: "nabu", waiting: "review" });
     const res = await json(
-      await call("PATCH", "/api/tasks/move-runtime", { status: "doing", project: null, waiting: null, answer: ["- 検証 → 本番の順で切り替える"] }),
+      await call("PATCH", "/api/tasks/move-runtime", { status: "doing", project: null, waiting: null, answer: ["検証 → 本番の順で切り替える"] }),
     );
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ status: "doing", project: null, waiting: null, answer: ["- 検証 → 本番の順で切り替える"] });
+    expect(res.body).toMatchObject({ status: "doing", project: null, waiting: null, answer: ["検証 → 本番の順で切り替える"] });
 
     const row = await env.DB.prepare("SELECT before, after FROM events WHERE action = 'update'").first<{ before: string; after: string }>();
     expect(JSON.parse(row!.before)).toMatchObject({ status: "inbox", project: "nabu" });
@@ -113,7 +114,7 @@ describe("/api/tasks", () => {
     const res = await json(await call("PATCH", "/api/tasks/move-runtime", { status: "dropped" }));
     expect(res).toEqual({ status: 422, body: { error: "a dropped task needs why_dropped" } });
 
-    const ok = await call("PATCH", "/api/tasks/move-runtime", { status: "dropped", why_dropped: ["- 今は使い道がない"] });
+    const ok = await call("PATCH", "/api/tasks/move-runtime", { status: "dropped", why_dropped: ["今は使い道がない"] });
     expect(ok.status).toBe(200);
   });
 

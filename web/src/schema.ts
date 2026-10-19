@@ -36,13 +36,15 @@ const urls = z
   .refine((a) => new Set(a).size === a.length, "must not repeat a URL")
   .meta({ uniqueItems: true });
 
-// A section is its markdown lines, one per item: no blank line, no heading, none over LINE_LIMIT. The limit
+// A section is its lines, one per item: no blank line, no heading, no "- " (a line is an item already), none
+// over LINE_LIMIT. The limit
 // counts characters, not UTF-16 units as maxLength in zod would, so it stays a refine and meta carries it
 // into the JSON Schema.
 const line = z
   .string()
   .regex(/\S/, "must not be blank")
   .regex(/^(?!#)/, "must not be a heading")
+  .regex(/^(?!- )/, 'must not start with "- ": a line is one item already')
   .refine((s) => [...s].length <= LINE_LIMIT, `must be at most ${LINE_LIMIT} characters`)
   .meta({ maxLength: LINE_LIMIT });
 const section = z.array(line);
