@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/gitt510/nabu/internal/api"
@@ -444,6 +445,21 @@ func TestParseBody(t *testing.T) {
 	} {
 		if _, _, err := parseBody([]byte(bad)); err == nil {
 			t.Fatalf("accepted %q", bad)
+		}
+	}
+}
+
+func TestCreatedDateIsLocal(t *testing.T) {
+	orig := time.Local
+	time.Local = time.FixedZone("JST", 9*60*60)
+	defer func() { time.Local = orig }()
+	for in, want := range map[string]string{
+		"2026-10-18T23:30:00.000Z":  "2026-10-19",
+		"2026-10-19T08:00:00+09:00": "2026-10-19",
+		"someday":                   "-",
+	} {
+		if got := createdDate(in); got != want {
+			t.Fatalf("%s: %s want %s", in, got, want)
 		}
 	}
 }

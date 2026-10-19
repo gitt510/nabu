@@ -61,6 +61,14 @@ ${css}
   </div>
   <p class="settings-foot"><button type="button" id="s-reset">default に戻す</button></p>
 </dialog>
+<dialog id="drop"><button class="close" type="button" aria-label="閉じる">Esc</button><h2>Drop</h2>
+  <form class="drop" id="drop-form">
+    <label for="drop-why">やらない理由（1 行 1 項目、28 字まで）</label>
+    <textarea id="drop-why" rows="3"></textarea>
+    <p class="error" id="drop-error" role="alert"></p>
+    <p class="settings-foot"><button type="submit">dropped にする</button></p>
+  </form>
+</dialog>
 <script type="module">
 ${js}
 </script>
