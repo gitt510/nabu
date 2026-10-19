@@ -38,7 +38,7 @@ sequenceDiagram
   participant D1 as Cloudflare D1
 
   User->>Browser: Opens the viewer
-  Browser->>Access: Requests the page and tasks.json [HTTPS]
+  Browser->>Access: Requests the page and the tasks [HTTPS]
   Access->>Access: Verifies the session
   Access->>Worker: Forwards the request [JWT]
   Worker->>Worker: Verifies the JWT (signature, iss, aud, exp)

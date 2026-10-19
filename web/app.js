@@ -1,16 +1,23 @@
 import { marked } from "./marked.js";
 
-// tasks.json is every task in the shape of `nabu task ls --json`, read from D1; no-store, so a reload shows the latest write.
-// Each row gains what the page shows: the body as HTML without its title line, and a lowercase search text.
-const tasks = (await (await fetch("tasks.json", { cache: "no-store" })).json())
+// Every task comes from the API in one request, and the page narrows them in memory; no-store, so a reload
+// shows the latest write. Each task gains what the page shows: its frontmatter as `nabu task read` prints it,
+// the body as HTML under the title, and a lowercase search text.
+const SECTIONS = [["Situation", "situation"], ["Complication", "complication"], ["Question", "question"], ["Answer", "answer"], ["Why dropped", "why_dropped"]];
+const tasks = (await (await fetch("api/tasks", { cache: "no-store" })).json())
   .map((r) => {
-    const frontmatter = r.frontmatter ?? {};
-    let body = r.body.trim();
-    if (body.startsWith("# " + r.title)) body = body.slice(r.title.length + 2).trim();
+    const frontmatter = { created: r.created, area: r.area };
+    for (const k of ["project", "scheduled", "waiting"]) if (r[k]) frontmatter[k] = r[k];
+    for (const k of ["tickets", "prs", "links"]) if (r[k].length) frontmatter[k] = r[k];
+    // an empty reason is left out, as nabu task read leaves it out
+    const body = SECTIONS.filter(([, k]) => k !== "why_dropped" || r.why_dropped.length)
+      .map(([h, k]) => `## ${h}\n\n${r[k].join("\n")}`).join("\n\n");
     return {
-      ...r,
+      slug: r.slug,
+      status: r.status,
+      title: r.title,
       frontmatter,
-      updated: r.updated ?? "",
+      updated: r.updated,
       html: marked.parse(body),
       text: [r.title, r.slug, frontmatter.waiting ?? "", frontmatter.project ?? "", body].join("\n").toLowerCase(),
     };
@@ -245,7 +252,7 @@ function crumb(t) {
 }
 
 // ---- writes ----------------------------------------------------------------
-// The page changes a task through the API and then reloads, so tasks.json stays the one source of what it shows.
+// The page changes a task through the API and then reloads, so the API stays the one source of what it shows.
 // patch returns why the API refused, or reloads on success.
 async function patch(slug, fields) {
   let res;

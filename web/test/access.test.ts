@@ -25,8 +25,9 @@ describe("access", () => {
     }
   });
 
-  it("guards the published data too", async () => {
-    expect((await exports.default.fetch(new Request("https://nabu.test/tasks.json"))).status).toBe(401);
+  it("guards every route the Worker answers", async () => {
+    expect((await exports.default.fetch(new Request("https://nabu.test/api/tasks/any"))).status).toBe(401);
+    expect((await exports.default.fetch(new Request("https://nabu.test/anything"))).status).toBe(401);
     expect(env.ACCESS_AUD).not.toBe("");
   });
 });

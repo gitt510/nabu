@@ -83,11 +83,6 @@ export const TaskPatch = z.strictObject({
   why_dropped: section.optional(),
 });
 
-export const TaskQuery = z.strictObject({
-  status: z.enum(STATUSES).optional(),
-  q: z.string().optional(),
-});
-
 export type Status = (typeof STATUSES)[number];
 
 // Task is a task as the API returns it.

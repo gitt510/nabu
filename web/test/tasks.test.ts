@@ -111,18 +111,12 @@ describe("/api/tasks", () => {
     expect(ok.status).toBe(200);
   });
 
-  it("filters by status and finds text in any section", async () => {
-    await call("POST", "/api/tasks", task);
-    await call("POST", "/api/tasks", { slug: "other", title: "Other", area: "personal", situation: ["- 100%_done"] });
-    await call("PATCH", "/api/tasks/other", { status: "doing" });
-
-    const slugs = async (query: string) => (await json(await call("GET", `/api/tasks${query}`))).body.map((t: any) => t.slug);
-    expect(await slugs("?status=doing")).toEqual(["other"]);
-    expect(await slugs("?q=サポート")).toEqual(["move-runtime"]);
-    expect(await slugs("?q=OTHER")).toEqual(["other"]);
-    expect(await slugs("?q=0%25_d")).toEqual(["other"]);
-    expect(await slugs("?q=0%25x")).toEqual([]);
-    expect((await call("GET", "/api/tasks?status=later")).status).toBe(422);
+  it("lists every task ordered by slug", async () => {
+    await call("POST", "/api/tasks", { ...task, slug: "b" });
+    await call("POST", "/api/tasks", { ...task, slug: "a" });
+    await call("PATCH", "/api/tasks/b", { status: "doing" });
+    const { body } = await json(await call("GET", "/api/tasks"));
+    expect(body.map((t: any) => [t.slug, t.status])).toEqual([["a", "inbox"], ["b", "doing"]]);
   });
 
   it("deletes a task and keeps its events", async () => {
@@ -137,18 +131,3 @@ describe("/api/tasks", () => {
   });
 });
 
-describe("/tasks.json", () => {
-  it("serves every task in the shape of nabu task ls --json", async () => {
-    await call("POST", "/api/tasks", { ...task, project: "nabu", links: ["https://example.com/1"] });
-    await call("PATCH", "/api/tasks/move-runtime", { status: "dropped", why_dropped: ["- 今は使い道がない"] });
-    const res = await call("GET", "/tasks.json");
-    expect(res.headers.get("cache-control")).toBe("no-store");
-    const [row] = (await res.json()) as any[];
-    expect(Object.keys(row)).toEqual(["slug", "status", "title", "frontmatter", "updated", "body"]);
-    expect(row.frontmatter).toEqual({ created: row.frontmatter.created, area: "work", project: "nabu", links: ["https://example.com/1"] });
-    expect(row.body).toBe(
-      "# runtime を新しい version へ移行\n\n## Situation\n\n- 本番と検証が旧 runtime\n\n## Complication\n\n- 旧 runtime はサポートが切れる\n\n" +
-        "## Question\n\n- 期限前に止めずに移れる？\n\n## Answer\n\n- 未定\n\n## Why dropped\n\n- 今は使い道がない\n",
-    );
-  });
-});

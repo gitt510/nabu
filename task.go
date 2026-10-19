@@ -372,9 +372,12 @@ func taskLsCmd(e *env) *cobra.Command {
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			tasks, err := c.List(status, "")
+			tasks, err := c.List()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
+			}
+			if status != "" {
+				tasks = slices.DeleteFunc(tasks, func(t api.Task) bool { return t.Status != status })
 			}
 			slices.SortStableFunc(tasks, byWorkflow)
 			if asJSON {
@@ -451,7 +454,7 @@ func taskGrepCmd(e *env) *cobra.Command {
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			tasks, err := c.List("", query)
+			tasks, err := c.List()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
