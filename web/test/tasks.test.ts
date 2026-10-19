@@ -131,3 +131,13 @@ describe("/api/tasks", () => {
   });
 });
 
+describe("/api/schema", () => {
+  it("returns the task contract as JSON Schema, the line limit and the areas in it", async () => {
+    const res = await json(await call("GET", "/api/schema"));
+    expect(res.status).toBe(200);
+    for (const schema of [res.body.create, res.body.patch]) {
+      expect(schema.properties.situation.items.maxLength).toBe(45);
+      expect(schema.properties.area.enum).toEqual(["work", "personal"]);
+    }
+  });
+});

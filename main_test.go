@@ -41,6 +41,9 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewDecoder(r.Body).Decode(&f.last)
 	}
 	switch {
+	case r.Method == http.MethodGet && r.URL.Path == "/api/schema":
+		_, _ = w.Write([]byte(`{"create":{"type":"object"},"patch":{"type":"object"}}`))
+		return
 	case r.Method == http.MethodGet && r.URL.Path == "/api/tasks":
 		out := []api.Task{}
 		for _, t := range f.tasks {
@@ -371,6 +374,9 @@ func TestTaskMvRenameRmViaCLI(t *testing.T) {
 	}
 	nabu(exitOK, "", "task", "rm", "renamed")
 	nabu(exitFail, "", "task", "rm", "renamed")
+	if got := nabu(exitOK, "", "task", "schema"); !strings.Contains(got, `"create"`) {
+		t.Fatalf("schema: %s", got)
+	}
 	if _, ok := f.tasks["renamed"]; ok {
 		t.Fatal("rm left the task")
 	}

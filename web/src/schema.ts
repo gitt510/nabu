@@ -14,36 +14,40 @@ export const LISTS = ["tickets", "prs", "links"] as const;
 
 const kebab = z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/, "must be lowercase kebab-case");
 
-// scheduled is the planned work time: RFC3339 with an offset, or a date for the whole day.
+// scheduled is the planned work time: RFC3339 with an offset, or a date for the whole day. The pattern
+// carries the shape into the JSON Schema; the refine still rejects a date that does not exist.
 const scheduled = z
   .string()
-  .refine(
-    (s) =>
-      (/^\d{4}-\d{2}-\d{2}$/.test(s) || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/.test(s)) &&
-      !Number.isNaN(Date.parse(s)),
+  .regex(
+    /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2}))?$/,
     "must be RFC3339 with an offset (2026-09-15T18:00:00+09:00) or a date (2026-09-15)",
-  );
+  )
+  .refine((s) => !Number.isNaN(Date.parse(s)), "must be a date that exists");
 
-const httpsURL = z.string().refine((s) => {
-  try {
-    const u = new URL(s);
-    return u.protocol === "https:" && u.host !== "";
-  } catch {
-    return false;
-  }
-}, "must be a full https URL");
+// httpsURL is a full https URL: the pattern for the JSON Schema, the refine for a URL that parses.
+const httpsURL = z
+  .string()
+  .regex(/^https:\/\/[^\s/?#]+/, "must be a full https URL")
+  .refine((s) => URL.canParse(s), "must be a full https URL");
 
-const urls = z.array(httpsURL).refine((a) => new Set(a).size === a.length, "must not repeat a URL");
+const urls = z
+  .array(httpsURL)
+  .refine((a) => new Set(a).size === a.length, "must not repeat a URL")
+  .meta({ uniqueItems: true });
 
-// A section is its markdown lines, one per item: no blank line, no heading, none over LINE_LIMIT.
+// A section is its markdown lines, one per item: no blank line, no heading, none over LINE_LIMIT. The limit
+// counts characters, not UTF-16 units as maxLength in zod would, so it stays a refine and meta carries it
+// into the JSON Schema.
 const line = z
   .string()
-  .refine((s) => s.trim() !== "", "must not be blank")
-  .refine((s) => !s.startsWith("#"), "must not be a heading")
-  .refine((s) => [...s].length <= LINE_LIMIT, `must be at most ${LINE_LIMIT} characters`);
+  .regex(/\S/, "must not be blank")
+  .regex(/^(?!#)/, "must not be a heading")
+  .refine((s) => [...s].length <= LINE_LIMIT, `must be at most ${LINE_LIMIT} characters`)
+  .meta({ maxLength: LINE_LIMIT });
 const section = z.array(line);
+const whyDropped = section.meta({ description: "why the task was decided against; a dropped task needs one line at least" });
 
-const nonBlank = z.string().refine((s) => s.trim() !== "" && !s.includes("\n"), "must be one non-blank line");
+const nonBlank = z.string().regex(/^[^\n]*\S[^\n]*$/, "must be one non-blank line");
 
 // TaskCreate is POST /api/tasks: a new task always starts in inbox.
 export const TaskCreate = z.strictObject({
@@ -60,7 +64,7 @@ export const TaskCreate = z.strictObject({
   complication: section.default([]),
   question: section.default([]),
   answer: section.default([]),
-  why_dropped: section.default([]),
+  why_dropped: whyDropped.default([]),
 });
 
 // TaskPatch is PATCH /api/tasks/:slug: any field, where null drops an optional value and a list replaces
@@ -80,7 +84,7 @@ export const TaskPatch = z.strictObject({
   complication: section.optional(),
   question: section.optional(),
   answer: section.optional(),
-  why_dropped: section.optional(),
+  why_dropped: whyDropped.optional(),
 });
 
 export type Status = (typeof STATUSES)[number];
@@ -110,3 +114,10 @@ export type Task = {
 export function whole(t: Pick<Task, "status" | "why_dropped">): string | undefined {
   if (t.status === "dropped" && t.why_dropped.length === 0) return "a dropped task needs why_dropped";
 }
+
+// contract is the task contract as JSON Schema, what GET /api/schema returns. whole has no JSON Schema form,
+// so whyDropped says it in words.
+export const contract = {
+  create: z.toJSONSchema(TaskCreate, { io: "input", unrepresentable: "any" }),
+  patch: z.toJSONSchema(TaskPatch, { io: "input", unrepresentable: "any" }),
+};

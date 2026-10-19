@@ -29,7 +29,7 @@ func taskCmd(e *env) *cobra.Command {
 	)
 	cmd.AddCommand(
 		taskLsCmd(e), taskGrepCmd(e),
-		taskReadCmd(e),
+		taskReadCmd(e), taskSchemaCmd(e),
 		taskNewCmd(e), taskReplaceCmd(e), taskSetCmd(e), taskMvCmd(e), taskRenameCmd(e), taskRmCmd(e),
 	)
 	return cmd
@@ -297,6 +297,28 @@ func taskRmCmd(e *env) *cobra.Command {
 				return fail(e.stderr, err, exitFail)
 			}
 			return emit(e.stdout, result{Action: "task rm", Slug: slug})
+		}),
+	}
+	return cmd
+}
+
+func taskSchemaCmd(e *env) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "schema",
+		Short:   "print the rules a task must meet",
+		Long:    "prints the task contract as JSON Schema, as the API serves it: create for task new, patch for the rest.\nthe API refuses a write that breaks it",
+		GroupID: "read",
+		Args:    cobra.NoArgs,
+		RunE: do(func([]string) int {
+			c, err := client()
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			s, err := c.Schema()
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			return emit(e.stdout, s)
 		}),
 	}
 	return cmd
