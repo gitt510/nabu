@@ -49,7 +49,7 @@ jobs:
     with:
       r2-bucket: nabu
     secrets:
-      R2_EDIT: ${{ secrets.R2_EDIT }}
+      CLOUDFLARE_R2_EDIT_API_TOKEN: ${{ secrets.CLOUDFLARE_R2_EDIT_API_TOKEN }}
 ```
 
 - The publish workflow replaces `<r2-bucket>/tasks.json` with the tasks of the branch the run starts on: the default branch on schedule
@@ -57,7 +57,7 @@ jobs:
 - `nabu publish` pushes the notebook and starts the workflow on the current branch at once, through `gh`
 - `nabu publish` prints the URL of the run it started, and reports a push that landed without a run
 - `nabu publish` needs `gh` signed in, a single remote `origin`, and the caller workflow on the branch it starts
-- `R2_EDIT` is a Cloudflare API token with R2 edit permission in the account that holds `r2-bucket`
+- `CLOUDFLARE_R2_EDIT_API_TOKEN` is a Cloudflare API token with R2 edit permission in the account that holds `r2-bucket`
 - A newer run cancels an older one still running
 
 ## Agent skill

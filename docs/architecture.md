@@ -18,7 +18,7 @@ sequenceDiagram
   CLI->>GitHub: Dispatches publish.yml on the branch [gh/HTTPS]
   GitHub-->>CLI: Run URL
   CLI-->>User: Upstream, ref, and run URL [JSON]
-  GitHub->>Actions: Starts the publish run with R2_EDIT [workflow_dispatch]
+  GitHub->>Actions: Starts the publish run with CLOUDFLARE_R2_EDIT_API_TOKEN [workflow_dispatch]
   Actions->>R2: Replaces tasks.json [Wrangler/HTTPS, API token]
   R2->>R2: Verifies the API token
   R2-->>Actions: 200 OK
