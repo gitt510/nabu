@@ -27,7 +27,9 @@ createServer(async (req, res) => {
     if (path === "/") execFileSync(process.execPath, ["build.mjs"], { cwd: new URL(".", import.meta.url), stdio: "inherit" });
     const file = path === "/" ? "index.html" : path.slice(1);
     res.writeHead(200, { "content-type": types[file.slice(file.lastIndexOf("."))] ?? "application/octet-stream" });
-    res.end(readFileSync(new URL(file, dist)));
+    const data = readFileSync(new URL(file, dist));
+    // The tab says dev, so it is not mistaken for the deployed viewer.
+    res.end(file === "index.html" ? data.toString().replace("<title>nabu</title>", "<title>nabu (dev)</title>") : data);
   } catch (e) {
     res.writeHead(e.code === "ENOENT" ? 404 : 502, { "content-type": "text/plain; charset=utf-8" });
     res.end(e.code === "ENOENT" ? "not found" : `${e.message}\nsigned in? run cloudflared access login ${url}`);

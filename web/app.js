@@ -73,10 +73,7 @@ const VIEWS = [
   { id: "done", label: "Done", pick: (t) => t.status === "done", folder: true, icon: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>' },
   { id: "dropped", label: "Dropped", pick: (t) => t.status === "dropped", folder: true, icon: '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>' },
 ];
-// The list's order: newest first by the key the toggle names. created is when the task was filed;
-// updated is the API's last write to it, a status change included.
-const SORTS = { updated: (t) => t.updated, created: (t) => t.frontmatter.created };
-const PROPS = ["scheduled", "waiting", "area", "project", "tickets", "prs", "links", "created"];
+const PROPS = ["area", "project", "created", "updated", "tickets", "prs", "links"];
 const today = new Date().toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
 const dayOf = (iso) => instant(iso).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
 const isLate = (iso) => instant(iso) < new Date() && dayOf(iso) !== today;
@@ -85,27 +82,31 @@ const store = (() => { try { return JSON.parse(localStorage.getItem("nabu-view")
 const save = () => { try { localStorage.setItem("nabu-view", JSON.stringify(store)); } catch {} };
 const viewOf = (id) => VIEWS.find((v) => v.id === id) ?? VIEWS[0];
 let view = viewOf(store.view);
-let sort = store.sort in SORTS ? store.sort : "updated";
 
 // What the search box and the area / project rows let through.
 function keep(t) {
   const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
   return words.every((w) => t.text.includes(w)) && (!pick.area || t.frontmatter.area === pick.area) && (!pick.project || t.frontmatter.project === pick.project);
 }
+// The list's order: by when each task was filed, newest first unless the header's arrow turned it.
+let oldest = store.oldest === true;
 const listed = (v) => {
-  const key = SORTS[sort];
-  return tasks.filter((t) => v.pick(t) && keep(t)).sort((a, b) => (key(a) < key(b) ? 1 : key(a) > key(b) ? -1 : 0));
+  const sign = oldest ? 1 : -1;
+  return tasks.filter((t) => v.pick(t) && keep(t)).sort((a, b) => sign * (instant(a.frontmatter.created) - instant(b.frontmatter.created)));
 };
+function flipOrder() {
+  oldest = !oldest;
+  store.oldest = oldest;
+  save();
+  renderList();
+}
 
 function fileButton(t) {
   const fm = t.frontmatter;
   const day = (iso) => fmt(iso).split(" ")[0];
-  // Each date names its key: the scheduled one first when there is one (red once it has passed), then the sort key's.
-  const sub = el("span", { class: "sub" }, t.status);
-  if (fm.scheduled) sub.append(" · scheduled ", el("span", { class: isLate(fm.scheduled) ? "late" : "" }, day(fm.scheduled)));
-  sub.append(` · ${sort} ${day(SORTS[sort](t))}`);
-  if (fm.waiting) sub.append(el("span", { class: "flag" }, "⏳"));
-  return el("button", { class: "file", "data-slug": t.slug, "data-status": t.status, type: "button", tabindex: "-1", title: t.slug, onclick: () => select(t.slug) }, el("span", { class: "name" }, t.title), sub);
+  // One line: the title, a flag while it waits on someone else, and when it was filed, so a task left alone shows.
+  return el("button", { class: "file", "data-slug": t.slug, "data-status": t.status, type: "button", tabindex: "-1", title: t.slug, onclick: () => select(t.slug) },
+    el("span", { class: "name" }, t.title), fm.waiting ? el("span", { class: "flag" }, "⏳") : "", el("span", { class: "when" }, day(fm.created)));
 }
 
 // Area, then the projects in it. Each is a single choice; pressing the chosen one again lets everything through.
@@ -143,7 +144,9 @@ function renderList() {
   stop?.classList.toggle("active", stop.dataset.slug === active);
   if (stop) stop.tabIndex = 0; // the column's one Tab stop
   $("count").textContent = `${items.length} / ${tasks.filter(view.pick).length}`;
-  for (const b of $("sort").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.sort === sort));
+  const order = $("order");
+  order.innerHTML = `created${svg(oldest ? '<path d="M12 19V5M5 12l7-7 7 7"/>' : '<path d="M12 5v14M5 12l7 7 7-7"/>')}`;
+  order.title = `${oldest ? "古い" : "新しい"}順 (s)`;
 }
 
 function setView(v) {
@@ -151,12 +154,6 @@ function setView(v) {
   store.view = v.id;
   save();
   renderViews();
-  renderList();
-}
-function setSort(key) {
-  sort = key;
-  store.sort = key;
-  save();
   renderList();
 }
 const stepView = (delta) => setView(VIEWS[(VIEWS.indexOf(view) + delta + VIEWS.length) % VIEWS.length]);
@@ -223,23 +220,29 @@ function select(slug, push = true) {
   // A task outside the current view (opened from the URL or Home) shows under All.
   if (!view.pick(t) && view.id !== "all") setView(VIEWS[0]);
   for (const b of files.querySelectorAll(".file")) b.classList.toggle("active", b.dataset.slug === slug);
-  // Properties: keys verbatim, in PROPS order (what to do next first), not file order.
+  // Properties: every key in PROPS order, always, so each sits in the same place; a key without a value shows a dash.
   const meta = el("dl", { class: "meta" });
-  const fm = t.frontmatter;
+  const fm = { ...t.frontmatter, updated: t.updated };
   const value = (key, v) => {
     if (Array.isArray(v)) return v.map((u) => el("a", { href: u, target: "_blank", rel: "noopener" }, ticket(u)));
-    if (key === "created" || key === "scheduled") return [fmt(v)];
+    if (key === "created" || key === "updated" || key === "scheduled") return [fmt(v)];
     if (key === "area" || key === "project") return [el("button", { class: `chip ${key}`, type: "button", title: `${v} で絞り込む`, onclick: () => narrowTo(fm.area, key === "project" ? v : "") }, v)];
     return [v];
   };
-  for (const key of PROPS) if (fm[key]?.length) meta.append(el("div", {}, el("dt", {}, key), el("dd", {}, ...value(key, fm[key]))));
+  for (const key of PROPS) meta.append(el("div", {}, el("dt", {}, key), el("dd", {}, ...(fm[key]?.length ? value(key, fm[key]) : [el("span", { class: "none" }, "—")]))));
   const body = el("div", { class: "body" });
   body.innerHTML = t.html;
-  doc.replaceChildren(el("div", { class: "crumb" }, crumb(t), statusControl(t)), el("p", { class: "error", id: "doc-error", role: "alert" }), el("h1", {}, t.title), meta, body);
+  // The slug and the title stay on top while the body scrolls; the rail sticks just under them.
+  const head = el("header", { class: "doc-head" }, el("div", { class: "crumb" }, crumb(t), statusControl(t)), el("p", { class: "error", id: "doc-error", role: "alert" }), el("h1", {}, t.title));
+  doc.replaceChildren(head, el("div", { class: "railed" }, body, meta));
+  headSize.disconnect();
+  headSize.observe(head);
   if (push) history.replaceState(null, "", `#${slug}`);
   main.scrollTop = 0;
   if (push) closeSide();
 }
+
+const headSize = new ResizeObserver(([e]) => doc.style.setProperty("--head-h", `${e.target.offsetHeight}px`));
 
 // The slug line above the title; a click copies the slug, the name every nabu task command takes.
 function crumb(t) {
@@ -366,7 +369,7 @@ const shortcuts = [
   { key: "[ / ]", label: "前 / 次の一覧へ", run: null },
   { key: "[", run: () => stepView(-1) },
   { key: "]", run: () => stepView(1) },
-  { key: "s", label: "updated / created の並び順を切り替える", run: () => setSort(sort === "updated" ? "created" : "updated") },
+  { key: "s", label: "created の新しい順と古い順を入れ替える", run: flipOrder },
   { key: "m", label: "開いているタスクの status を変える", run: () => $("status-menu")?.togglePopover() },
   { key: "j / ↓", label: "本文を下へスクロール", run: null },
   { key: "j", run: () => scroll(80) },
@@ -440,15 +443,15 @@ function runGlobal(e) {
 
 // ---- help & settings ---------------------------------------------------------
 $("keys").append(...shortcuts.flatMap((s) => (s.group ? [el("div", { class: "group" }, s.group)] : s.label ? [el("dt", {}, s.key), el("dd", {}, s.label)] : [])));
-for (const b of $("sort").querySelectorAll("button")) b.addEventListener("click", () => setSort(b.dataset.sort));
 for (const d of document.querySelectorAll("dialog")) d.querySelector(".close").addEventListener("click", () => d.close());
 $("home-btn").addEventListener("click", () => select(""));
+$("order").addEventListener("click", flipOrder);
 $("help-btn").addEventListener("click", () => toggle($("help")));
 $("settings-btn").addEventListener("click", () => toggle($("settings")));
 
 const SETTINGS = {
   font: { def: 18, apply: (v) => (document.documentElement.style.fontSize = `${v}px`), unit: "px" },
-  side: { def: 300, apply: (v) => document.documentElement.style.setProperty("--side-w", `${v}px`), unit: "px" },
+  side: { def: 264, apply: (v) => document.documentElement.style.setProperty("--side-w", `${v}px`), unit: "px" },
   width: { def: 50, apply: (v) => document.documentElement.style.setProperty("--doc-w", `${v}rem`), unit: "rem" },
 };
 const inputs = [...document.querySelectorAll(".settings input")];
