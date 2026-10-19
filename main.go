@@ -1,7 +1,6 @@
-// nabu keeps one markdown repository, the notebook, for tasks and drafts.
+// nabu keeps one markdown repository, the notebook, for tasks.
 // Every task lives under tasks/ and every write is a git commit, so an agent
-// (or a human) never edits the notebook by hand. One file, CANVAS.md, is the exception: a
-// draft the user edits by hand and the agent revises through nabu.
+// (or a human) never edits the notebook by hand.
 package main
 
 import (
@@ -19,14 +18,13 @@ import (
 	"github.com/gitt510/nabu/internal/store"
 )
 
-const rootLong = `nabu keeps one markdown repository, the notebook, for tasks and drafts.
+const rootLong = `nabu keeps one markdown repository, the notebook, for tasks.
 
 The notebook is a git repository; every change is committed as it is made,
 and pushed to its upstream when auto_push is set in the config file.
-Commands that change the notebook report the result as JSON; task read, canvas
-read, and canvas diff print raw text; task ls, task grep, and task validate
-print a table on a terminal, plain text when piped, and JSON with --json.
-CANVAS.md is ignored by git.
+Commands that change the notebook report the result as JSON; task read prints
+raw text; task ls, task grep, and task validate print a table on a terminal,
+plain text when piped, and JSON with --json.
 
 The notebook comes from notebook in %s`
 
@@ -47,12 +45,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	e := &env{stdin: stdin, stdout: stdout, stderr: stderr}
 	root := parentCmd(e, &cobra.Command{
 		Use:           "nabu",
-		Short:         "keep tasks and drafts in one markdown repository",
+		Short:         "keep tasks in one markdown repository",
 		Long:          fmt.Sprintf(rootLong, config.Path()),
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	})
-	root.AddCommand(taskCmd(e), canvasCmd(e), pushCmd(e), publishCmd(e), initCmd(e))
+	root.AddCommand(taskCmd(e), pushCmd(e), publishCmd(e), initCmd(e))
 	root.SetArgs(args)
 	root.SetIn(stdin)
 	root.SetOut(stdout)

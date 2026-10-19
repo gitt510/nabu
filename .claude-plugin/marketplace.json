@@ -8,8 +8,8 @@
     {
       "name": "nabu",
       "source": "./",
-      "description": "Agent skills (task, canvas) for the nabu task CLI"
+      "description": "Agent skill (task) for the nabu task CLI"
     }
   ],
-  "description": "Agent skills (task, canvas) for the nabu task CLI"
+  "description": "Agent skill (task) for the nabu task CLI"
 }

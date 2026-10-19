@@ -26,7 +26,6 @@ nabu init
 ### notebook
 
 - Every nabu command that writes makes one git commit of the files it touched
-- `CANVAS.md` is the exception and is never committed
 - nabu never commits a change it did not make
 
 ### auto_push
@@ -86,32 +85,6 @@ agent: nabu task new review-pr-68 --area work --ticket https://github.com/o/r/pu
 - The body is SCQA: `## Situation`, `## Complication`, `## Question`, `## Answer`
 - [`frontmatter.go`](frontmatter.go) defines every frontmatter key, its flag, and the values it accepts
 - [`shape.go`](shape.go) defines the body shape that `task validate` checks
-
-## Canvas
-
-### Example
-
-```
-user:  PR #68 のコメント、一緒に書きたい
-agent: nabu canvas open
-→ CANVAS.md を editor で開いてください
-
-(user edits CANVAS.md by hand)
-
-user:  直した、添削して
-agent: nabu canvas diff        # reads your edits first
-       nabu canvas write
-
-user:  いいね。保存しておいて
-agent: nabu canvas save pr68-comment --ticket https://github.com/o/r/pull/68
-→ gallery/pr68-comment.md
-```
-
-### Overview
-
-- `CANVAS.md` at the top of the notebook holds one draft at a time
-- `canvas save <slug>` moves the draft to `gallery/<slug>.md` and commits it
-- The `nabu:canvas` skill reads the hand edits with `canvas diff` before every `canvas write`
 
 ## Development
 

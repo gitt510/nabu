@@ -93,10 +93,7 @@ func Init(dir string) (InitResult, error) {
 			return r, err
 		}
 	}
-	if err := os.WriteFile(filepath.Join(abs, ".gitignore"), []byte(CanvasFile+"\n"+canvasSnapshot+"\n"), 0o644); err != nil {
-		return r, err
-	}
-	r.Committed, err = s.Commit("nabu: init", "README.md", ".gitignore")
+	r.Committed, err = s.Commit("nabu: init", "README.md")
 	return r, err
 }
 
@@ -121,9 +118,6 @@ func (s *Store) Resolve(p string) (string, error) {
 	}
 	if strings.HasPrefix(clean, ".git"+string(filepath.Separator)) || clean == ".git" {
 		return "", fmt.Errorf("path is inside .git: %s", p)
-	}
-	if isCanvasPath(filepath.ToSlash(clean)) {
-		return "", fmt.Errorf("%s is the canvas (use nabu canvas)", clean)
 	}
 	if filepath.Ext(clean) != ".md" {
 		return "", fmt.Errorf("path must end in .md: %s", p)
@@ -271,7 +265,7 @@ func (s *Store) List(dir string) ([]Entry, error) {
 			}
 			return nil
 		}
-		if filepath.Ext(path) != ".md" || isCanvasPath(s.Rel(path)) {
+		if filepath.Ext(path) != ".md" {
 			return nil
 		}
 		out = append(out, Entry{Path: s.Rel(path), Title: firstTitle(path)})
