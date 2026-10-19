@@ -63,8 +63,11 @@ nabu task grep <query> [--json]              # where something is written in tas
    The sections are SCQA, the introduction Barbara Minto lays out in *The
    Pyramid Principle*. The body is only what the user reads: no steps,
    commands, or notes for the agent, and no other `## ` section. A line
-   holds at most 30 characters; a fact that does not fit is cut, not moved
+   holds at most 45 characters; a fact that does not fit is cut, not moved
    elsewhere. The agent finds the details again when it does the work.
+   Load the `gitt510-skills:writing-documents` skill, when it is
+   available, before writing a body, and write every bullet under it;
+   where the two disagree, the task shape here wins.
 3. **Move with `task mv`.** Run `nabu task mv <slug> doing` when work
    starts and `... done` when it ends. Never write a status into the body
    or the frontmatter.
@@ -94,7 +97,7 @@ nabu task grep <query> [--json]              # where something is written in tas
    it, so the user can correct an `area` or `project` you chose on the
    spot.
 7. **Fix what the API refuses.** nabu exits 2 with the API's reason when a
-   body or a value breaks the rules (a line over 30 characters, a dropped
+   body or a value breaks the rules (a line over 45 characters, a dropped
    task without a reason); rewrite and run the command again.
 
 ## Do not

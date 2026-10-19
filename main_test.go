@@ -104,8 +104,8 @@ func overlay(t *api.Task, fields map[string]any) error {
 	*t = api.Task{}
 	_ = json.Unmarshal(b, t)
 	for _, l := range slices.Concat(t.Situation, t.Complication, t.Question, t.Answer, t.WhyDropped) {
-		if utf8.RuneCountInString(l) > 30 {
-			return errors.New("situation.0: must be at most 30 characters")
+		if utf8.RuneCountInString(l) > 45 {
+			return errors.New("situation.0: must be at most 45 characters")
 		}
 	}
 	if t.Status == "dropped" && len(t.WhyDropped) == 0 {
@@ -254,7 +254,7 @@ func TestTaskNewViaCLI(t *testing.T) {
 		{"task", "new", "ok", "--area", "work", "--content", "---\na: b\n---\n" + ok},
 		{"task", "new", "ok", "--area", "work", "--content", "# Ok\n\n- 見出しの前\n"},
 		{"task", "new", "ok", "--area", "work", "--content", body("Ok", "- x\n") + "\n## AI memo\n\nnotes\n"},
-		{"task", "new", "ok", "--area", "work", "--content", body("Ok", "- "+strings.Repeat("あ", 29)+"\n")},
+		{"task", "new", "ok", "--area", "work", "--content", body("Ok", "- "+strings.Repeat("あ", 44)+"\n")},
 	} {
 		nabu(exitUsage, "", args...)
 	}
