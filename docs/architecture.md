@@ -65,7 +65,7 @@ sequenceDiagram
 ## Task contract
 
 ```mermaid
-flowchart LR
+flowchart TD
   schema["web/src/schema.ts"]
 
   subgraph worker_box["Worker (nabu)"]
