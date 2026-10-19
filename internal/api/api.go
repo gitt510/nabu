@@ -94,22 +94,10 @@ func cloudflared(app string) (string, error) {
 	return token, nil
 }
 
-// List returns every task, or those in status and those containing q
-// (either may be ""), ordered by slug.
-func (c *Client) List(status, q string) ([]Task, error) {
-	v := url.Values{}
-	if status != "" {
-		v.Set("status", status)
-	}
-	if q != "" {
-		v.Set("q", q)
-	}
-	path := "/api/tasks"
-	if len(v) > 0 {
-		path += "?" + v.Encode()
-	}
+// List returns every task, ordered by slug; callers narrow them themselves.
+func (c *Client) List() ([]Task, error) {
 	var out []Task
-	return out, c.do(http.MethodGet, path, nil, &out)
+	return out, c.do(http.MethodGet, "/api/tasks", nil, &out)
 }
 
 // Get returns one task.

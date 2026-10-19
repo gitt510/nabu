@@ -23,14 +23,6 @@ check:
 install:
     go install .
 
-# Render the tasks and the viewer into web/dist/ and serve them on localhost:8000
-view:
-    pnpm install --frozen-lockfile --silent
-    cd web && pnpm --silent build
-    go run . task ls --json > web/dist/tasks.json
-    open http://localhost:8000
-    python3 -m http.server -d web/dist 8000
-
 # Build the viewer and deploy it with the Worker that serves the API
 deploy:
     pnpm install --frozen-lockfile --silent

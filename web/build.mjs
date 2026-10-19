@@ -1,5 +1,5 @@
-// Builds dist/index.html and dist/marked.js, the viewer without its data; the page fetches tasks.json,
-// which the Worker reads from D1 in the shape of `nabu task ls --json`, and renders the markdown itself.
+// Builds dist/index.html and dist/marked.js, the viewer without its data; the page fetches every task
+// from /api/tasks and renders the markdown itself.
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
@@ -79,5 +79,3 @@ ${js}
 mkdirSync(here("dist/"), { recursive: true });
 writeFileSync(here("dist/index.html"), page);
 copyFileSync(createRequire(import.meta.url).resolve("marked").replace(/marked\.cjs$/, "marked.esm.js"), here("dist/marked.js"));
-// The data comes from the Worker behind Access, never as a static asset.
-writeFileSync(here("dist/.assetsignore"), "tasks.json\n");

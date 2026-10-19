@@ -2,9 +2,9 @@
 // same batch, so the row and its history never disagree.
 import { zValidator } from "@hono/zod-validator";
 import { Hono, type Context } from "hono";
-import { LISTS, SECTIONS, type Task, TaskCreate, TaskPatch, TaskQuery, whole } from "./schema";
+import { LISTS, SECTIONS, type Task, TaskCreate, TaskPatch, whole } from "./schema";
 
-export type Row = Omit<Task, (typeof LISTS)[number] | (typeof SECTIONS)[number]> & { id: number } & Record<
+type Row = Omit<Task, (typeof LISTS)[number] | (typeof SECTIONS)[number]> & { id: number } & Record<
     (typeof LISTS)[number] | (typeof SECTIONS)[number],
     string
   >;
@@ -12,7 +12,7 @@ export type Row = Omit<Task, (typeof LISTS)[number] | (typeof SECTIONS)[number]>
 const JSON_COLUMNS = [...LISTS, ...SECTIONS];
 const COLUMNS = ["slug", "title", "status", "area", "project", "scheduled", "waiting", ...JSON_COLUMNS, "created", "updated"] as const;
 
-export const toTask = ({ id: _, ...row }: Row): Task => {
+const toTask = ({ id: _, ...row }: Row): Task => {
   const t = { ...row } as Record<string, unknown>;
   for (const k of JSON_COLUMNS) t[k] = JSON.parse(row[k]);
   return t as Task;
@@ -47,23 +47,9 @@ const event = (db: D1Database, action: string, slug: string, before: Task | null
     .bind(slug, now(), action, before && JSON.stringify(before), after && JSON.stringify(after));
 
 export const tasks = new Hono<{ Bindings: Env }>()
-  .get("/", zValidator("query", TaskQuery, hook), async (c) => {
-    const { status, q } = c.req.valid("query");
-    const where: string[] = [];
-    const args: string[] = [];
-    if (status) {
-      where.push("status = ?");
-      args.push(status);
-    }
-    if (q) {
-      // LIKE ignores ASCII case; the escape keeps % and _ in the query literal.
-      const cols = ["slug", "title", "project", "waiting", ...SECTIONS];
-      where.push(`(${cols.map((k) => `${k} LIKE ? ESCAPE '\\'`).join(" OR ")})`);
-      const like = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
-      args.push(...cols.map(() => like));
-    }
-    const sql = `SELECT * FROM tasks${where.length ? ` WHERE ${where.join(" AND ")}` : ""} ORDER BY slug`;
-    const { results } = await c.env.DB.prepare(sql).bind(...args).all<Row>();
+  // Every task, ordered by slug: callers narrow them themselves while the list stays small.
+  .get("/", async (c) => {
+    const { results } = await c.env.DB.prepare("SELECT * FROM tasks ORDER BY slug").all<Row>();
     return c.json(results.map(toTask));
   })
 

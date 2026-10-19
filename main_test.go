@@ -24,8 +24,6 @@ type fakeAPI struct {
 	tasks map[string]api.Task
 	// last is the JSON body of the last write, as the CLI sent it.
 	last map[string]any
-	// query is the query string of the last list.
-	query string
 }
 
 func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -44,14 +42,9 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	switch {
 	case r.Method == http.MethodGet && r.URL.Path == "/api/tasks":
-		f.query = r.URL.RawQuery
 		out := []api.Task{}
 		for _, t := range f.tasks {
-			b, _ := json.Marshal(t)
-			if (r.URL.Query().Get("status") == "" || t.Status == r.URL.Query().Get("status")) &&
-				strings.Contains(strings.ToLower(string(b)), strings.ToLower(r.URL.Query().Get("q"))) {
-				out = append(out, t)
-			}
+			out = append(out, t)
 		}
 		slices.SortFunc(out, func(a, b api.Task) int { return strings.Compare(a.Slug, b.Slug) })
 		_ = json.NewEncoder(w).Encode(out)
@@ -384,7 +377,7 @@ func TestTaskMvRenameRmViaCLI(t *testing.T) {
 }
 
 func TestTaskLsAndGrepViaCLI(t *testing.T) {
-	f, nabu := newAPI(t)
+	_, nabu := newAPI(t)
 	nabu(exitOK, body("B doing", "- 未定\n"), "task", "new", "b", "--area", "work")
 	nabu(exitOK, body("A inbox", "- PING them\n"), "task", "new", "a", "--area", "personal")
 	nabu(exitOK, "", "task", "set", "a", "--waiting", "their reply")
@@ -410,9 +403,6 @@ func TestTaskLsAndGrepViaCLI(t *testing.T) {
 	// grep searches the task as read prints it, frontmatter included
 	if got := nabu(exitOK, "", "task", "grep", "ping"); got != "a:22: - PING them\n" {
 		t.Fatalf("grep: %q", got)
-	}
-	if f.query != "q=ping" {
-		t.Fatalf("grep query: %q", f.query)
 	}
 	if got := nabu(exitOK, "", "task", "grep", "their reply"); got != "a:4: waiting: \"their reply\"\n" {
 		t.Fatalf("grep frontmatter: %q", got)
