@@ -35,3 +35,8 @@ view:
 deploy:
     pnpm install --frozen-lockfile --silent
     cd web && pnpm --silent build && pnpm exec wrangler deploy
+
+# Upload the working tree as a preview at https://preview-nabu.gitt510.workers.dev; production keeps serving, but writes reach the production D1
+preview:
+    pnpm install --frozen-lockfile --silent
+    cd web && pnpm --silent build && pnpm exec wrangler versions upload --preview-alias preview
