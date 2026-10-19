@@ -76,14 +76,15 @@ flowchart TD
   schema -- "Bundled [wrangler deploy]" --> api
   schema -- "Imported [build.mjs]" --> page
   api -- "Task contract [JSON Schema]" --> cli["nabu CLI (nabu task schema)"]
-  api -- "422 and the reason [JSON]" --> cli
+  api -- "422 and every reason [JSON]" --> cli
   cli -- "Task contract [JSON]" --> agent["Agent (nabu:task skill)"]
+  cli -- "Exit 2 and every reason [text]" --> agent
 ```
 
 - `web/src/schema.ts` defines every rule a task must meet
 - The API refuses every write that breaks the task contract, and names every problem
 - The API serves the task contract at `/api/schema`
 - `nabu task schema` prints the task contract the API serves
-- The nabu CLI checks no value itself and relays the API's reason when it refuses one
+- The nabu CLI checks no value itself and relays every reason the API gives when it refuses one
 - The nabu:task skill reads the task contract through `nabu task schema` before it writes
 - The viewer page takes the task contract from `web/src/schema.ts` at build
