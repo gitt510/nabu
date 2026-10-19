@@ -46,28 +46,28 @@ nabu publish                                 # push, then update the viewer now 
    ```markdown
    # <title>
 
-   ## For Human
+   ## Situation
 
-   ### Now
+   - <what is so now>
 
-   - <one fact about the current state>
+   ## Complication
 
-   ### Next
+   - <what goes wrong with it, and why now>
 
-   - [ ] <one action, ends in a verb>
+   ## Question
 
-   ---
+   - <what the task has to answer>
 
-   ## AI memo
+   ## Answer
 
-   <everything else: config facts, commands, candidates, rejected ideas>
+   - <the answer, or 未定 until there is one>
    ```
 
-   `For Human` is what the user reads to know where the task stands and
-   what comes next. A fact that does not fit its line limit goes to `AI
-   memo`, with a shorter line here. Checkboxes live in `Next` only, never
-   in `AI memo`, so a task has one place that says what is done. `AI
-   memo` is free markdown for the agent: as dense as the work needs.
+   The sections are SCQA, the introduction Barbara Minto lays out in *The
+   Pyramid Principle*. The body is only what the user reads: no steps,
+   commands, or notes for the agent, and no other `## ` section. A fact
+   that does not fit the line limit is cut, not moved elsewhere; the
+   agent finds the details again when it does the work.
 3. **Move with `task mv`.** Run `nabu task mv <slug> doing` when work
    starts and `... done` when it ends. Never write a status into the body or
    frontmatter; the folder is the status.
@@ -83,8 +83,9 @@ nabu publish                                 # push, then update the viewer now 
    replace` takes the new body on stdin, in the task shape, and keeps
    the frontmatter; `task set` changes the frontmatter
    and keeps the body. Never write a frontmatter block by hand: a body
-   that starts with `---` is refused. Rewrite `Now` as state ("password
-   auth is off"), not as a log of what was done.
+   that starts with `---` is refused. Write Situation as state ("password
+   auth is off"), not as a log of what was done. Revise the body only when
+   the user asks; do not propose updates to it.
 5. **Mark a wait with `task set --waiting`.** When the user has done their
    part and waits on someone else (a reply, a review), keep the task in
    `doing/` and run `nabu task set <slug> --waiting "<who or what>"`;

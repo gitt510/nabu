@@ -495,12 +495,12 @@ func TestGrepAndValidateTables(t *testing.T) {
 	if h := highlight("Ping them, ping", "PING"); ansi.Strip(h) != "Ping them, ping" || strings.Count(h, "\x1b[") < 2 {
 		t.Fatalf("highlight: %q", h)
 	}
-	got = ansi.Strip(validateTable([]verdict{{Path: "tasks/inbox/ok.md"}, {Path: "tasks/x.md", Error: "no ## For Human"}}, 0))
+	got = ansi.Strip(validateTable([]verdict{{Path: "tasks/inbox/ok.md"}, {Path: "tasks/x.md", Error: "no ## Situation"}}, 0))
 	want = `╭────────┬────────┬──────┬─────────────────╮
 │ RESULT │ STATUS │ TASK │ PROBLEM         │
 ├────────┼────────┼──────┼─────────────────┤
 │ ok     │ inbox  │ ok   │                 │
-│ bad    │ stray  │ x    │ no ## For Human │
+│ bad    │ stray  │ x    │ no ## Situation │
 ╰────────┴────────┴──────┴─────────────────╯`
 	if got != want {
 		t.Fatalf("validate:\n%s\nwant:\n%s", got, want)
@@ -546,7 +546,7 @@ func TestTaskReadLsGrepViaCLI(t *testing.T) {
 	if strings.Contains(got, `"scheduled"`) {
 		t.Fatalf("ls --json prints empty scheduled: %s", got)
 	}
-	if got := nabu(exitOK, "", "task", "grep", "PING"); got != "tasks/doing/wait.md:16: ping them\n" {
+	if got := nabu(exitOK, "", "task", "grep", "PING"); got != "tasks/doing/wait.md:18: ping them\n" {
 		t.Fatalf("grep: %q", got)
 	}
 	if got := nabu(exitOK, "", "task", "grep", "nothing-here", "--json"); strings.TrimSpace(got) != "[]" {
@@ -554,38 +554,39 @@ func TestTaskReadLsGrepViaCLI(t *testing.T) {
 	}
 }
 
-// shaped is the smallest body task new and task replace accept: a title, an
-// empty For Human, the rule, and memo as the AI memo.
-func shaped(title, memo string) string {
-	return "# " + title + "\n\n## For Human\n\n---\n\n## AI memo\n\n" + memo
+// shaped is the smallest body task new and task replace accept: a title,
+// the four sections, and answer under the last one.
+func shaped(title, answer string) string {
+	return "# " + title + "\n\n## Situation\n\n## Complication\n\n## Question\n\n## Answer\n\n" + answer
 }
 
 func TestTaskShape(t *testing.T) {
 	_, nabu := newNotebook(t)
-	head := "# T\n\n## For Human\n\n"
-	tail := "\n---\n\n## AI memo\n\nfree *prose*, any length, --- lines too\n---\n"
+	head := "# T\n\n## Situation\n\n- 本番と検証が旧 runtime\n\n## Complication\n\n"
+	tail := "\n## Question\n\n- 期限前に止めずに移れる？\n\n## Answer\n\n"
 	for i, body := range []string{
-		head + "### Now\n\n- 鍵は 1Password 経由、disk に無い\n\n### Next\n\n- [ ] 蓋を閉じても tailnet で届く設定\n- [x] " + strings.Repeat("あ", 24) + tail,
-		head + "a sentence outside a bullet" + tail,
-		head + "## Now\n" + tail,
-		"# T\n## For Human\n---\n## AI memo\n",
-		head + tail + "\n## For Human\n",
+		head + "- " + strings.Repeat("あ", 28) + "\n### sub\n" + tail + "- 未定\n",
+		head + tail,
+		"# " + strings.Repeat("a", 40) + "\n## Situation\n## Complication\n## Question\n## Answer\n",
+		head + tail + "## Why dropped\n\n- 主導権が自分にない\n",
 	} {
 		nabu(exitOK, body, "task", "new", "ok"+strconv.Itoa(i), "--area", "work")
 	}
 	for _, body := range []string{
 		"# T\n\n- [ ] x\n",
 		head + "- x\n",
-		"# T\n\n## AI memo\n\n---\n\n## For Human\n\n- x\n",
-		head + "- x\n\n## AI memo\n",
-		head + strings.Repeat("あ", 31) + tail,
-		head + "- [ ] " + strings.Repeat("a", 25) + tail,
-		head + "### " + strings.Repeat("a", 27) + tail,
+		"# T\n\n## Complication\n\n## Situation\n\n## Question\n\n## Answer\n",
+		head + tail + "---\n\n## AI memo\n\nfree prose\n",
+		head + "## Note\n" + tail,
+		head + tail + "## Answer\n",
+		head + strings.Repeat("あ", 31) + "\n" + tail,
+		head + "- [ ] " + strings.Repeat("a", 25) + "\n" + tail,
+		head + "### " + strings.Repeat("a", 27) + "\n" + tail,
 	} {
 		nabu(exitUsage, body, "task", "new", "bad", "--area", "work")
 		nabu(exitUsage, body, "task", "replace", "ok0")
 	}
-	if got := nabu(exitUsage, head+strings.Repeat("あ", 31)+tail, "task", "new", "bad", "--area", "work"); got != "" {
+	if got := nabu(exitUsage, head+strings.Repeat("あ", 31)+"\n"+tail, "task", "new", "bad", "--area", "work"); got != "" {
 		t.Fatalf("stdout on refusal: %q", got)
 	}
 }
@@ -609,7 +610,7 @@ func TestTaskValidateViaCLI(t *testing.T) {
 	if code := run([]string{"task", "validate"}, strings.NewReader(""), &out, &errb); code != exitFail {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
-	if got := out.String(); got != "ok    tasks/inbox/ok.md\nbad   tasks/doing/old.md: body has no \"## For Human\" section\n" {
+	if got := out.String(); got != "ok    tasks/inbox/ok.md\nbad   tasks/doing/old.md: body has no \"## Situation\" section\n" {
 		t.Fatalf("all: %q", got)
 	}
 	out.Reset()
@@ -632,9 +633,8 @@ func TestTaskValidateViaCLI(t *testing.T) {
 
 func TestTaskDroppedViaCLI(t *testing.T) {
 	dir, nabu := newNotebook(t)
-	head := "# T\n\n## For Human\n\n"
-	tail := "\n---\n\n## AI memo\n\nlong story\n"
-	why := head + "### Why dropped\n\n- 主導権が自分にない\n" + tail
+	empty := shaped("T", "")
+	why := empty + "## Why dropped\n\n- 主導権が自分にない\n"
 	nabu(exitOK, shaped("T", ""), "task", "new", "t", "--area", "work")
 
 	// mv to dropped is refused until the body says why
@@ -642,7 +642,7 @@ func TestTaskDroppedViaCLI(t *testing.T) {
 	if code := run([]string{"task", "mv", "t", "dropped"}, strings.NewReader(""), &out, &errb); code != exitUsage {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
-	if !strings.Contains(errb.String(), `needs a "### Why dropped" heading`) || !strings.Contains(errb.String(), "task replace first") {
+	if !strings.Contains(errb.String(), `needs a "## Why dropped" section`) || !strings.Contains(errb.String(), "task replace first") {
 		t.Fatalf("stderr: %q", errb.String())
 	}
 	if _, err := os.Stat(filepath.Join(dir, "tasks", "inbox", "t.md")); err != nil {
@@ -650,7 +650,7 @@ func TestTaskDroppedViaCLI(t *testing.T) {
 	}
 
 	// a heading with nothing under it is not a reason
-	nabu(exitOK, head+"### Why dropped\n"+tail, "task", "replace", "t")
+	nabu(exitOK, empty+"## Why dropped\n", "task", "replace", "t")
 	if code := run([]string{"task", "mv", "t", "dropped"}, strings.NewReader(""), &out, &errb); code != exitUsage {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
