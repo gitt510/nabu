@@ -8,9 +8,9 @@ description: File and move the user's tasks through the `nabu` CLI, which keeps 
 A task lives behind the nabu API, and nabu is the only way to it. Its
 status is one of `inbox` (new), `doing` (started), `done` (finished), and
 `dropped` (decided against). `nabu task -h` is the source of truth for the
-contract, [`frontmatter.go`](../../frontmatter.go) for every frontmatter key
-and the values it accepts, and [`web/src/schema.ts`](../../web/src/schema.ts)
-for every rule a write must meet; this file only says how to use them well.
+commands and their flags, and `nabu task schema` for every rule a write
+must meet: the keys, the values they accept, and the line limit. This file
+only says how to use them well.
 
 ## Commands
 
@@ -25,16 +25,18 @@ nabu task rename <slug> <new-slug>           # new slug, same status and content
 nabu task rm <slug>                          # delete a task, whatever its status
 nabu task ls [status] [--json]               # status, title, created; --json adds slug, the frontmatter, and the body
 nabu task read <slug>                        # a task's content, any status
+nabu task schema                             # the rules a write must meet, as JSON Schema
 nabu task grep <query> [--json]              # where something is written in tasks
 ```
 
 ## How to work
 
 1. **Check what exists first.** `nabu task ls --json` before filing so a
-   task is not filed twice.
+   task is not filed twice, and `nabu task schema` before writing so the
+   values and lines meet the rules.
 2. **File with `task new`.** The slug names the task; the body (stdin)
    is markdown in the task shape, written as below. Metadata goes through
-   the flags `frontmatter.go` defines, never hand-written in the body.
+   the flags `nabu task -h` lists, never hand-written in the body.
    Do not invent a `--scheduled` time the user did not give. Leave
    `--project` out when the task spans several or the repo does not
    exist yet, and reuse a project already in `task ls --json` rather
@@ -63,8 +65,8 @@ nabu task grep <query> [--json]              # where something is written in tas
    The sections are SCQA, the introduction Barbara Minto lays out in *The
    Pyramid Principle*. The body is only what the user reads: no steps,
    commands, or notes for the agent, and no other `## ` section. A line
-   holds at most 45 characters; a fact that does not fit is cut, not moved
-   elsewhere. The agent finds the details again when it does the work.
+   holds at most the `maxLength` `nabu task schema` gives; a fact that does
+   not fit is cut, not moved elsewhere. The agent finds the details again when it does the work.
    Load the `gitt510-skills:writing-documents` skill, when it is
    available, before writing a body, and write every bullet under it;
    where the two disagree, the task shape here wins.
@@ -97,8 +99,8 @@ nabu task grep <query> [--json]              # where something is written in tas
    it, so the user can correct an `area` or `project` you chose on the
    spot.
 7. **Fix what the API refuses.** nabu exits 2 with the API's reason when a
-   body or a value breaks the rules (a line over 45 characters, a dropped
-   task without a reason); rewrite and run the command again.
+   body or a value breaks the rules (a line too long, a dropped task
+   without a reason); rewrite and run the command again.
 
 ## Do not
 

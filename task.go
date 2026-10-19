@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -33,18 +32,6 @@ func taskCmd(e *env) *cobra.Command {
 		taskNewCmd(e), taskReplaceCmd(e), taskSetCmd(e), taskMvCmd(e), taskRenameCmd(e), taskRmCmd(e),
 	)
 	return cmd
-}
-
-var slugPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
-
-// isSlug reports whether s is lowercase kebab-case, the shape of a slug and a project.
-func isSlug(s string) bool { return slugPattern.MatchString(s) }
-
-func checkSlug(slug string) error {
-	if !isSlug(slug) {
-		return fmt.Errorf("slug must be lowercase kebab-case: %s", slug)
-	}
-	return nil
 }
 
 func checkStatus(status string) error {
@@ -96,14 +83,8 @@ func taskNewCmd(e *env) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
 			slug := arg(args, 0)
-			if err := checkSlug(slug); err != nil {
-				return fail(e.stderr, err, exitUsage)
-			}
 			var m meta
 			if err := mf.apply(&m); err != nil {
-				return fail(e.stderr, err, exitUsage)
-			}
-			if err := mf.missing(&m); err != nil {
 				return fail(e.stderr, err, exitUsage)
 			}
 			fields, err := readTaskBody(content, e)
@@ -145,9 +126,6 @@ func taskReplaceCmd(e *env) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
 			slug := arg(args, 0)
-			if err := checkSlug(slug); err != nil {
-				return fail(e.stderr, err, exitUsage)
-			}
 			fields, err := readTaskBody(content, e)
 			if err != nil {
 				return fail(e.stderr, err, exitUsage)
@@ -177,9 +155,6 @@ func taskSetCmd(e *env) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
 			slug := arg(args, 0)
-			if err := checkSlug(slug); err != nil {
-				return fail(e.stderr, err, exitUsage)
-			}
 			if !mf.given() {
 				return fail(e.stderr, errors.New("nothing to set: pass at least one frontmatter flag"), exitUsage)
 			}
@@ -216,12 +191,6 @@ func taskMvCmd(e *env) *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		RunE: do(func(args []string) int {
 			slug, status := arg(args, 0), arg(args, 1)
-			if err := checkSlug(slug); err != nil {
-				return fail(e.stderr, err, exitUsage)
-			}
-			if err := checkStatus(status); err != nil {
-				return fail(e.stderr, err, exitUsage)
-			}
 			c, err := client()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
@@ -255,11 +224,6 @@ func taskRenameCmd(e *env) *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		RunE: do(func(args []string) int {
 			slug, newSlug := arg(args, 0), arg(args, 1)
-			for _, v := range []string{slug, newSlug} {
-				if err := checkSlug(v); err != nil {
-					return fail(e.stderr, err, exitUsage)
-				}
-			}
 			if slug == newSlug {
 				return fail(e.stderr, fmt.Errorf("new slug is the same as the old one: %s", slug), exitUsage)
 			}
@@ -286,9 +250,6 @@ func taskRmCmd(e *env) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
 			slug := arg(args, 0)
-			if err := checkSlug(slug); err != nil {
-				return fail(e.stderr, err, exitUsage)
-			}
 			c, err := client()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
@@ -339,9 +300,6 @@ func taskReadCmd(e *env) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
 			slug := arg(args, 0)
-			if err := checkSlug(slug); err != nil {
-				return fail(e.stderr, err, exitUsage)
-			}
 			c, err := client()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)

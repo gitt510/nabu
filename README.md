@@ -57,7 +57,7 @@ agent: nabu task new review-pr-68 --area work --pr https://github.com/o/r/pull/6
 - A dropped task also carries `## Why dropped`
 - The API refuses a task out of shape, so no stored task is out of shape
 - Every write keeps the task before and after it as an event
-- [`frontmatter.go`](frontmatter.go) defines every frontmatter key, its flag, and the values it accepts
+- [`frontmatter.go`](frontmatter.go) maps every frontmatter key to its flag, and passes each value to the API unchecked
 - [`web/src/schema.ts`](web/src/schema.ts) defines every rule a write must meet
 - `nabu task schema` prints those rules as JSON Schema, as the API serves them at `/api/schema`
 
