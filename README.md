@@ -116,3 +116,4 @@ agent: nabu canvas save pr68-comment --ticket https://github.com/o/r/pull/68
 ## Development
 
 - `just` lists the recipes, such as `just test` and `just check`
+- [`docs/architecture.md`](docs/architecture.md) draws the routes that cross containers
