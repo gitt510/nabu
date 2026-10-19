@@ -75,7 +75,7 @@ flowchart TD
 
   schema -- "Bundled [wrangler deploy]" --> api
   schema -- "Imported [build.mjs]" --> page
-  api -- "Task contract [JSON Schema]" --> cli["nabu CLI"]
+  api -- "Task contract [JSON Schema]" --> cli["nabu CLI (nabu task schema)"]
   api -- "422 and the reason [JSON]" --> cli
   page -- "Page [HTML]" --> browser["Browser"]
 ```
@@ -83,4 +83,5 @@ flowchart TD
 - `web/src/schema.ts` defines every rule a task must meet
 - The API refuses every write that breaks the task contract
 - The API serves the task contract at `/api/schema`
+- `nabu task schema` prints the task contract the API serves
 - The viewer page takes the task contract from `web/src/schema.ts` at build
