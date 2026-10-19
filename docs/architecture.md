@@ -65,26 +65,35 @@ sequenceDiagram
 ## Task contract
 
 ```mermaid
-flowchart TD
-  schema["web/src/schema.ts"]
+sequenceDiagram
+  autonumber
+  actor Agent as Agent (nabu:task skill)
+  participant CLI as nabu CLI
+  participant Access as Cloudflare Access
+  participant Worker as Worker (nabu)
+  participant D1 as Cloudflare D1
 
-  subgraph worker_box["Worker (nabu)"]
-    api["API"]
-    page["Viewer page"]
+  Agent->>CLI: Runs nabu task schema [exec]
+  CLI->>Access: Requests the task contract [HTTPS]
+  Access->>Worker: Forwards the request [JWT]
+  Worker-->>CLI: Task contract [JSON Schema]
+  CLI-->>Agent: Task contract [JSON]
+  Agent->>CLI: Runs nabu task new with a body [exec]
+  CLI->>CLI: Checks the headings of the body
+  CLI->>Access: Sends the task [HTTPS/JSON]
+  Access->>Worker: Forwards the request [JWT]
+  Worker->>Worker: Validates the task against the task contract
+  alt The task breaks the task contract
+    Worker-->>CLI: 422 and every reason [JSON]
+    CLI-->>Agent: Exit 2 and every reason [text]
+  else The task meets the task contract
+    Worker->>D1: Writes the task [binding/SQL]
+    D1-->>Worker: Rows
+    Worker-->>CLI: Task [JSON]
+    CLI-->>Agent: Result [JSON]
   end
-
-  schema -- "Bundled [wrangler deploy]" --> api
-  schema -- "Imported [build.mjs]" --> page
-  api -- "Task contract [JSON Schema]" --> cli["nabu CLI (nabu task schema)"]
-  api -- "422 and every reason [JSON]" --> cli
-  cli -- "Task contract [JSON]" --> agent["Agent (nabu:task skill)"]
-  cli -- "Exit 2 and every reason [text]" --> agent
 ```
 
 - `web/src/schema.ts` defines every rule a task must meet
-- The API refuses every write that breaks the task contract, and names every problem
-- The API serves the task contract at `/api/schema`
-- `nabu task schema` prints the task contract the API serves
-- The nabu CLI checks no value itself and relays every reason the API gives when it refuses one
-- The nabu:task skill reads the task contract through `nabu task schema` before it writes
-- The viewer page takes the task contract from `web/src/schema.ts` at build
+- One deploy builds the Worker and the viewer page from `web/src/schema.ts`
+- The nabu CLI checks the headings of a body, and no value
