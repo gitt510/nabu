@@ -15,8 +15,8 @@ only says how to use them well.
 ## Commands
 
 ```bash
-nabu task new <slug> --area <area> [<frontmatter flags>]  # file in inbox, body on stdin
-nabu task replace <slug>                     # new body on stdin; frontmatter is kept
+nabu task new <slug> --area <area> [<frontmatter flags>]  # file in inbox, JSON body on stdin
+nabu task replace <slug>                     # the fields to change, JSON on stdin; frontmatter is kept
 nabu task set <slug> --waiting "<who/what>"  # the ball is with someone else
 nabu task set <slug> --clear-waiting         # the ball is back
 nabu task set <slug> <frontmatter flags>    # other metadata; --clear-* drops
@@ -24,7 +24,7 @@ nabu task mv <slug> <inbox|doing|done|dropped>  # change the status
 nabu task rename <slug> <new-slug>           # new slug, same status and content
 nabu task rm <slug>                          # delete a task, whatever its status
 nabu task ls [status] [--json]               # status, title, created; --json adds slug, the frontmatter, and the body
-nabu task read <slug>                        # a task's content, any status
+nabu task read <slug>                        # a task's content as markdown, any status
 nabu task schema                             # the rules a write must meet, as JSON Schema
 nabu task grep <query> [--json]              # where something is written in tasks
 ```
@@ -35,36 +35,26 @@ nabu task grep <query> [--json]              # where something is written in tas
    task is not filed twice, and `nabu task schema` before writing so the
    values and lines meet the rules.
 2. **File with `task new`.** The slug names the task; the body (stdin)
-   is markdown in the task shape, written as below. Metadata goes through
+   is a JSON object in the task shape, written as below. Metadata goes through
    the flags `nabu task -h` lists, never hand-written in the body.
    Do not invent a `--scheduled` time the user did not give. Leave
    `--project` out when the task spans several or the repo does not
    exist yet, and reuse a project already in `task ls --json` rather
    than coining a near-duplicate.
 
-   ```markdown
-   # <title>
-
-   ## Situation
-
-   - <what is so now>
-
-   ## Complication
-
-   - <what goes wrong with it, and why now>
-
-   ## Question
-
-   - <what the task has to answer>
-
-   ## Answer
-
-   - <the answer, or 未定 until there is one>
+   ```json
+   {
+     "title": "<title>",
+     "situation": ["- <what is so now>"],
+     "complication": ["- <what goes wrong with it, and why now>"],
+     "question": ["- <what the task has to answer>"],
+     "answer": ["- <the answer, or 未定 until there is one>"]
+   }
    ```
 
    The sections are SCQA, the introduction Barbara Minto lays out in *The
    Pyramid Principle*. The body is only what the user reads: no steps,
-   commands, or notes for the agent, and no other `## ` section. A line
+   commands, or notes for the agent, and no other key. A line
    holds at most the `maxLength` `nabu task schema` gives; a fact that does
    not fit is cut, not moved elsewhere. The agent finds the details again when it does the work.
    Load the `gitt510-skills:writing-documents` skill, when it is
@@ -74,17 +64,17 @@ nabu task grep <query> [--json]              # where something is written in tas
    starts and `... done` when it ends. Never write a status into the body
    or the frontmatter.
    A task the user decides not to do ("やらない", "見送り", "won't do")
-   goes to `dropped`, not `done`. First `task replace` the body with the
-   reason under `## Why dropped`, after `## Answer`, then
+   goes to `dropped`, not `done`. First `task replace` with the reason in
+   `why_dropped` (`{"why_dropped": ["- <reason>"]}`), then
    `nabu task mv <slug> dropped`.
    A task that should not have been filed at all (a duplicate, a mistake,
    「消して」「削除して」) is deleted with `nabu task rm <slug>`, whatever its
    status. Delete only when the user asks; a decision not to do the work
    is `dropped`.
 4. **Revise with `task replace` and `task set`.** `task replace` takes the
-   new body on stdin, in the task shape, and keeps the frontmatter; `task
-   set` changes the frontmatter and keeps the body. A body that starts
-   with `---` is refused. Write Situation as state ("password auth is
+   keys to change on stdin, in the task shape, and keeps the rest and the
+   frontmatter; `task set` changes the frontmatter and keeps the body.
+   Write Situation as state ("password auth is
    off"), not as a log of what was done. Revise the body only when the user
    asks; do not propose updates to it.
 5. **Mark a wait with `task set --waiting`.** When the user has done their
