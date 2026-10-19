@@ -260,13 +260,57 @@ async function patch(slug, fields) {
   location.reload();
 }
 
-// The status of the open task, in workflow order; dropped asks why first.
+// The status of the open task: a button that opens a menu of the statuses, each with its sidebar icon.
+// Dropped sits apart below a rule and asks why first. The menu follows the ARIA menu pattern: arrows,
+// Home / End, 1–4, Enter; Esc and a click outside close it (popover="auto").
+const STATUSES = ["inbox", "doing", "done", "dropped"];
+const statusLabel = (s) => (s === "dropped" ? "Drop…" : s[0].toUpperCase() + s.slice(1));
+const statusIcon = (s) => svg(VIEWS.find((v) => v.id === s).icon);
+const chevron = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+const check = '<svg class="check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>';
+
 function statusControl(t) {
-  const group = el("div", { class: "status", role: "group", "aria-label": "status" });
-  for (const s of ["inbox", "doing", "done", "dropped"]) {
-    group.append(el("button", { type: "button", "aria-pressed": String(t.status === s), onclick: () => move(t, s) }, s));
-  }
-  return group;
+  const trigger = el("button", { type: "button", class: "status-btn", popovertarget: "status-menu", "aria-haspopup": "menu", "aria-expanded": "false", title: "status を変える (m)" });
+  trigger.innerHTML = statusIcon(t.status) + `<span>${t.status === "dropped" ? "Dropped" : statusLabel(t.status)}</span>` + chevron;
+  const menu = el("div", { id: "status-menu", class: "menu", popover: "auto", role: "menu", "aria-label": "status" });
+  STATUSES.forEach((s, i) => {
+    if (s === "dropped") menu.append(el("div", { class: "sep", role: "separator" }));
+    const item = el("button", { type: "button", role: "menuitemradio", "aria-checked": String(t.status === s), tabindex: "-1", onclick: () => { menu.hidePopover(); move(t, s); } });
+    item.innerHTML = statusIcon(s) + `<span class="label">${statusLabel(s)}</span>` + (t.status === s ? check : "") + `<span class="key">${i + 1}</span>`;
+    menu.append(item);
+  });
+  const items = () => [...menu.querySelectorAll("[role=menuitemradio]")];
+  const focusAt = (i) => { const all = items(); all[(i + all.length) % all.length].focus(); };
+  // Below the button, its right edge on the button's; above it when the page has no room below.
+  menu.addEventListener("beforetoggle", (e) => {
+    if (e.newState !== "open") return;
+    const r = trigger.getBoundingClientRect();
+    Object.assign(menu.style, { top: `${r.bottom + 4}px`, right: `${document.documentElement.clientWidth - r.right}px` });
+  });
+  menu.addEventListener("toggle", (e) => {
+    const open = e.newState === "open";
+    trigger.setAttribute("aria-expanded", String(open));
+    if (open) {
+      const r = trigger.getBoundingClientRect();
+      const h = menu.getBoundingClientRect().height;
+      if (r.bottom + 4 + h > innerHeight && r.top - 4 - h > 0) menu.style.top = `${r.top - 4 - h}px`;
+      focusAt(Math.max(0, STATUSES.indexOf(t.status)));
+    } else if (!document.activeElement || document.activeElement === document.body || menu.contains(document.activeElement)) trigger.focus();
+  });
+  // Every key inside the menu stays there, so the page's shortcuts never fire behind it.
+  menu.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    const at = items().indexOf(document.activeElement);
+    if (e.key === "ArrowDown" || e.key === "j") focusAt(at + 1);
+    else if (e.key === "ArrowUp" || e.key === "k") focusAt(at - 1);
+    else if (e.key === "Home") focusAt(0);
+    else if (e.key === "End") focusAt(-1);
+    else if (/^[1-4]$/.test(e.key)) items()[Number(e.key) - 1].click();
+    else if (e.key === "Tab") menu.hidePopover();
+    else return;
+    e.preventDefault();
+  });
+  return el("span", { class: "status-picker" }, trigger, menu);
 }
 async function move(t, status) {
   if (t.status === status) return;
@@ -317,6 +361,7 @@ const shortcuts = [
   { key: "[", run: () => stepView(-1) },
   { key: "]", run: () => stepView(1) },
   { key: "s", label: "updated / created の並び順を切り替える", run: () => setSort(sort === "updated" ? "created" : "updated") },
+  { key: "m", label: "開いているタスクの status を変える", run: () => $("status-menu")?.togglePopover() },
   { key: "j / ↓", label: "本文を下へスクロール", run: null },
   { key: "j", run: () => scroll(80) },
   { key: "ArrowDown", run: () => scroll(80) },

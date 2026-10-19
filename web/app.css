@@ -135,12 +135,23 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .settings label, .settings .label { color: var(--muted-foreground); }
 .settings output { font-family: var(--font-mono); letter-spacing: 0; color: var(--muted-foreground); min-width: 4ch; text-align: right; }
 .settings input[type="range"] { width: 100%; }
-.theme { grid-column: 2 / -1; justify-self: start; }
-/* A segmented control: the theme in the settings, the status of the open task. */
-.theme, .status { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-.theme button, .status button { font: inherit; font-size: 0.8125rem; color: var(--muted-foreground); background: none; border: 0; padding: 3px 12px; cursor: pointer; }
-.theme button:hover, .status button:hover { background: var(--accent); }
-.theme button[aria-pressed="true"], .status button[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
+.theme { grid-column: 2 / -1; display: inline-flex; justify-self: start; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.theme button { font: inherit; font-size: 0.8125rem; color: var(--muted-foreground); background: none; border: 0; padding: 3px 12px; cursor: pointer; }
+.theme button:hover { background: var(--accent); }
+.theme button[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
+/* The status picker: a button in the crumb row, and the menu it opens in the top layer. */
+.status-btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-sans); font-size: 0.8125rem; letter-spacing: 0.02em; color: var(--foreground); background: var(--accent); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.status-btn svg { color: var(--muted-foreground); }
+.status-btn:hover { border-color: var(--muted-foreground); }
+.status-btn:focus-visible, .menu button:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.menu { position: fixed; inset: auto; margin: 0; width: 13rem; padding: 4px; border: 1px solid var(--border); border-radius: 8px; color: var(--foreground); background: var(--background); box-shadow: 0 8px 24px rgb(0 0 0 / .14); }
+.menu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 0 8px; font-family: var(--font-sans); font-size: 0.8125rem; color: inherit; background: none; border: 0; border-radius: 4px; cursor: pointer; text-align: left; }
+.menu button:hover, .menu button:focus-visible { background: var(--accent); }
+.menu button svg { flex-shrink: 0; color: var(--muted-foreground); }
+.menu button .check { color: var(--primary); }
+.menu .label { flex-grow: 1; }
+.menu .key { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0; color: var(--muted-foreground); }
+.menu .sep { height: 1px; margin: 4px 0; background: var(--border); }
 .error { color: var(--destructive); font-size: 0.8125rem; margin: 0 0 8px; }
 .error:empty { display: none; }
 .drop { display: grid; gap: 8px; font-size: 0.875rem; }
