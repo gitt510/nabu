@@ -17,8 +17,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
       - run: go test ./...
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --silent check
+        working-directory: web
+      - run: pnpm --silent test
+        working-directory: web
 
-  # Deploys the viewer page; the tasks it shows come from the publish workflow, not from here.
+  # Deploys the viewer page and the API; the tasks the page shows come from the publish workflow, not from here.
   deploy:
     needs: test
     uses: gitt510/.github/.github/workflows/deploy-worker-pnpm.yml@6b1d55c320755e6cd34095a80ed064a0ca367d72

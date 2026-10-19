@@ -8,12 +8,16 @@ run *args:
 # Run all tests; extra flags pass through (e.g. just test -v)
 test *args:
     go test {{args}} ./...
+    pnpm install --frozen-lockfile --silent
+    cd web && pnpm --silent test
 
 # Verify formatting and run static analysis
 check:
     test -z "$(gofmt -l .)"
     go vet ./...
     golangci-lint run
+    pnpm install --frozen-lockfile --silent
+    cd web && pnpm --silent check
 
 # Build and install the binary into GOBIN
 install:
@@ -27,7 +31,7 @@ view:
     open http://localhost:8000
     python3 -m http.server -d web/dist 8000
 
-# Build the viewer and deploy it with the Worker that serves what the publish workflow uploads
+# Build the viewer and deploy it with the Worker that serves the API and what the publish workflow uploads
 deploy:
     pnpm install --frozen-lockfile --silent
     cd web && pnpm --silent build && pnpm exec wrangler deploy
