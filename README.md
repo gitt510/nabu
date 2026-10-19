@@ -59,9 +59,10 @@ agent: nabu task new review-pr-68 --area work --pr https://github.com/o/r/pull/6
 - Every write keeps the task before and after it as an event
 - [`frontmatter.go`](frontmatter.go) defines every frontmatter key, its flag, and the values it accepts
 - [`web/src/schema.ts`](web/src/schema.ts) defines every rule a write must meet
+- `nabu task schema` prints those rules as JSON Schema, as the API serves them at `/api/schema`
 
 ## Development
 
 - `just` lists the recipes, such as `just test` and `just check`
 - `web/migrations/` holds the D1 schema, applied with `wrangler d1 migrations apply nabu --remote`
-- [`docs/architecture.md`](docs/architecture.md) draws the routes that cross containers
+- [`docs/architecture.md`](docs/architecture.md) draws the routes that cross containers and how the task contract reaches each consumer
