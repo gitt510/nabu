@@ -46,3 +46,18 @@ sequenceDiagram
   D1-->>Worker: Rows
   Worker-->>Browser: Page [HTML] and tasks [JSON]
 ```
+
+## Preview
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User
+  participant Just as just preview
+  participant CF as Cloudflare API
+
+  User->>Just: Runs [just]
+  Just->>CF: Uploads a version as preview-nabu [HTTPS + wrangler login]
+  CF->>CF: Verifies the wrangler login can edit Workers
+  CF-->>Just: https://preview-nabu.gitt510.workers.dev
+```

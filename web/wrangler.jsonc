@@ -15,6 +15,6 @@
     "ACCESS_TEAM_DOMAIN": "rapid-hall-57f2.cloudflareaccess.com",
     "ACCESS_AUD": "3e3890f23a5a9f73811e7ead2d21bf3fadccd4f470665919120aba129a67d9f5"
   },
-  // Version preview URLs would sit outside Access.
-  "preview_urls": false
+  // Version preview URLs sit behind the same Access application as workers.dev, so `just preview` can share one.
+  "preview_urls": true
 }
