@@ -26,28 +26,6 @@ sequenceDiagram
   CLI-->>User: Result [JSON or markdown]
 ```
 
-## nabu task schema
-
-```mermaid
-sequenceDiagram
-  autonumber
-  actor User
-  participant CLI as nabu CLI
-  participant Cloudflared as cloudflared
-  participant Access as Cloudflare Access
-  participant Worker as Worker (nabu)
-
-  User->>CLI: Runs nabu task schema
-  CLI->>Cloudflared: Asks for the Access token of the Worker [exec]
-  Cloudflared-->>CLI: Token, or not signed in
-  CLI->>Access: Requests the task contract with the token [HTTPS]
-  Access->>Access: Verifies the token
-  Access->>Worker: Forwards the request [JWT]
-  Worker->>Worker: Verifies the JWT (signature, iss, aud, exp)
-  Worker-->>CLI: Task contract [JSON Schema]
-  CLI-->>User: Task contract [JSON]
-```
-
 ## Viewer
 
 ```mermaid
@@ -84,15 +62,25 @@ sequenceDiagram
   CF-->>Just: https://preview-nabu.gitt510.workers.dev
 ```
 
-## Sources
+## Task contract
 
-| File | Root of |
-|---|---|
-| `web/src/schema.ts` | Task contract |
-| `web/src/index.ts` | Worker and API |
-| `web/build.mjs` | Viewer page |
-| `main.go` | nabu CLI |
+```mermaid
+flowchart LR
+  schema["web/src/schema.ts"]
 
-- `web/src/schema.ts` is the only file that defines a rule a task must meet
-- The Worker serves the contract at `/api/schema` and refuses every write that breaks it
-- `web/build.mjs` reads the contract from `web/src/schema.ts` when it builds the page
+  subgraph worker_box["Worker (nabu)"]
+    api["API"]
+    page["Viewer page"]
+  end
+
+  schema -- "Bundled [wrangler deploy]" --> api
+  schema -- "Imported [build.mjs]" --> page
+  api -- "Task contract [JSON Schema]" --> cli["nabu CLI"]
+  api -- "422 and the reason [JSON]" --> cli
+  page -- "Page [HTML]" --> browser["Browser"]
+```
+
+- `web/src/schema.ts` defines every rule a task must meet
+- The API refuses every write that breaks the task contract
+- The API serves the task contract at `/api/schema`
+- The viewer page takes the task contract from `web/src/schema.ts` at build
