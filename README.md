@@ -83,7 +83,7 @@ agent: nabu task new review-pr-68 --area work --ticket https://github.com/o/r/pu
 
 - A task is one file, `tasks/<status>/<slug>.md`
 - The folder is the status: `inbox`, `doing`, `done`, `dropped`
-- The body has two sections: `## For Human` for the user, `## AI memo` for the agent
+- The body is SCQA: `## Situation`, `## Complication`, `## Question`, `## Answer`
 - [`frontmatter.go`](frontmatter.go) defines every frontmatter key, its flag, and the values it accepts
 - [`shape.go`](shape.go) defines the body shape that `task validate` checks
 
