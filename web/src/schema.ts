@@ -3,6 +3,7 @@
 import { z } from "zod";
 
 export const STATUSES = ["inbox", "doing", "done", "dropped"] as const;
+export const AREAS = ["work", "personal"] as const;
 
 // LINE_LIMIT is the most characters a section line may carry: one fact a reader takes in at a glance.
 export const LINE_LIMIT = 45;
@@ -53,7 +54,7 @@ const nonBlank = z.string().regex(/^[^\n]*\S[^\n]*$/, "must be one non-blank lin
 export const TaskCreate = z.strictObject({
   slug: kebab,
   title: nonBlank,
-  area: z.enum(["work", "personal"]),
+  area: z.enum(AREAS),
   project: kebab.optional(),
   scheduled: scheduled.optional(),
   waiting: nonBlank.optional(),
@@ -73,7 +74,7 @@ export const TaskPatch = z.strictObject({
   slug: kebab.optional(),
   title: nonBlank.optional(),
   status: z.enum(STATUSES).optional(),
-  area: z.enum(["work", "personal"]).optional(),
+  area: z.enum(AREAS).optional(),
   project: kebab.nullable().optional(),
   scheduled: scheduled.nullable().optional(),
   waiting: nonBlank.nullable().optional(),
@@ -94,7 +95,7 @@ export type Task = {
   slug: string;
   title: string;
   status: Status;
-  area: "work" | "personal";
+  area: (typeof AREAS)[number];
   project: string | null;
   scheduled: string | null;
   waiting: string | null;
