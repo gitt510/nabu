@@ -80,7 +80,7 @@ flowchart TD
 ```
 
 - `web/src/schema.ts` defines every rule a task must meet
-- The API refuses every write that breaks the task contract
+- The API refuses every write that breaks the task contract, and names every problem
 - The API serves the task contract at `/api/schema`
 - `nabu task schema` prints the task contract the API serves
 - The viewer page takes the task contract from `web/src/schema.ts` at build

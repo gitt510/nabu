@@ -152,7 +152,7 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .menu .label { flex-grow: 1; }
 .menu .key { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0; color: var(--muted-foreground); }
 .menu .sep { height: 1px; margin: 4px 0; background: var(--border); }
-.error { color: var(--destructive); font-size: 0.8125rem; margin: 0 0 8px; }
+.error { color: var(--destructive); font-size: 0.8125rem; margin: 0 0 8px; white-space: pre-line; }
 .error:empty { display: none; }
 .drop { display: grid; gap: 8px; font-size: 0.875rem; }
 .drop label { color: var(--muted-foreground); }

@@ -66,6 +66,12 @@ describe("/api/tasks", () => {
     expect((await json(await call("GET", "/api/tasks"))).body).toEqual([]);
   });
 
+  it("names every problem of a task, one per line", async () => {
+    const res = await json(await call("POST", "/api/tasks", { ...task, slug: "Bad Slug", area: "hobby" }));
+    expect(res.status).toBe(422);
+    expect(res.body.error.split("\n")).toEqual([expect.stringMatching(/^slug: /), expect.stringMatching(/^area: /)]);
+  });
+
   it("accepts a line of exactly the limit", async () => {
     const res = await call("POST", "/api/tasks", { ...task, situation: ["- " + "あ".repeat(43)] });
     expect(res.status).toBe(201);
