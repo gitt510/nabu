@@ -256,25 +256,39 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 /* Main */
 .main { min-width: 0; overflow-y: auto; container-type: inline-size; }
 .main:focus { outline: none; }
-.main:focus-visible { box-shadow: inset 0 0 0 2px var(--ring); } /* the doc column has the keyboard */
-/* The body keeps the width the settings name; the properties rail sits beside it. */
-.doc { max-width: calc(var(--doc-w, 50rem) + 14rem); padding: 32px 32px 96px; --gutter: 32px; --top: 32px; }
+/* The doc column has the keyboard. Chrome paints a scroller's own ring under its sticky children, so the
+   ring is an overlay laid on the same grid area instead. */
+.content::after { content: ""; grid-area: doc; z-index: 1; pointer-events: none; }
+.content:has(> .main:focus-visible)::after { box-shadow: inset 0 0 0 2px var(--ring); }
+/* The body keeps the width the settings name; the properties pane sits beside it. */
+.doc { max-width: calc(var(--doc-w, 50rem) + 14rem); padding: var(--top) var(--gutter) var(--bottom); --gutter: 32px; --top: 32px; --bottom: 96px; }
 .doc-head { position: sticky; top: 0; z-index: 1; background: var(--background); margin: calc(-1 * var(--top)) calc(-1 * var(--gutter)) 24px; padding: var(--top) var(--gutter) 0; border-bottom: 1px solid var(--border); }
 .crumb { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; font-family: var(--font-mono); font-size: 0.875rem; letter-spacing: 0; color: var(--muted-foreground); margin: 0 0 12px; }
 .crumb .copy { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 .crumb .copy:hover { color: var(--foreground); }
 .doc h1 { font-size: 1.5rem; line-height: 1.5; letter-spacing: 0.01em; margin: 0 0 16px; }
-.railed { display: grid; grid-template-columns: minmax(0, 1fr) 14rem; gap: 32px; align-items: start; }
-.meta { position: sticky; top: calc(var(--head-h, 0px) + 24px); display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px 16px; align-items: baseline; margin: 0; padding: 4px 0 0 20px; border-left: 1px solid var(--border); font-size: 0.875rem; }
+/* A task: the head over the body and the pane. The task fills the column's height, and the pane stretches
+   to its row, so the pane's rule runs from the head's to the bottom. The gaps under the head are padding
+   inside each area, so the rule meets the head. */
+.doc:has(> .pane) {
+  display: grid; grid-template: "head head" auto "body pane" 1fr / minmax(0, 1fr) 14rem; column-gap: 32px;
+  min-height: 100%; padding-bottom: 0;
+}
+.doc:has(> .pane) > .doc-head { grid-area: head; margin-bottom: 0; }
+.doc:has(> .pane) > .body { grid-area: body; padding: 24px 0 var(--bottom); }
+.pane { grid-area: pane; padding-top: 24px; border-left: 1px solid var(--border); }
+/* The pane holds the rule; the properties inside it stay under the head as the body scrolls. */
+.meta { position: sticky; top: calc(var(--head-h, 0px) + 24px); display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px 16px; align-items: baseline; margin: 0; padding: 4px 0 0 20px; font-size: 0.875rem; }
 .meta > div { display: contents; }
 .meta dt { color: var(--muted-foreground); font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0; margin: 0; }
 .meta dd { margin: 0; overflow-wrap: anywhere; }
 .meta .none { color: var(--muted-foreground); }
 .meta dd a { display: block; }
-/* Narrow: the rail goes above the body. */
+/* Narrow: the pane goes above the body. */
 @container (max-width: 40rem) {
-  .railed { grid-template-columns: 1fr; gap: 24px; }
-  .meta { position: static; order: -1; padding: 0 0 16px; border-left: 0; border-bottom: 1px solid var(--border); }
+  .doc:has(> .pane) { grid-template: "head" auto "pane" auto "body" 1fr / minmax(0, 1fr); }
+  .pane { border-left: 0; }
+  .meta { position: static; padding: 0 0 16px; border-bottom: 1px solid var(--border); }
 }
 .body > :first-child { margin-top: 0; }
 .body h2, .body h3 { font-size: 1.125rem; line-height: 1.6; margin: 32px 0 8px; }
@@ -289,7 +303,7 @@ dialog .close { position: absolute; top: 12px; right: 12px; border: 0; backgroun
 .empty { color: var(--muted-foreground); }
 
 @media (max-width: 720px) {
-  .doc { padding: 24px 16px 64px; --gutter: 16px; --top: 24px; }
+  .doc { --gutter: 16px; --top: 24px; --bottom: 64px; }
 }
 
 /* Narrow: the sidebar leaves the grid and becomes a popover drawer under the header. */

@@ -232,9 +232,9 @@ function select(slug, push = true) {
   for (const key of PROPS) meta.append(el("div", {}, el("dt", {}, key), el("dd", {}, ...(fm[key]?.length ? value(key, fm[key]) : [el("span", { class: "none" }, "—")]))));
   const body = el("div", { class: "body" });
   body.innerHTML = t.html;
-  // The slug and the title stay on top while the body scrolls; the rail sticks just under them.
+  // The slug and the title stay on top while the body scrolls; the properties stick just under them.
   const head = el("header", { class: "doc-head" }, el("div", { class: "crumb" }, crumb(t), statusControl(t)), el("p", { class: "error", id: "doc-error", role: "alert" }), el("h1", {}, t.title));
-  doc.replaceChildren(head, el("div", { class: "railed" }, body, meta));
+  doc.replaceChildren(head, body, el("aside", { class: "pane" }, meta));
   headSize.disconnect();
   headSize.observe(head);
   if (push) history.replaceState(null, "", `#${slug}`);
