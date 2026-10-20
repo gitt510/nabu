@@ -26,8 +26,8 @@ createServer(async (req, res) => {
     const path = new URL(req.url, "http://localhost").pathname;
     if (path === "/") execFileSync(process.execPath, ["build.mjs"], { cwd: new URL(".", import.meta.url), stdio: "inherit" });
     const file = path === "/" ? "index.html" : path.slice(1);
-    res.writeHead(200, { "content-type": types[file.slice(file.lastIndexOf("."))] ?? "application/octet-stream" });
     const data = readFileSync(new URL(file, dist));
+    res.writeHead(200, { "content-type": types[file.slice(file.lastIndexOf("."))] ?? "application/octet-stream" });
     // The tab says dev, so it is not mistaken for the deployed viewer.
     res.end(file === "index.html" ? data.toString().replace("<title>nabu</title>", "<title>nabu (dev)</title>") : data);
   } catch (e) {
