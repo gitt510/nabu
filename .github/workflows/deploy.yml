@@ -9,26 +9,27 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  # Gate: the shared deploy workflow does not test. Deploy is skipped if this fails.
-  test:
+  # Deploys the Worker: the viewer page and the API. The tasks live in D1, not here.
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
-      - run: go test ./...
       - run: pnpm install --frozen-lockfile
+
+      - run: go test ./...
       - run: pnpm --silent check
         working-directory: web
       - run: pnpm --silent test
         working-directory: web
 
-  # Deploys the Worker: the viewer page and the API. The tasks live in D1, not here.
-  deploy:
-    needs: test
-    uses: gitt510/.github/.github/workflows/deploy-worker-pnpm.yml@6b1d55c320755e6cd34095a80ed064a0ca367d72
-    with:
-      working-directory: web
-      assets-package: nabu-web
-    secrets:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - run: pnpm --silent build
+        working-directory: web
+      - run: pnpm exec wrangler deploy
+        working-directory: web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
