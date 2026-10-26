@@ -1,0 +1,22 @@
+// 使う icon だけを、役割の名前で出す。大きさと線の太さは呼ぶ側の部品が決める
+export {
+  IconCalendar as CalendarIcon,
+  IconChecklist as TasksIcon,
+  IconEye as WatchingIcon,
+  IconSearch as SearchIcon,
+  IconSun as LightIcon,
+  IconMoon as DarkIcon,
+  IconKeyboard as KeysIcon,
+  IconArrowUp as UpIcon,
+  IconArrowDown as DownIcon,
+  IconArrowLeft as BackIcon,
+  IconChevronDown as ChevronIcon,
+  IconChevronLeft as PrevIcon,
+  IconChevronRight as NextIcon,
+  IconCheck as CheckIcon,
+  IconCircleDot as DoingIcon,
+  IconInbox as InboxIcon,
+  IconCircleCheck as DoneIcon,
+  IconCircleX as DroppedIcon,
+  IconHourglass as WaitingIcon,
+} from "@tabler/icons-react";

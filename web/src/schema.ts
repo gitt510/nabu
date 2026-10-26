@@ -1,17 +1,9 @@
 // The task contract: what /api/tasks accepts and returns. Every rule a write must meet lives here,
 // so a task out of shape cannot reach the database.
 import { z } from "zod";
+import { AREAS, LINE_LIMIT, STATUSES, type Task } from "./fields";
 
-export const STATUSES = ["inbox", "doing", "done", "dropped"] as const;
-export const AREAS = ["work", "personal"] as const;
-
-// LINE_LIMIT is the most characters a section line may carry: one fact a reader takes in at a glance.
-export const LINE_LIMIT = 45;
-
-// SECTIONS are SCQA, the introduction Barbara Minto lays out in The Pyramid Principle, then the reason a
-// dropped task was decided against.
-export const SECTIONS = ["situation", "complication", "question", "answer", "why_dropped"] as const;
-export const LISTS = ["tickets", "prs", "links"] as const;
+export { AREAS, LINE_LIMIT, LISTS, SECTIONS, STATUSES, type Status, type Task } from "./fields";
 
 const kebab = z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/, "must be lowercase kebab-case");
 
@@ -89,29 +81,6 @@ export const TaskPatch = z.strictObject({
   answer: section.optional(),
   why_dropped: whyDropped.optional(),
 });
-
-export type Status = (typeof STATUSES)[number];
-
-// Task is a task as the API returns it.
-export type Task = {
-  slug: string;
-  title: string;
-  status: Status;
-  area: (typeof AREAS)[number];
-  project: string | null;
-  scheduled: string | null;
-  waiting: string | null;
-  tickets: string[];
-  prs: string[];
-  links: string[];
-  situation: string[];
-  complication: string[];
-  question: string[];
-  answer: string[];
-  why_dropped: string[];
-  created: string;
-  updated: string;
-};
 
 // whole checks what no single field can: a dropped task says why.
 export function whole(t: Pick<Task, "status" | "why_dropped">): string | undefined {
