@@ -1,14 +1,13 @@
-import type { ComponentType, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { ActionIcon, AppShell, Box, Group, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 
+import type { IconComponent } from "./icons";
 import logo from "./logo.svg?raw";
 
-type Icon = ComponentType<{ size?: number; stroke?: number }>;
-
-export type RailItem<K extends string> = { key: K; label: string; icon: Icon; disabled?: boolean };
+export type RailItem<K extends string> = { key: K; label: string; icon: IconComponent; disabled?: boolean };
 /** page をまたぐ操作。keyboard の操作は、keyboard の無い狭い画面では出さない */
-export type RailAction = { label: string; icon: Icon; onClick: () => void; keyboard?: boolean };
+export type RailAction = { label: string; icon: IconComponent; onClick: () => void; keyboard?: boolean };
 
 /**
  * 画面の枠：上の帯、page の切り替え、本文。広い画面では左の rail が page の切り替え（上）と操作（下）を持つ。
@@ -32,7 +31,7 @@ export function Shell<K extends string>({
 }) {
   const narrow = useMediaQuery("(max-width: 48em)") ?? false;
   const shown = actions.filter((a) => !(narrow && a.keyboard));
-  const iconButton = (label: string, Icon: Icon, onClick: () => void, active = false, disabled = false) => (
+  const iconButton = (label: string, Icon: IconComponent, onClick: () => void, active = false, disabled = false) => (
     <Tooltip key={label} label={disabled ? `${label} (coming soon)` : label} position={narrow ? "bottom" : "right"}>
       <ActionIcon
         size={narrow ? "lg" : "xl"}

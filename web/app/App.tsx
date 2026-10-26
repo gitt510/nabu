@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { HelpDialog } from "./components/HelpDialog";
-import { CalendarIcon, DarkIcon, Empty, KeysIcon, LightIcon, type RailItem, Shell, TasksIcon, useComputedColorScheme, useHotkeys, useMantineColorScheme, WatchingIcon } from "./components/ui";
+import { CalendarIcon, ChecklistIcon, Empty, EyeIcon, KeyboardIcon, MoonIcon, type RailItem, Shell, SunIcon, useComputedColorScheme, useHotkeys, useMantineColorScheme } from "./components/ui";
 import { useHash } from "./hooks/useHash";
 import { useTasks } from "./hooks/useTasks";
 import { Tasks } from "./views/Tasks";
@@ -10,8 +10,8 @@ import { Calendar } from "./views/Calendar";
 type Page = "calendar" | "tasks" | "watching";
 const PAGES: RailItem<Page>[] = [
   { key: "calendar", label: "Calendar", icon: CalendarIcon },
-  { key: "tasks", label: "Tasks", icon: TasksIcon },
-  { key: "watching", label: "Watching", icon: WatchingIcon, disabled: true },
+  { key: "tasks", label: "Tasks", icon: ChecklistIcon },
+  { key: "watching", label: "Watching", icon: EyeIcon, disabled: true },
 ];
 
 export function App() {
@@ -48,8 +48,8 @@ export function App() {
       onSelect={setPage}
       onHome={goHome}
       actions={[
-        { label: scheme === "dark" ? "Light theme (t)" : "Dark theme (t)", icon: scheme === "dark" ? LightIcon : DarkIcon, onClick: flipTheme },
-        { label: "Keyboard shortcuts (?)", icon: KeysIcon, onClick: () => setHelp(true), keyboard: true },
+        { label: scheme === "dark" ? "Light theme (t)" : "Dark theme (t)", icon: scheme === "dark" ? SunIcon : MoonIcon, onClick: flipTheme },
+        { label: "Keyboard shortcuts (?)", icon: KeyboardIcon, onClick: () => setHelp(true), keyboard: true },
       ]}
     >
       {error ? (

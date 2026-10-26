@@ -1,22 +1,26 @@
-// 使う icon だけを、役割の名前で出す。大きさと線の太さは呼ぶ側の部品が決める
+// 使う icon だけを、Tabler の形の名前（Icon 接頭辞を外したもの）で出す。何の意味で使うかは使う側が決め、
+// 大きさと線の太さは icon を置く部品が決める
+import type { ComponentType } from "react";
+
+export type IconComponent = ComponentType<{ size?: number; stroke?: number }>;
+
 export {
+  IconArrowDown as ArrowDownIcon,
+  IconArrowLeft as ArrowLeftIcon,
+  IconArrowUp as ArrowUpIcon,
   IconCalendar as CalendarIcon,
-  IconChecklist as TasksIcon,
-  IconEye as WatchingIcon,
-  IconSearch as SearchIcon,
-  IconSun as LightIcon,
-  IconMoon as DarkIcon,
-  IconKeyboard as KeysIcon,
-  IconArrowUp as UpIcon,
-  IconArrowDown as DownIcon,
-  IconArrowLeft as BackIcon,
-  IconChevronDown as ChevronIcon,
-  IconChevronLeft as PrevIcon,
-  IconChevronRight as NextIcon,
   IconCheck as CheckIcon,
-  IconCircleDot as DoingIcon,
+  IconChecklist as ChecklistIcon,
+  IconChevronLeft as ChevronLeftIcon,
+  IconChevronRight as ChevronRightIcon,
+  IconCircleCheck as CircleCheckIcon,
+  IconCircleDot as CircleDotIcon,
+  IconCircleX as CircleXIcon,
+  IconEye as EyeIcon,
+  IconHourglass as HourglassIcon,
   IconInbox as InboxIcon,
-  IconCircleCheck as DoneIcon,
-  IconCircleX as DroppedIcon,
-  IconHourglass as WaitingIcon,
+  IconKeyboard as KeyboardIcon,
+  IconMoon as MoonIcon,
+  IconSearch as SearchIcon,
+  IconSun as SunIcon,
 } from "@tabler/icons-react";
