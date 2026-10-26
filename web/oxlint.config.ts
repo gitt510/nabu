@@ -28,18 +28,9 @@ const PASS_THROUGH = {
 };
 const imports = (...patterns: object[]) => ["error", { patterns }];
 
-const UI_PART = "Use a ui part instead: views and components compose ui parts only";
-// Raw HTML tags: forbid-elements has no "every intrinsic tag" option, so the list names them.
-const TAGS = [
-  "a", "abbr", "address", "article", "aside", "audio", "b", "blockquote", "br", "button", "canvas", "code",
-  "dd", "del", "details", "dialog", "div", "dl", "dt", "em", "fieldset", "figcaption", "figure", "footer",
-  "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "i", "iframe", "img", "input", "kbd", "label",
-  "legend", "li", "main", "mark", "nav", "ol", "option", "output", "p", "picture", "pre", "progress", "q",
-  "s", "section", "select", "small", "span", "strong", "sub", "summary", "sup", "svg", "table", "tbody",
-  "td", "textarea", "tfoot", "th", "thead", "time", "tr", "u", "ul", "video",
-];
+// Raw HTML tags stay allowed: without style or className (below) they carry no look. Only the two tags that
+// bring CSS in on their own are forbidden.
 const ELEMENTS = [
-  ...TAGS.map((element) => ({ element, message: UI_PART })),
   { element: "style", message: "Use the theme instead: nabu keeps no CSS of its own" },
   { element: "link", message: "Import package CSS in components/ui/Provider.tsx instead: stylesheets load in one place" },
 ];
