@@ -4,7 +4,7 @@ import { env } from "cloudflare:workers";
 import { sign } from "hono/jwt";
 import { vi } from "vitest";
 
-const team = `https://${env.CF_ACCESS_TEAM_DOMAIN}`;
+const team = env.CF_ACCESS_TEAM_DOMAIN;
 
 const pair = async (kid: string) => {
   const keys = (await crypto.subtle.generateKey(
