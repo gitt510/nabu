@@ -20,6 +20,7 @@ export {
   IconInbox as InboxIcon,
   IconKeyboard as KeyboardIcon,
   IconMoon as MoonIcon,
+  IconPencil as PencilIcon,
   IconSearch as SearchIcon,
   IconSeedling as SeedlingIcon,
   IconSun as SunIcon,
