@@ -4,7 +4,7 @@ import { AREAS, type Status } from "../../src/fields";
 import type { Item } from "../api";
 import { TaskDetail } from "../components/TaskDetail";
 import { TaskList } from "../components/TaskList";
-import { Caption, CalendarIcon, DownIcon, Empty, Group, IconButton, ListDetail, SearchInput, Segments, Select, Toggle, UpIcon, useHotkeys, useLocalStorage, useMediaQuery, WaitingIcon } from "../components/ui";
+import { ArrowDownIcon, ArrowUpIcon, CalendarIcon, Caption, Empty, Group, HourglassIcon, IconButton, ListDetail, SearchInput, Segments, Select, Toggle, useHotkeys, useLocalStorage, useMediaQuery } from "../components/ui";
 import { instant } from "../time";
 
 type Tab = "all" | Status;
@@ -78,13 +78,13 @@ export function Tasks({ tasks, selected, onSelect, onChanged }: { tasks: Item[];
       <Group justify="space-between">
         <Group gap={6}>
           <Toggle label="scheduled" icon={CalendarIcon} checked={scheduled} onChange={setScheduled} />
-          <Toggle label="waiting" icon={WaitingIcon} checked={waiting} onChange={setWaiting} />
+          <Toggle label="waiting" icon={HourglassIcon} checked={waiting} onChange={setWaiting} />
         </Group>
         <Group gap={4}>
           <Caption mono>
             {items.length} / {inTab.length}
           </Caption>
-          <IconButton label={`Sorted by created, ${view.oldest ? "oldest" : "newest"} first (s)`} icon={view.oldest ? UpIcon : DownIcon} onClick={flipOrder} />
+          <IconButton label={`Sorted by created, ${view.oldest ? "oldest" : "newest"} first (s)`} icon={view.oldest ? ArrowUpIcon : ArrowDownIcon} onClick={flipOrder} />
         </Group>
       </Group>
     </>

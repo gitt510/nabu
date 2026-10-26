@@ -5,7 +5,7 @@ import { type Item, patch } from "../api";
 import { fmt, isLate, ticket } from "../time";
 import { DropDialog } from "./DropDialog";
 import { STATUS_CHOICES } from "./statuses";
-import { BackIcon, ChoiceMenu, CopyText, ErrorText, ExternalLink, Facts, Group, Heading, IconButton, Prose, Stack, Tag } from "./ui";
+import { ArrowLeftIcon, ChoiceMenu, CopyText, ErrorText, ExternalLink, Facts, Group, Heading, IconButton, Prose, Stack, Tag } from "./ui";
 
 /** 開いている task：slug と status、題、properties、本文。値のない property は出さない */
 export function TaskDetail({ task, onBack, onChanged, menuOpened, onMenuOpenedChange }: { task: Item; onBack?: () => void; onChanged: () => void; menuOpened: boolean; onMenuOpenedChange: (o: boolean) => void }) {
@@ -37,7 +37,7 @@ export function TaskDetail({ task, onBack, onChanged, menuOpened, onMenuOpenedCh
     <Stack gap="md">
       <Group justify="space-between" wrap="nowrap">
         <Group gap="xs" wrap="nowrap">
-          {onBack ? <IconButton label="Back to list" icon={BackIcon} onClick={onBack} /> : null}
+          {onBack ? <IconButton label="Back to list" icon={ArrowLeftIcon} onClick={onBack} /> : null}
           <CopyText value={task.slug} />
         </Group>
         <ChoiceMenu choices={STATUS_CHOICES} value={task.status} onSelect={move} opened={menuOpened} onOpenedChange={onMenuOpenedChange} />

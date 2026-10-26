@@ -16,13 +16,32 @@ export { Group } from "./Group";
 export { Form } from "./Form";
 
 // 文字
-export { Caption, ErrorText, ExternalLink, Heading, Subheading, Tag } from "./text";
+export { Heading } from "./Heading";
+export { Subheading } from "./Subheading";
+export { Caption } from "./Caption";
+export { ErrorText } from "./ErrorText";
+export { Tag } from "./Tag";
+export { ExternalLink } from "./ExternalLink";
 
 // 入力と操作
-export { Button, ChoiceMenu, CopyText, IconButton, LinesInput, ListRow, Pager, SearchInput, Segments, Select, Toggle, type Choice } from "./controls";
+export { Button } from "./Button";
+export { IconButton } from "./IconButton";
+export { SearchInput } from "./SearchInput";
+export { Segments } from "./Segments";
+export { Select } from "./Select";
+export { Toggle } from "./Toggle";
+export { LinesInput } from "./LinesInput";
+export { CopyText } from "./CopyText";
+export { ChoiceMenu, type Choice } from "./ChoiceMenu";
+export { ListRow } from "./ListRow";
+export { Pager } from "./Pager";
 
 // 組み立て
-export { Dialog, Empty, Facts, KeyTable, Prose } from "./blocks";
+export { Dialog } from "./Dialog";
+export { Empty } from "./Empty";
+export { Facts } from "./Facts";
+export { KeyTable } from "./KeyTable";
+export { Prose } from "./Prose";
 
 export * from "./icons";
 
