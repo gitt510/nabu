@@ -6,7 +6,8 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { homedir } from "node:os";
 
-const { url } = JSON.parse(readFileSync(`${homedir()}/.config/nabu/config.json`, "utf8"));
+const config = `${process.env.XDG_CONFIG_HOME || `${homedir()}/.config`}/nabu/config.json`;
+const { base_url: url } = JSON.parse(readFileSync(config, "utf8"));
 const dist = new URL("dist/", import.meta.url);
 const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8" };
 

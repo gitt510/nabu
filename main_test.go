@@ -216,7 +216,7 @@ func TestHelpGoesToStdout(t *testing.T) {
 func TestNoURLExits2(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	code, stderr := stderrOf([]string{"task", "ls"}, "")
-	if code != exitUsage || !strings.Contains(stderr, "no url declared") || !strings.Contains(stderr, "cloudflared access login") {
+	if code != exitUsage || !strings.Contains(stderr, "no base_url declared") || !strings.Contains(stderr, "cloudflared access login") {
 		t.Fatalf("exit %d stderr=%q", code, stderr)
 	}
 }
@@ -227,7 +227,7 @@ func TestConfigURLReachesTheClient(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "nabu"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "nabu", "config.json"), []byte(`{"url": "https://nabu.example.dev/"}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "nabu", "config.json"), []byte(`{"base_url": "https://nabu.example.dev/"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	c, err := client()

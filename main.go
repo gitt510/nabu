@@ -25,10 +25,10 @@ text; task ls and task grep print a table on a terminal, plain text when piped,
 and JSON with --json.
 
 Every request is signed in through Cloudflare Access with the token
-cloudflared holds: run cloudflared access login <url> once, and again when
+cloudflared holds: run cloudflared access login <base_url> once, and again when
 the session expires.
 
-The Worker comes from url in %s`
+The Worker comes from base_url in %s`
 
 // exit codes: 0 ok, 1 the operation failed, 2 the invocation was wrong
 const (
@@ -116,10 +116,10 @@ func arg(args []string, i int) string {
 }
 
 // errNoURL is a setup problem, not an operation failure, so it exits 2.
-var errNoURL = errors.New("no url declared")
+var errNoURL = errors.New("no base_url declared")
 
 func setupMessage() string {
-	return fmt.Sprintf("no url declared.\n\ncreate %s like:\n\n%s\nthen sign in with cloudflared access login <url>\n", config.Path(), config.Example)
+	return fmt.Sprintf("no base_url declared.\n\ncreate %s like:\n\n%s\nthen sign in with cloudflared access login <base_url>\n", config.Path(), config.Example)
 }
 
 // client is the API client for the Worker the config file declares.
@@ -128,10 +128,10 @@ var client = func() (*api.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	if cfg.URL == "" {
+	if cfg.BaseURL == "" {
 		return nil, errNoURL
 	}
-	return api.New(cfg.URL), nil
+	return api.New(cfg.BaseURL), nil
 }
 
 // readBody returns --content when given, otherwise all of stdin.
