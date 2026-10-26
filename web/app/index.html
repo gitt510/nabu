@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>nabu</title>
 <link rel="icon" href="/favicon.svg">
+<!-- The home-screen icon: iOS reads apple-touch-icon, Android reads the manifest. Both are PNGs of the logo on white.
+     The manifest goes with credentials: browsers fetch it without cookies by default, and Access would answer with its sign-in page. -->
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
 <!-- The color scheme before first paint, as Mantine's ColorSchemeScript sets it; the key is theme.ts's. -->
 <script>try { const s = localStorage.getItem("nabu-color-scheme"); document.documentElement.setAttribute("data-mantine-color-scheme", s === "light" || s === "dark" ? s : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); } catch {}</script>
 </head>
