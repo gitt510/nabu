@@ -49,7 +49,7 @@ export function App() {
       onHome={goHome}
       actions={[
         { label: scheme === "dark" ? "Light theme (t)" : "Dark theme (t)", icon: scheme === "dark" ? LightIcon : DarkIcon, onClick: flipTheme },
-        { label: "Keyboard shortcuts (?)", icon: KeysIcon, onClick: () => setHelp(true) },
+        { label: "Keyboard shortcuts (?)", icon: KeysIcon, onClick: () => setHelp(true), keyboard: true },
       ]}
     >
       {error ? (
