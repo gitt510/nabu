@@ -1,0 +1,24 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Tests only: the Worker is deployed by hand with just deploy, which reads its vars from 1Password.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - run: pnpm install --frozen-lockfile
+
+      - run: go test ./...
+      - run: pnpm --silent check
+        working-directory: web
+      - run: pnpm --silent test
+        working-directory: web

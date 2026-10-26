@@ -54,10 +54,13 @@ sequenceDiagram
   autonumber
   actor User
   participant Just as just preview
+  participant OP as 1Password
   participant CF as Cloudflare API
 
   User->>Just: Runs [just]
-  Just->>CF: Uploads a version as preview-nabu [HTTPS + wrangler login]
+  Just->>OP: Reads the Access vars named in .env.refs [op read]
+  OP-->>Just: CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD
+  Just->>CF: Uploads a version as preview-nabu with the vars [HTTPS + wrangler login]
   CF->>CF: Verifies the wrangler login can edit Workers
   CF-->>Just: https://preview-nabu.gitt510.workers.dev
 ```
