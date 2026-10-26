@@ -1,0 +1,24 @@
+name: ci
+
+on:
+  pull_request:
+
+# Keep only the newest run when a pull request gets several pushes in quick succession.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Lints the Worker and the viewer: pnpm check runs the types and oxlint, so a pull request that breaks
+  # either shows here before the deploy workflow would stop on main.
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --silent check
+        working-directory: web
