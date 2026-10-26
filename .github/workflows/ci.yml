@@ -1,0 +1,30 @@
+name: ci
+
+on:
+  pull_request:
+
+# Keep only the newest run when a pull request gets several pushes in quick succession.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Runs on every pull request the checks the deploy workflow runs on main, so a change that would stop the
+  # deploy shows on the pull request first. pnpm check carries the types and oxlint for the viewer.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - run: pnpm install --frozen-lockfile
+
+      - run: go test ./...
+      - run: pnpm --silent check
+        working-directory: web
+      - run: pnpm --silent test
+        working-directory: web
+      - run: pnpm --silent build
+        working-directory: web
