@@ -85,6 +85,9 @@ export const TaskPatch = z.strictObject({
 // HabitCreate is POST /api/habits.
 export const HabitCreate = z.strictObject({ title: nonBlank });
 
+// HabitPatch is PATCH /api/habits/:id: a new title; its checks stay.
+export const HabitPatch = z.strictObject({ title: nonBlank });
+
 // day is a calendar day in Asia/Tokyo, the day a habit is checked on.
 export const day = z
   .string()

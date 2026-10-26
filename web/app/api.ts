@@ -33,6 +33,7 @@ export async function fetchHabits(day: string): Promise<Habit[]> {
 }
 
 export const addHabit = (title: string) => send("POST", "/api/habits", { title });
+export const renameHabit = (id: number, title: string) => send("PATCH", `/api/habits/${id}`, { title });
 export const deleteHabit = (id: number) => send("DELETE", `/api/habits/${id}`);
 /** day にやった印を付ける、または外す */
 export const checkHabit = (id: number, day: string, done: boolean) => send(done ? "PUT" : "DELETE", `/api/habits/${id}/checks/${day}`);

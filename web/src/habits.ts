@@ -1,12 +1,13 @@
-// /api/habits: list the habits with whether each is done on a day, add and delete them, and check them off.
+// /api/habits: list the habits with whether each is done on a day, add, rename, and delete them, and check them off.
 // A check is a row in habit_checks, so checking twice or unchecking twice changes nothing.
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
-import { day, type Habit, HabitCreate } from "./schema";
+import { day, type Habit, HabitCreate, HabitPatch } from "./schema";
 import { hook } from "./validate";
 
-const params = z.strictObject({ id: z.coerce.number().int(), date: day });
+const id = z.coerce.number().int();
+const params = z.strictObject({ id, date: day });
 
 const exists = async (db: D1Database, id: string) => !!(await db.prepare("SELECT 1 FROM habits WHERE id = ?").bind(id).first());
 
@@ -28,6 +29,13 @@ export const habits = new Hono<{ Bindings: Env }>()
       .bind(title, new Date().toISOString())
       .first<{ id: number }>();
     return c.json({ id: row!.id, title, done: false } satisfies Habit, 201);
+  })
+
+  .patch("/:id", zValidator("param", z.strictObject({ id }), hook), zValidator("json", HabitPatch, hook), async (c) => {
+    const { id } = c.req.valid("param");
+    if (!(await exists(c.env.DB, String(id)))) return c.json({ error: "no such habit" }, 404);
+    await c.env.DB.prepare("UPDATE habits SET title = ? WHERE id = ?").bind(c.req.valid("json").title, id).run();
+    return c.body(null, 204);
   })
 
   // Deleting a habit deletes its checks with it.

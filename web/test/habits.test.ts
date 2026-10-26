@@ -47,6 +47,15 @@ describe("/api/habits", () => {
     expect(await list("2026-10-26")).toEqual([{ id, title: "read", done: false }]);
   });
 
+  it("renames a habit and keeps its checks", async () => {
+    const { id } = (await (await call("POST", "/api/habits", { title: "monst(main) do event quest" })).json()) as { id: number };
+    await call("PUT", `/api/habits/${id}/checks/2026-10-26`);
+    expect((await call("PATCH", `/api/habits/${id}`, { title: "Monst main: clear event quests" })).status).toBe(204);
+    expect(await list("2026-10-26")).toEqual([{ id, title: "Monst main: clear event quests", done: true }]);
+    expect((await call("PATCH", `/api/habits/${id}`, { title: " " })).status).toBe(422);
+    expect((await call("PATCH", "/api/habits/999", { title: "read" })).status).toBe(404);
+  });
+
   it("deletes a habit with its checks", async () => {
     const { id } = (await (await call("POST", "/api/habits", { title: "read" })).json()) as { id: number };
     await call("PUT", `/api/habits/${id}/checks/2026-10-26`);
