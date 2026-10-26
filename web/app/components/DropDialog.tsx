@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { LINE_LIMIT } from "../../src/fields";
 import { patch } from "../api";
-import { Box, Button, Dialog, Group, LinesInput } from "./ui";
+import { Button, Dialog, Form, Group, LinesInput, Stack } from "./ui";
 
 /** dropped にする前に、やらない理由を聞く。1 行 1 項目 */
 export function DropDialog({ slug, opened, onClose, onDropped }: { slug: string; opened: boolean; onClose: () => void; onDropped: () => void }) {
@@ -20,18 +20,14 @@ export function DropDialog({ slug, opened, onClose, onDropped }: { slug: string;
   };
   return (
     <Dialog title="Drop" opened={opened} onClose={onClose}>
-      <Box
-        component="form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submit();
-        }}
-      >
-        <LinesInput label="Why drop it?" description={`One reason per line, up to ${LINE_LIMIT} characters each`} value={why} onChange={setWhy} error={error} />
-        <Group justify="flex-end" mt="md">
-          <Button type="submit">Drop task</Button>
-        </Group>
-      </Box>
+      <Form onSubmit={() => void submit()}>
+        <Stack gap="md">
+          <LinesInput label="Why drop it?" description={`One reason per line, up to ${LINE_LIMIT} characters each`} value={why} onChange={setWhy} error={error} />
+          <Group justify="flex-end">
+            <Button type="submit">Drop task</Button>
+          </Group>
+        </Stack>
+      </Form>
     </Dialog>
   );
 }

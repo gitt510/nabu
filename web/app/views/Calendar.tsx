@@ -2,7 +2,7 @@ import { type ReactNode, useState } from "react";
 
 import type { Item } from "../api";
 import { STATUS_CHOICES } from "../components/statuses";
-import { Box, Caption, Empty, Group, ListRow, Pager, Stack, Subheading, Tag, useHotkeys } from "../components/ui";
+import { Caption, Empty, Group, ListRow, Page, Pager, Stack, Subheading, Tag, useHotkeys } from "../components/ui";
 import { addDays, dayLabel, dayOf, fmtDay, instant, isLate, timeOf, todayKey } from "../time";
 
 const open_ = (t: Item) => t.status !== "done" && t.status !== "dropped";
@@ -43,7 +43,7 @@ export function Calendar({ tasks, onOpen }: { tasks: Item[]; onOpen: (slug: stri
   );
 
   return (
-    <Box maw="52rem" px={{ base: "md", sm: "xl" }} py="lg">
+    <Page>
       <Stack gap="lg">
         <Pager
           label={dayLabel(day)}
@@ -57,12 +57,12 @@ export function Calendar({ tasks, onOpen }: { tasks: Item[]; onOpen: (slug: stri
           <Empty title="Nothing scheduled" />
         )}
         {late.length ? (
-          <Box>
+          <Stack gap={0}>
             <Subheading>Overdue</Subheading>
             <Stack gap={2}>{late.map((t) => row(t, <Tag tone="late">{fmtDay(t.scheduled!)}</Tag>))}</Stack>
-          </Box>
+          </Stack>
         ) : null}
       </Stack>
-    </Box>
+    </Page>
   );
 }
