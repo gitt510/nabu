@@ -16,11 +16,12 @@ export {
   IconCircleCheck as CircleCheckIcon,
   IconCircleDot as CircleDotIcon,
   IconCircleX as CircleXIcon,
-  IconEye as EyeIcon,
   IconHourglass as HourglassIcon,
   IconInbox as InboxIcon,
   IconKeyboard as KeyboardIcon,
   IconMoon as MoonIcon,
   IconSearch as SearchIcon,
+  IconSeedling as SeedlingIcon,
   IconSun as SunIcon,
+  IconTrash as TrashIcon,
 } from "@tabler/icons-react";

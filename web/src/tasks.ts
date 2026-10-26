@@ -1,8 +1,9 @@
 // /api/tasks: list, read, create, change, and delete tasks in D1. Every write appends an event in the
 // same batch, so the row and its history never disagree.
 import { zValidator } from "@hono/zod-validator";
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { LISTS, SECTIONS, type Task, TaskCreate, TaskPatch, whole } from "./schema";
+import { hook, invalid } from "./validate";
 
 type Row = Omit<Task, (typeof LISTS)[number] | (typeof SECTIONS)[number]> & { id: number } & Record<
     (typeof LISTS)[number] | (typeof SECTIONS)[number],
@@ -20,17 +21,6 @@ const toTask = ({ id: _, ...row }: Row): Task => {
 
 const fromTask = (t: Task): unknown[] =>
   COLUMNS.map((k) => ((JSON_COLUMNS as readonly string[]).includes(k) ? JSON.stringify(t[k]) : t[k]));
-
-// invalid answers a request that breaks the contract: 422 with every problem as text, one per line.
-const invalid = (c: Context, error: string) => c.json({ error }, 422);
-
-type Issues = { issues: { path: PropertyKey[]; message: string }[] };
-
-const hook = (result: { success: boolean; error?: Issues }, c: Context) => {
-  if (!result.success && result.error) {
-    return invalid(c, result.error.issues.map((i) => `${i.path.map(String).join(".") || "body"}: ${i.message}`).join("\n"));
-  }
-};
 
 const now = () => new Date().toISOString();
 

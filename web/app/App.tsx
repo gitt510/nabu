@@ -1,17 +1,18 @@
 import { useState } from "react";
 
 import { HelpDialog } from "./components/HelpDialog";
-import { CalendarIcon, ChecklistIcon, Empty, EyeIcon, KeyboardIcon, MoonIcon, type RailItem, Shell, SunIcon, useComputedColorScheme, useHotkeys, useMantineColorScheme } from "./components/ui";
+import { CalendarIcon, ChecklistIcon, Empty, KeyboardIcon, MoonIcon, type RailItem, SeedlingIcon, Shell, SunIcon, useComputedColorScheme, useHotkeys, useMantineColorScheme } from "./components/ui";
 import { useHash } from "./hooks/useHash";
 import { useTasks } from "./hooks/useTasks";
 import { Tasks } from "./views/Tasks";
 import { Calendar } from "./views/Calendar";
+import { Habits } from "./views/Habits";
 
-type Page = "calendar" | "tasks" | "watching";
+type Page = "calendar" | "tasks" | "habits";
 const PAGES: RailItem<Page>[] = [
   { key: "calendar", label: "Calendar", icon: CalendarIcon },
   { key: "tasks", label: "Tasks", icon: ChecklistIcon },
-  { key: "watching", label: "Watching", icon: EyeIcon, disabled: true },
+  { key: "habits", label: "Habits", icon: SeedlingIcon },
 ];
 
 export function App() {
@@ -56,6 +57,8 @@ export function App() {
         <Empty title="Couldn't load tasks" description={error} />
       ) : !tasks ? (
         <Empty title="Loading…" />
+      ) : page === "habits" ? (
+        <Habits />
       ) : page === "tasks" ? (
         <Tasks tasks={tasks} selected={slug} onSelect={setSlug} onChanged={reload} />
       ) : (
