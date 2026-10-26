@@ -1,7 +1,12 @@
 import type { ReactNode } from "react";
 import { Badge, createTheme, Kbd, localStorageColorSchemeManager, MantineProvider } from "@mantine/core";
 
-// 書体は Noto Sans JP / Mono（main.tsx が package から読む）。色は Mantine の既定の palette だけ。
+// 見た目の CSS は package のもの（Mantine と書体）だけで、theme と一緒にここで読む。自前の CSS は持たない
+import "@mantine/core/styles.css";
+import "@fontsource-variable/noto-sans-jp";
+import "@fontsource-variable/noto-sans-mono";
+
+// 書体は Noto Sans JP / Mono（上で package から読む）。色は Mantine の既定の palette だけ。
 // 文字は 14px を床にする：xs を sm と同じ 14px に上げ、どの部品が xs を使っても 14px より小さくならない。
 // Badge と Kbd は段階表を使わず自前の大きさ（10px 前後）を持つので、ここで床に合わせる
 const theme = createTheme({

@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
-import { Box, Divider, Group, ScrollArea, Stack } from "@mantine/core";
+import { Divider, Group, ScrollArea, Stack } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
+
+import { Page } from "./Page";
 
 /**
  * 一覧と詳細の 2 pane。それぞれが自分の中で scroll する。
@@ -20,9 +22,7 @@ export function ListDetail({ head, list, detail, showDetail }: { head: ReactNode
   );
   const detailPane = (
     <ScrollArea h="100%" flex={1} miw={0}>
-      <Box maw="52rem" px={{ base: "md", sm: "xl" }} py="lg">
-        {detail}
-      </Box>
+      <Page>{detail}</Page>
     </ScrollArea>
   );
   if (narrow) return showDetail ? detailPane : listPane;

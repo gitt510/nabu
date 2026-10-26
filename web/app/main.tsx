@@ -1,10 +1,5 @@
 import { createRoot } from "react-dom/client";
 
-// CSS は package のもの（Mantine と書体）だけ。自前の CSS は持たない
-import "@mantine/core/styles.css";
-import "@fontsource-variable/noto-sans-jp";
-import "@fontsource-variable/noto-sans-mono";
-
 import { App } from "./App";
 import { Provider } from "./components/ui";
 

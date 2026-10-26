@@ -72,32 +72,37 @@ export function Shell<K extends string>({
           {narrow ? <Group gap="xs">{shown.map((a) => iconButton(a.label, a.icon, a.onClick))}</Group> : null}
         </Group>
       </AppShell.Header>
-      <AppShell.Navbar p="xs">
-        <Stack align="center" gap="xs" h="100%">
-          {items.map((i) => iconButton(i.label, i.icon, () => onSelect(i.key), i.key === current, i.disabled))}
-          <Stack align="center" gap="xs" mt="auto">
-            {shown.map((a) => iconButton(a.label, a.icon, a.onClick))}
+      {/* 隠れている側は描かない。AppShell は畳んだ枠を画面の外へ動かすだけなので、残すと Tab や読み上げが届いてしまう */}
+      {narrow ? null : (
+        <AppShell.Navbar p="xs">
+          <Stack align="center" gap="xs" h="100%">
+            {items.map((i) => iconButton(i.label, i.icon, () => onSelect(i.key), i.key === current, i.disabled))}
+            <Stack align="center" gap="xs" mt="auto">
+              {shown.map((a) => iconButton(a.label, a.icon, a.onClick))}
+            </Stack>
           </Stack>
-        </Stack>
-      </AppShell.Navbar>
+        </AppShell.Navbar>
+      )}
       <AppShell.Main h="100dvh">{children}</AppShell.Main>
-      <AppShell.Footer>
-        <Group h="100%" grow gap={0} component="nav" aria-label="Pages">
-          {items.map((i) => {
-            const active = i.key === current;
-            return (
-              <UnstyledButton key={i.key} h="100%" disabled={i.disabled} aria-current={active ? "page" : undefined} onClick={() => onSelect(i.key)}>
-                <Stack align="center" gap={2} c={i.disabled ? "dimmed" : active ? "var(--mantine-primary-color-filled)" : "var(--mantine-color-text)"} opacity={i.disabled ? 0.5 : 1}>
-                  <i.icon size={22} stroke={1.75} />
-                  <Text span size="xs" fw={active ? 700 : 400}>
-                    {i.label}
-                  </Text>
-                </Stack>
-              </UnstyledButton>
-            );
-          })}
-        </Group>
-      </AppShell.Footer>
+      {narrow ? (
+        <AppShell.Footer>
+          <Group h="100%" grow gap={0} component="nav" aria-label="Pages">
+            {items.map((i) => {
+              const active = i.key === current;
+              return (
+                <UnstyledButton key={i.key} h="100%" disabled={i.disabled} aria-current={active ? "page" : undefined} onClick={() => onSelect(i.key)}>
+                  <Stack align="center" gap={2} c={i.disabled ? "dimmed" : active ? "var(--mantine-primary-color-filled)" : "var(--mantine-color-text)"} opacity={i.disabled ? 0.5 : 1}>
+                    <i.icon size={22} stroke={1.75} />
+                    <Text span size="xs" fw={active ? 700 : 400}>
+                      {i.label}
+                    </Text>
+                  </Stack>
+                </UnstyledButton>
+              );
+            })}
+          </Group>
+        </AppShell.Footer>
+      ) : null}
     </AppShell>
   );
 }
