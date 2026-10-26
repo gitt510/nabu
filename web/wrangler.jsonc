@@ -3,8 +3,7 @@
   // where /api/tasks, the API the CLI talks to, keeps every task.
   // The data lives only in the database, never in the repo or the Worker.
   // Access (sign-in) is set on the Worker in the Zero Trust dashboard, not here; the Worker checks the token
-  // Access signs against CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD, which just deploy and just preview pass with --var
-  // from 1Password (docs/config.md).
+  // Access signs against the team and the application below. Neither value is a secret.
   "name": "nabu",
   "main": "src/index.ts",
   "assets": { "directory": "dist" },
@@ -12,6 +11,10 @@
   "compatibility_date": "2026-10-11",
   // Schema changes are files in migrations/, applied with `wrangler d1 migrations apply nabu`.
   "d1_databases": [{ "binding": "DB", "database_name": "nabu", "database_id": "b56c5b0a-b0d0-41bc-a686-ee0a69dc41fc" }],
+  "vars": {
+    "CF_ACCESS_TEAM_DOMAIN": "https://rapid-hall-57f2.cloudflareaccess.com",
+    "CF_ACCESS_AUD": "3e3890f23a5a9f73811e7ead2d21bf3fadccd4f470665919120aba129a67d9f5"
+  },
   // Version preview URLs sit behind the same Access application as workers.dev, so `just preview` can share one.
   "preview_urls": true
 }
