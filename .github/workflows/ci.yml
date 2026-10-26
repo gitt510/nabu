@@ -22,3 +22,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --silent check
         working-directory: web
+
+  # Lints the CLI as just check does, so the rule that user-facing text stays in English holds on every
+  # pull request rather than only when someone runs just check by hand.
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: golangci-lint run
