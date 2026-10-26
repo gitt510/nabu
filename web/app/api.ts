@@ -1,6 +1,6 @@
 import { marked } from "marked";
 
-import { SECTIONS, type Task } from "../src/fields";
+import { type Habit, SECTIONS, type Task } from "../src/fields";
 
 /** page が見せる形の task：本文は題の下の HTML、検索は小文字の全文 */
 export type Item = Task & { html: string; text: string };
@@ -23,13 +23,28 @@ export async function fetchTasks(): Promise<Item[]> {
 }
 
 /** task を書き換える。断られたら理由を返す */
-export async function patch(slug: string, fields: Partial<Task>): Promise<string | undefined> {
+export const patch = (slug: string, fields: Partial<Task>) => send("PATCH", `/api/tasks/${encodeURIComponent(slug)}`, fields);
+
+/** 全部の habit を、day（YYYY-MM-DD）にやったかどうか付きで読む */
+export async function fetchHabits(day: string): Promise<Habit[]> {
+  const res = await fetch(`/api/habits?date=${day}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Couldn't load habits (${res.status})`);
+  return (await res.json()) as Habit[];
+}
+
+export const addHabit = (title: string) => send("POST", "/api/habits", { title });
+export const deleteHabit = (id: number) => send("DELETE", `/api/habits/${id}`);
+/** day にやった印を付ける、または外す */
+export const checkHabit = (id: number, day: string, done: boolean) => send(done ? "PUT" : "DELETE", `/api/habits/${id}/checks/${day}`);
+
+/** API に書き込む。断られたら理由を返す */
+async function send(method: string, path: string, body?: unknown): Promise<string | undefined> {
   let res: Response;
   try {
-    res = await fetch(`/api/tasks/${encodeURIComponent(slug)}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(fields),
+    res = await fetch(path, {
+      method,
+      headers: body === undefined ? undefined : { "content-type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
       redirect: "manual",
     });
   } catch {

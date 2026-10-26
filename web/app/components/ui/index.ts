@@ -17,7 +17,6 @@ export { Form } from "./Form";
 
 // 文字
 export { Heading } from "./Heading";
-export { Subheading } from "./Subheading";
 export { Caption } from "./Caption";
 export { ErrorText } from "./ErrorText";
 export { Tag } from "./Tag";
@@ -30,6 +29,8 @@ export { SearchInput } from "./SearchInput";
 export { Segments } from "./Segments";
 export { Select } from "./Select";
 export { Toggle } from "./Toggle";
+export { Checkbox } from "./Checkbox";
+export { LineInput } from "./LineInput";
 export { LinesInput } from "./LinesInput";
 export { CopyText } from "./CopyText";
 export { ChoiceMenu, type Choice } from "./ChoiceMenu";
@@ -37,6 +38,7 @@ export { ListRow } from "./ListRow";
 export { Pager } from "./Pager";
 
 // 組み立て
+export { Section } from "./Section";
 export { Dialog } from "./Dialog";
 export { Empty } from "./Empty";
 export { Facts } from "./Facts";

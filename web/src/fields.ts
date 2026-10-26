@@ -33,3 +33,6 @@ export type Task = {
   created: string;
   updated: string;
 };
+
+// Habit is a habit as GET /api/habits returns it: done on the day asked.
+export type Habit = { id: number; title: string; done: boolean };

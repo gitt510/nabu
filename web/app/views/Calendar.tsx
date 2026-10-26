@@ -1,8 +1,9 @@
 import { type ReactNode, useState } from "react";
 
-import type { Item } from "../api";
+import { checkHabit, type Item } from "../api";
 import { STATUS_CHOICES } from "../components/statuses";
-import { Caption, Empty, Group, ListRow, Page, Pager, Stack, Subheading, Tag, useHotkeys } from "../components/ui";
+import { Caption, Checkbox, Empty, ErrorText, Group, ListRow, Page, Pager, Section, Stack, Tag, useHotkeys } from "../components/ui";
+import { useHabits } from "../hooks/useHabits";
 import { addDays, dayLabel, dayOf, fmtDay, instant, isLate, timeOf, todayKey } from "../time";
 
 const open_ = (t: Item) => t.status !== "done" && t.status !== "dropped";
@@ -10,13 +11,16 @@ const bySchedule = (a: Item, b: Item) => instant(a.scheduled!).getTime() - insta
 
 /**
  * 時間で見る page。1 日分の予定を、時刻のあるものから順に並べる（日付だけの予定は終日）。
- * 終わった予定も、その日の記録として残す。今日を見ているときだけ、予定日を過ぎてまだ開いている task を下に足す
+ * 終わった予定も、その日の記録として残す。今日か先の日を見ているときは、今日の時点で予定日を過ぎてまだ開いている
+ * task を下に足す（今日の予定はまだ遅れていないので入れない）。過去の日には出さない。
+ * 予定の下には毎日やる habit を並べ、その日にやった印をここで付け外しする
  */
 export function Calendar({ tasks, onOpen }: { tasks: Item[]; onOpen: (slug: string) => void }) {
   const [day, setDay] = useState(todayKey);
   const isToday = day === todayKey();
+  const { habits, error, write } = useHabits(day);
   const planned = tasks.filter((t) => t.scheduled && dayOf(t.scheduled) === day).sort(bySchedule);
-  const late = isToday ? tasks.filter((t) => open_(t) && t.scheduled && isLate(t.scheduled)).sort(bySchedule) : [];
+  const late = day >= todayKey() ? tasks.filter((t) => open_(t) && t.scheduled && isLate(t.scheduled)).sort(bySchedule) : [];
 
   const prev = () => setDay((d) => addDays(d, -1));
   const next = () => setDay((d) => addDays(d, 1));
@@ -51,16 +55,27 @@ export function Calendar({ tasks, onOpen }: { tasks: Item[]; onOpen: (slug: stri
           next={{ label: "Next day (→)", onClick: next }}
           reset={isToday ? undefined : { label: "Today (0)", onClick: () => setDay(todayKey()) }}
         />
-        {planned.length ? (
-          <Stack gap={2}>{planned.map((t) => row(t, <Caption mono>{timeOf(t.scheduled!) ?? "All day"}</Caption>))}</Stack>
-        ) : (
-          <Empty title="Nothing scheduled" />
-        )}
+        <Section title="Scheduled">
+          {planned.length ? (
+            <Stack gap={2}>{planned.map((t) => row(t, <Caption mono>{timeOf(t.scheduled!) ?? "All day"}</Caption>))}</Stack>
+          ) : (
+            <Empty title="Nothing scheduled" />
+          )}
+        </Section>
+        {habits?.length ? (
+          <Section title="Habits" aside={<Caption mono>{habits.filter((h) => h.done).length} / {habits.length}</Caption>}>
+            <Stack gap="xs">
+              {habits.map((h) => (
+                <Checkbox key={h.id} label={h.title} checked={h.done} onChange={(v) => void write(checkHabit(h.id, day, v))} />
+              ))}
+              <ErrorText>{error}</ErrorText>
+            </Stack>
+          </Section>
+        ) : null}
         {late.length ? (
-          <Stack gap={0}>
-            <Subheading>Overdue</Subheading>
+          <Section title="Overdue">
             <Stack gap={2}>{late.map((t) => row(t, <Tag tone="late">{fmtDay(t.scheduled!)}</Tag>))}</Stack>
-          </Stack>
+          </Section>
         ) : null}
       </Stack>
     </Page>

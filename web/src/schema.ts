@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { AREAS, LINE_LIMIT, STATUSES, type Task } from "./fields";
 
-export { AREAS, LINE_LIMIT, LISTS, SECTIONS, STATUSES, type Status, type Task } from "./fields";
+export { AREAS, LINE_LIMIT, LISTS, SECTIONS, STATUSES, type Habit, type Status, type Task } from "./fields";
 
 const kebab = z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/, "must be lowercase kebab-case");
 
@@ -81,6 +81,15 @@ export const TaskPatch = z.strictObject({
   answer: section.optional(),
   why_dropped: whyDropped.optional(),
 });
+
+// HabitCreate is POST /api/habits.
+export const HabitCreate = z.strictObject({ title: nonBlank });
+
+// day is a calendar day in Asia/Tokyo, the day a habit is checked on.
+export const day = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "must be a date (2026-10-26)")
+  .refine((s) => !Number.isNaN(Date.parse(s)), "must be a date that exists");
 
 // whole checks what no single field can: a dropped task says why.
 export function whole(t: Pick<Task, "status" | "why_dropped">): string | undefined {
