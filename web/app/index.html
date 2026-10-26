@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nabu</title>
+<link rel="icon" href="/favicon.svg">
+<!-- The color scheme before first paint, as Mantine's ColorSchemeScript sets it; the key is theme.ts's. -->
+<script>try { const s = localStorage.getItem("nabu-color-scheme"); document.documentElement.setAttribute("data-mantine-color-scheme", s === "light" || s === "dark" ? s : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); } catch {}</script>
+</head>
+<body>
+<div id="root"></div>
+<script type="module" src="./main.tsx"></script>
+</body>
+</html>
