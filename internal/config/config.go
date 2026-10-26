@@ -13,12 +13,12 @@ import (
 
 // Config is the source of truth.
 type Config struct {
-	// URL is the nabu Worker: the viewer and the API behind one Access application.
-	URL string `json:"url"`
+	// BaseURL is the nabu Worker: the viewer and the API behind one Access application.
+	BaseURL string `json:"base_url"`
 }
 
 // Example is the config shown when none is found.
-const Example = `{"url": "https://nabu.<you>.workers.dev"}
+const Example = `{"base_url": "https://nabu.<you>.workers.dev"}
 `
 
 // Path is where the config file lives. os.UserConfigDir is avoided because
@@ -35,7 +35,7 @@ func Path() string {
 }
 
 // Load reads the config file. A missing file is not an error: it yields an
-// empty Config and the caller decides whether a URL is required.
+// empty Config and the caller decides whether a BaseURL is required.
 func Load() (Config, error) {
 	var cfg Config
 	b, err := os.ReadFile(Path())
@@ -48,6 +48,6 @@ func Load() (Config, error) {
 	if err := json.Unmarshal(b, &cfg); err != nil {
 		return cfg, fmt.Errorf("%s: %w", Path(), err)
 	}
-	cfg.URL = strings.TrimRight(cfg.URL, "/")
+	cfg.BaseURL = strings.TrimRight(cfg.BaseURL, "/")
 	return cfg, nil
 }

@@ -96,6 +96,6 @@ item, without a leading `- `. A line
 ## Do not
 
 - Reach the API, D1, or the viewer any other way than nabu.
-- Guess the setup. If nabu exits 2 with "no url declared" or "not signed
+- Guess the setup. If nabu exits 2 with "no base_url declared" or "not signed
   in", show the user the message as is; it says what to run. Suggest they
-  type `! cloudflared access login <url>` to sign in from the prompt.
+  type `! cloudflared access login <base_url>` to sign in from the prompt.
