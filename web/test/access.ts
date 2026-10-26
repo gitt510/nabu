@@ -4,7 +4,7 @@ import { env } from "cloudflare:workers";
 import { sign } from "hono/jwt";
 import { vi } from "vitest";
 
-const team = `https://${env.ACCESS_TEAM_DOMAIN}`;
+const team = env.CF_ACCESS_TEAM_DOMAIN;
 
 const pair = async (kid: string) => {
   const keys = (await crypto.subtle.generateKey(
@@ -31,7 +31,7 @@ vi.spyOn(globalThis, "fetch").mockImplementation((input, init) =>
 export const token = (claims: Record<string, unknown> = {}, key: "access" | "stranger" = "access") => {
   const now = Math.floor(Date.now() / 1000);
   return sign(
-    { iss: team, aud: [env.ACCESS_AUD], email: "me@example.com", iat: now, nbf: now, exp: now + 600, ...claims },
+    { iss: team, aud: [env.CF_ACCESS_AUD], email: "me@example.com", iat: now, nbf: now, exp: now + 600, ...claims },
     (key === "access" ? access : stranger).private as never,
   );
 };
