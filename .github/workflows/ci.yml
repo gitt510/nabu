@@ -21,4 +21,3 @@ jobs:
       - uses: jdx/mise-action@v2
       - run: pnpm install --frozen-lockfile
       - run: pnpm --silent check
-        working-directory: web

@@ -96,6 +96,6 @@ sequenceDiagram
   Agent-->>User: Slug and status [chat]
 ```
 
-- `web/src/schema.ts` defines every rule a task must meet
-- One deploy builds the Worker and the viewer page from `web/src/schema.ts`
+- `src/api/schema.ts` defines every rule a task must meet
+- One deploy builds the Worker and the viewer page from `src/api/schema.ts`
 - The nabu CLI passes the task to the API as it is, and checks no value

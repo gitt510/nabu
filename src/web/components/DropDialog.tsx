@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { LINE_LIMIT } from "../../src/fields";
+import { LINE_LIMIT } from "../../api/fields";
 import { patch } from "../api";
 import { Button, Dialog, Form, Group, LinesInput, Stack } from "./ui";
 
