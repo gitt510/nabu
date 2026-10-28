@@ -16,6 +16,7 @@ export const LISTS = ["tickets", "prs", "links"] as const;
 // The ids name the schemas the OpenAPI document shares as components, so a generated client names its types.
 export const Status = z.enum(STATUSES).meta({ id: "Status" });
 export type Status = z.output<typeof Status>;
+export const Area = z.enum(AREAS).meta({ id: "Area" });
 
 const kebab = z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/, "must be lowercase kebab-case");
 
@@ -61,7 +62,7 @@ export const Task = z.strictObject({
   slug: kebab,
   title: nonBlank,
   status: Status,
-  area: z.enum(AREAS),
+  area: Area,
   project: kebab.nullable(),
   scheduled: scheduled.nullable(),
   waiting: nonBlank.nullable(),
@@ -82,7 +83,7 @@ export type Task = z.output<typeof Task>;
 export const TaskCreate = z.strictObject({
   slug: kebab,
   title: nonBlank,
-  area: z.enum(AREAS),
+  area: Area,
   project: kebab.optional(),
   scheduled: scheduled.optional(),
   waiting: nonBlank.optional(),

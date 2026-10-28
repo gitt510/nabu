@@ -118,12 +118,12 @@ describe("/api/tasks", () => {
     expect(ok.status).toBe(200);
   });
 
-  it("lists every task ordered by slug", async () => {
-    await call("POST", "/api/tasks", { ...task, slug: "b" });
-    await call("POST", "/api/tasks", { ...task, slug: "a" });
+  it("lists every task in workflow order, then by slug", async () => {
+    for (const slug of ["d", "c", "b", "a"]) await call("POST", "/api/tasks", { ...task, slug });
+    await call("PATCH", "/api/tasks/a", { status: "done" });
     await call("PATCH", "/api/tasks/b", { status: "doing" });
     const { body } = await json(await call("GET", "/api/tasks"));
-    expect(body.map((t: any) => [t.slug, t.status])).toEqual([["a", "inbox"], ["b", "doing"]]);
+    expect(body.map((t: any) => [t.slug, t.status])).toEqual([["c", "inbox"], ["d", "inbox"], ["b", "doing"], ["a", "done"]]);
   });
 
   it("deletes a task and keeps its events", async () => {
@@ -144,7 +144,8 @@ describe("/api/schema", () => {
     expect(res.status).toBe(200);
     for (const schema of [res.body.create, res.body.patch]) {
       expect(schema.properties.situation.items.maxLength).toBe(45);
-      expect(schema.properties.area.enum).toEqual(["work", "personal"]);
+      expect(schema.properties.area).toEqual({ $ref: "#/$defs/Area" });
+      expect(schema.$defs.Area.enum).toEqual(["work", "personal"]);
     }
   });
 });

@@ -14,6 +14,7 @@ test *args:
 # Verify formatting and run static analysis
 check:
     test -z "$(gofmt -l .)"
+    go generate ./... && git diff --exit-code -- internal/api/openapi.gen.go
     go vet ./...
     golangci-lint run
     pnpm install --frozen-lockfile --silent

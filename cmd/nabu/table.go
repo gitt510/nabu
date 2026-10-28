@@ -7,6 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
 	"github.com/charmbracelet/x/term"
+	"github.com/gitt510/nabu/internal/api"
 )
 
 // terminal reports whether w is a terminal and, if so, its width in cells
@@ -26,16 +27,16 @@ func terminal(w io.Writer) (int, bool) {
 
 // statusColors are ANSI palette colors, so each status follows the
 // terminal's own theme, light or dark.
-var statusColors = map[string]string{
-	"inbox":   "6", // cyan
-	"doing":   "3", // yellow
-	"done":    "2", // green
-	"dropped": "8", // gray
+var statusColors = map[api.Status]string{
+	api.Inbox:   "6", // cyan
+	api.Doing:   "3", // yellow
+	api.Done:    "2", // green
+	api.Dropped: "8", // gray
 }
 
 var cellStyle = lipgloss.NewStyle().Padding(0, 1)
 
-func statusStyle(status string) lipgloss.Style {
+func statusStyle(status api.Status) lipgloss.Style {
 	return cellStyle.Foreground(lipgloss.Color(statusColors[status]))
 }
 
