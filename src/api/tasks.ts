@@ -1,7 +1,7 @@
 // /api/tasks: list, read, create, change, and delete tasks in D1. Every write appends an event in the
 // same batch, so the row and its history never disagree.
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
-import { LISTS, SECTIONS, Task, TaskCreate, TaskPatch, whole } from "./schema";
+import { LISTS, SECTIONS, STATUSES, Task, TaskCreate, TaskPatch, whole } from "./schema";
 import { body, failure, hook, invalid, json } from "./validate";
 
 type Row = Omit<Task, (typeof LISTS)[number] | (typeof SECTIONS)[number]> & { id: number } & Record<
@@ -21,6 +21,9 @@ const toTask = ({ id: _, ...row }: Row): Task => {
 const fromTask = (t: Task): unknown[] =>
   COLUMNS.map((k) => ((JSON_COLUMNS as readonly string[]).includes(k) ? JSON.stringify(t[k]) : t[k]));
 
+// WORKFLOW orders rows by status in the order STATUSES gives them.
+const WORKFLOW = `CASE status ${STATUSES.map((s, i) => `WHEN '${s}' THEN ${i}`).join(" ")} END`;
+
 const now = () => new Date().toISOString();
 
 const find = (db: D1Database, slug: string) => db.prepare("SELECT * FROM tasks WHERE slug = ?").bind(slug).first<Row>();
@@ -37,9 +40,9 @@ const event = (db: D1Database, action: string, slug: string, before: Task | null
 const slug = z.strictObject({ slug: z.string() });
 
 export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
-  // Every task, ordered by slug: callers narrow them themselves while the list stays small.
-  .openapi(createRoute({ method: "get", path: "/", responses: { 200: json(z.array(Task), "every task") } }), async (c) => {
-    const { results } = await c.env.DB.prepare("SELECT * FROM tasks ORDER BY slug").all<Row>();
+  // Every task in workflow order, then by slug: callers narrow them themselves while the list stays small.
+  .openapi(createRoute({ method: "get", path: "/", responses: { 200: json(z.array(Task), "every task in workflow order, then by slug") } }), async (c) => {
+    const { results } = await c.env.DB.prepare(`SELECT * FROM tasks ORDER BY ${WORKFLOW}, slug`).all<Row>();
     return c.json(results.map(toTask), 200);
   })
 

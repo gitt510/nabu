@@ -21,11 +21,7 @@
             "$ref": "#/components/schemas/Status"
           },
           "area": {
-            "type": "string",
-            "enum": [
-              "work",
-              "personal"
-            ]
+            "$ref": "#/components/schemas/Area"
           },
           "project": {
             "type": [
@@ -150,6 +146,13 @@
           "dropped"
         ]
       },
+      "Area": {
+        "type": "string",
+        "enum": [
+          "work",
+          "personal"
+        ]
+      },
       "Habit": {
         "type": "object",
         "properties": {
@@ -179,7 +182,7 @@
       "get": {
         "responses": {
           "200": {
-            "description": "every task",
+            "description": "every task in workflow order, then by slug",
             "content": {
               "application/json": {
                 "schema": {
@@ -211,11 +214,7 @@
                     "pattern": "^[^\\n]*\\S[^\\n]*$"
                   },
                   "area": {
-                    "type": "string",
-                    "enum": [
-                      "work",
-                      "personal"
-                    ]
+                    "$ref": "#/components/schemas/Area"
                   },
                   "project": {
                     "type": "string",
@@ -437,11 +436,7 @@
                     "$ref": "#/components/schemas/Status"
                   },
                   "area": {
-                    "type": "string",
-                    "enum": [
-                      "work",
-                      "personal"
-                    ]
+                    "$ref": "#/components/schemas/Area"
                   },
                   "project": {
                     "type": [

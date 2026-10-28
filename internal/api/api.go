@@ -16,31 +16,9 @@ import (
 	"time"
 )
 
-// Statuses are the task statuses in workflow order. done is finished work;
-// dropped is work decided against, and the task says why.
-var Statuses = []string{"inbox", "doing", "done", "dropped"}
-
-// Task is a task as the API returns it. An optional value the API sends as
-// null reads as "".
-type Task struct {
-	Slug         string   `json:"slug"`
-	Title        string   `json:"title"`
-	Status       string   `json:"status"`
-	Area         string   `json:"area"`
-	Project      string   `json:"project"`
-	Scheduled    string   `json:"scheduled"`
-	Waiting      string   `json:"waiting"`
-	Tickets      []string `json:"tickets"`
-	Prs          []string `json:"prs"`
-	Links        []string `json:"links"`
-	Situation    []string `json:"situation"`
-	Complication []string `json:"complication"`
-	Question     []string `json:"question"`
-	Answer       []string `json:"answer"`
-	WhyDropped   []string `json:"why_dropped"`
-	Created      string   `json:"created"`
-	Updated      string   `json:"updated"`
-}
+// Task, Status, Area, and Habit are generated from openapi.json, the document
+// the API serves at /api/openapi.json, so the CLI keeps no copy of its own.
+//go:generate go tool oapi-codegen -generate types -package api -o openapi.gen.go ../../openapi.json
 
 // Error is a request the API refused: Status is the HTTP status and Message
 // the API's reason.
@@ -94,7 +72,8 @@ func cloudflared(app string) (string, error) {
 	return token, nil
 }
 
-// List returns every task, ordered by slug; callers narrow them themselves.
+// List returns every task in workflow order, then by slug; callers narrow
+// them themselves.
 func (c *Client) List() ([]Task, error) {
 	var out []Task
 	return out, c.do(http.MethodGet, "/api/tasks", nil, &out)

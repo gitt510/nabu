@@ -35,9 +35,9 @@ func taskCmd(e *env) *cobra.Command {
 	return cmd
 }
 
-func checkStatus(status string) error {
-	if !slices.Contains(api.Statuses, status) {
-		return fmt.Errorf("status must be one of %s: %s", strings.Join(api.Statuses, ", "), status)
+func checkStatus(status api.Status) error {
+	if !status.Valid() {
+		return fmt.Errorf("no such status: %s", status)
 	}
 	return nil
 }
@@ -46,12 +46,12 @@ func checkStatus(status string) error {
 // Frontmatter is the frontmatter as stored, for the commands that change it
 // (task new, task set); From and To are the old and new status or slug.
 type result struct {
-	Action      string `json:"action"`
-	Slug        string `json:"slug"`
-	Status      string `json:"status,omitempty"`
-	From        string `json:"from,omitempty"`
-	To          string `json:"to,omitempty"`
-	Frontmatter *meta  `json:"frontmatter,omitempty"`
+	Action      string     `json:"action"`
+	Slug        string     `json:"slug"`
+	Status      api.Status `json:"status,omitempty"`
+	From        string     `json:"from,omitempty"`
+	To          string     `json:"to,omitempty"`
+	Frontmatter *meta      `json:"frontmatter,omitempty"`
 }
 
 // readTaskBody reads a body: a JSON object of a task's title and sections, sent to the API as it is.
@@ -188,7 +188,7 @@ func taskMvCmd(e *env) *cobra.Command {
 		GroupID: "update",
 		Args:    cobra.ExactArgs(2),
 		RunE: do(func(args []string) int {
-			slug, status := arg(args, 0), arg(args, 1)
+			slug, status := arg(args, 0), api.Status(arg(args, 1))
 			c, err := client()
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
@@ -202,12 +202,12 @@ func taskMvCmd(e *env) *cobra.Command {
 			}
 			if _, err := c.Patch(slug, map[string]any{"status": status}); err != nil {
 				var refused *api.Error
-				if errors.As(err, &refused) && status == "dropped" {
+				if errors.As(err, &refused) && status == api.Dropped {
 					err = fmt.Errorf("%w (write it with task replace first)", err)
 				}
 				return fail(e.stderr, err, exitFail)
 			}
-			return emit(e.stdout, result{Action: "task mv", Slug: slug, From: t.Status, To: status})
+			return emit(e.stdout, result{Action: "task mv", Slug: slug, From: string(t.Status), To: string(status)})
 		}),
 	}
 	return cmd
@@ -316,19 +316,12 @@ func taskReadCmd(e *env) *cobra.Command {
 // taskEntry is one row of task ls: the task's frontmatter apart from its
 // body, as task read prints them.
 type taskEntry struct {
-	Slug        string `json:"slug"`
-	Status      string `json:"status"`
-	Title       string `json:"title"`
-	Frontmatter meta   `json:"frontmatter"`
-	Updated     string `json:"updated"`
-	Body        string `json:"body"`
-}
-
-// byWorkflow orders tasks by status in workflow order (inbox, doing, done,
-// dropped). Tasks within a status compare equal, so a stable sort keeps the
-// API's slug order.
-func byWorkflow(a, b api.Task) int {
-	return slices.Index(api.Statuses, a.Status) - slices.Index(api.Statuses, b.Status)
+	Slug        string     `json:"slug"`
+	Status      api.Status `json:"status"`
+	Title       string     `json:"title"`
+	Frontmatter meta       `json:"frontmatter"`
+	Updated     string     `json:"updated"`
+	Body        string     `json:"body"`
 }
 
 func taskLsCmd(e *env) *cobra.Command {
@@ -340,7 +333,7 @@ func taskLsCmd(e *env) *cobra.Command {
 		GroupID: "browse",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: do(func(args []string) int {
-			status := arg(args, 0)
+			status := api.Status(arg(args, 0))
 			if status != "" {
 				if err := checkStatus(status); err != nil {
 					return fail(e.stderr, err, exitUsage)
@@ -357,7 +350,6 @@ func taskLsCmd(e *env) *cobra.Command {
 			if status != "" {
 				tasks = slices.DeleteFunc(tasks, func(t api.Task) bool { return t.Status != status })
 			}
-			slices.SortStableFunc(tasks, byWorkflow)
 			if asJSON {
 				rows := make([]taskEntry, len(tasks))
 				for i, t := range tasks {
@@ -387,7 +379,7 @@ func taskLsCmd(e *env) *cobra.Command {
 func taskTable(tasks []api.Task, width int) string {
 	cells := make([][]string, len(tasks))
 	for i, t := range tasks {
-		cells[i] = []string{t.Status, t.Title, createdDate(t.Created)}
+		cells[i] = []string{string(t.Status), t.Title, createdDate(t.Created)}
 	}
 	return drawTable([]string{"STATUS", "TITLE", "CREATED"}, cells, width, func(row, col int) lipgloss.Style {
 		switch col {
@@ -412,10 +404,10 @@ func createdDate(created string) string {
 
 // match is one line of task grep: a line of the task as task read prints it.
 type match struct {
-	Slug   string `json:"slug"`
-	Status string `json:"status"`
-	Line   int    `json:"line"`
-	Text   string `json:"text"`
+	Slug   string     `json:"slug"`
+	Status api.Status `json:"status"`
+	Line   int        `json:"line"`
+	Text   string     `json:"text"`
 }
 
 func taskGrepCmd(e *env) *cobra.Command {
@@ -436,7 +428,6 @@ func taskGrepCmd(e *env) *cobra.Command {
 			if err != nil {
 				return fail(e.stderr, err, exitFail)
 			}
-			slices.SortStableFunc(tasks, byWorkflow)
 			matches := []match{}
 			q := strings.ToLower(query)
 			for _, t := range tasks {
@@ -471,7 +462,7 @@ func taskGrepCmd(e *env) *cobra.Command {
 func grepTable(matches []match, query string, width int) string {
 	cells := make([][]string, len(matches))
 	for i, m := range matches {
-		cells[i] = []string{m.Status, m.Slug, strconv.Itoa(m.Line), highlight(m.Text, query)}
+		cells[i] = []string{string(m.Status), m.Slug, strconv.Itoa(m.Line), highlight(m.Text, query)}
 	}
 	return drawTable([]string{"STATUS", "TASK", "LINE", "TEXT"}, cells, width, func(row, col int) lipgloss.Style {
 		switch col {

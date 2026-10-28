@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -49,7 +50,11 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for _, t := range f.tasks {
 			out = append(out, t)
 		}
-		slices.SortFunc(out, func(a, b api.Task) int { return strings.Compare(a.Slug, b.Slug) })
+		// The API lists tasks in workflow order, then by slug.
+		workflow := []api.Status{api.Inbox, api.Doing, api.Done, api.Dropped}
+		slices.SortFunc(out, func(a, b api.Task) int {
+			return cmp.Or(slices.Index(workflow, a.Status)-slices.Index(workflow, b.Status), strings.Compare(a.Slug, b.Slug))
+		})
 		_ = json.NewEncoder(w).Encode(out)
 		return
 	case r.Method == http.MethodPost && r.URL.Path == "/api/tasks":
@@ -324,7 +329,7 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 	if got := nabu(exitOK, `{"title": "Renamed", "answer": ["決めた"]}`, "task", "replace", "ok"); strings.Contains(got, "frontmatter") {
 		t.Fatalf("replace prints frontmatter: %s", got)
 	}
-	if tk := f.tasks["ok"]; tk.Title != "Renamed" || tk.Answer[0] != "決めた" || tk.Project != "nabu" {
+	if tk := f.tasks["ok"]; tk.Title != "Renamed" || tk.Answer[0] != "決めた" || orEmpty(tk.Project) != "nabu" {
 		t.Fatalf("after replace: %+v", tk)
 	}
 	for _, k := range []string{"area", "project", "status"} {

@@ -123,9 +123,17 @@ func (m *meta) render() string {
 	return "---\n" + b.String() + "---\n"
 }
 
-// metaOf is a task's frontmatter.
+// metaOf is a task's frontmatter, an optional value the API sends as null
+// reading as "".
 func metaOf(t api.Task) meta {
-	return meta{Created: t.Created, Area: t.Area, Project: t.Project, Scheduled: t.Scheduled, Waiting: t.Waiting, Tickets: t.Tickets, Prs: t.Prs, Links: t.Links}
+	return meta{Created: t.Created, Area: string(t.Area), Project: orEmpty(t.Project), Scheduled: orEmpty(t.Scheduled), Waiting: orEmpty(t.Waiting), Tickets: t.Tickets, Prs: t.Prs, Links: t.Links}
+}
+
+func orEmpty(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 // apiFields are the API fields of every key a flag sets, with null for an

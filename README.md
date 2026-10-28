@@ -67,6 +67,7 @@ agent: nabu task new review-pr-68 --area work --pr https://github.com/o/r/pull/6
 
 - `just` lists the recipes, such as `just test` and `just check`
 - `pnpm test -u` writes `openapi.json` again after a route or a schema changes, and `pnpm test` fails while it is stale
+- `go generate ./...` writes the CLI's types in `internal/api/openapi.gen.go` again from `openapi.json`, and `just check` fails while they are stale
 - `just dev` serves the viewer from the working tree and relays `/api/*` to the Worker with the token `cloudflared` holds
 - `migrations/` holds the D1 schema, applied with `wrangler d1 migrations apply nabu --remote`
 - [`docs/config.md`](docs/config.md) lists every config by consumer and sensitivity
