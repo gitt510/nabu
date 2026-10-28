@@ -1,6 +1,6 @@
 import { marked } from "marked";
 
-import { type Habit, SECTIONS, type Task } from "../api/fields";
+import { type Habit, SECTIONS, type Task } from "../api/schema";
 
 /** page が見せる形の task：本文は題の下の HTML、検索は小文字の全文 */
 export type Item = Task & { html: string; text: string };

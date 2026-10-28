@@ -1,4 +1,4 @@
-import type { Status } from "../../api/fields";
+import type { Status } from "../../api/schema";
 import { type Choice, CircleCheckIcon, CircleDotIcon, CircleXIcon, InboxIcon } from "./ui";
 
 /** status の名前と icon。Dropped は理由を聞くので、線で区切って下に置く */

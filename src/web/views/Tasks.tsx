@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 
-import { AREAS, type Status } from "../../api/fields";
+import { AREAS, type Status } from "../../api/schema";
 import type { Item } from "../api";
 import { TaskDetail } from "../components/TaskDetail";
 import { TaskList } from "../components/TaskList";
