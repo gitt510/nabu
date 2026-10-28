@@ -9,8 +9,15 @@
   "assets": { "directory": "dist" },
   // Pinned on purpose: a moving date would change the Worker's behavior silently.
   "compatibility_date": "2026-10-11",
-  // Schema changes are files in migrations/, applied with `wrangler d1 migrations apply nabu`.
-  "d1_databases": [{ "binding": "DB", "database_name": "nabu", "database_id": "b56c5b0a-b0d0-41bc-a686-ee0a69dc41fc" }],
+  // Schema changes are files in src/api/migrations/, applied with `wrangler d1 migrations apply nabu`.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nabu",
+      "database_id": "b56c5b0a-b0d0-41bc-a686-ee0a69dc41fc",
+      "migrations_dir": "src/api/migrations"
+    }
+  ],
   "vars": {
     "CF_ACCESS_TEAM_DOMAIN": "https://rapid-hall-57f2.cloudflareaccess.com",
     "CF_ACCESS_AUD": "3e3890f23a5a9f73811e7ead2d21bf3fadccd4f470665919120aba129a67d9f5"
