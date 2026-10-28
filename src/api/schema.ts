@@ -13,7 +13,9 @@ export const LINE_LIMIT = 45;
 export const SECTIONS = ["situation", "complication", "question", "answer", "why_dropped"] as const;
 export const LISTS = ["tickets", "prs", "links"] as const;
 
-export type Status = (typeof STATUSES)[number];
+// The ids name the schemas the OpenAPI document shares as components, so a generated client names its types.
+export const Status = z.enum(STATUSES).meta({ id: "Status" });
+export type Status = z.output<typeof Status>;
 
 const kebab = z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/, "must be lowercase kebab-case");
 
@@ -58,7 +60,7 @@ const nonBlank = z.string().regex(/^[^\n]*\S[^\n]*$/, "must be one non-blank lin
 export const Task = z.strictObject({
   slug: kebab,
   title: nonBlank,
-  status: z.enum(STATUSES),
+  status: Status,
   area: z.enum(AREAS),
   project: kebab.nullable(),
   scheduled: scheduled.nullable(),
@@ -73,7 +75,7 @@ export const Task = z.strictObject({
   why_dropped: whyDropped,
   created: z.string(),
   updated: z.string(),
-});
+}).meta({ id: "Task" });
 export type Task = z.output<typeof Task>;
 
 // TaskCreate is POST /api/tasks: a new task always starts in inbox.
@@ -99,7 +101,7 @@ export const TaskCreate = z.strictObject({
 export const TaskPatch = Task.omit({ created: true, updated: true }).partial();
 
 // Habit is a habit as GET /api/habits returns it: done on the day asked.
-export const Habit = z.strictObject({ id: z.number().int(), title: nonBlank, done: z.boolean() });
+export const Habit = z.strictObject({ id: z.number().int(), title: nonBlank, done: z.boolean() }).meta({ id: "Habit" });
 export type Habit = z.output<typeof Habit>;
 
 // HabitCreate is POST /api/habits.

@@ -58,13 +58,15 @@ agent: nabu task new review-pr-68 --area work --pr https://github.com/o/r/pull/6
 - `nabu task new` and `nabu task replace` take the body as JSON, and `nabu task read` prints it as markdown
 - The API refuses a task out of shape, so no stored task is out of shape
 - Every write keeps the task before and after it as an event
-- [`frontmatter.go`](frontmatter.go) maps every frontmatter key to its flag, and passes each value to the API unchecked
+- [`cmd/nabu/frontmatter.go`](cmd/nabu/frontmatter.go) maps every frontmatter key to its flag, and passes each value to the API unchecked
 - [`src/api/schema.ts`](src/api/schema.ts) defines every rule a write must meet
 - `nabu task schema` prints those rules as JSON Schema, as the API serves them at `/api/schema`
+- [`openapi.json`](openapi.json) describes every route of the API as OpenAPI, as the API serves it at `/api/openapi.json`
 
 ## Development
 
 - `just` lists the recipes, such as `just test` and `just check`
+- `pnpm test -u` writes `openapi.json` again after a route or a schema changes, and `pnpm test` fails while it is stale
 - `just dev` serves the viewer from the working tree and relays `/api/*` to the Worker with the token `cloudflared` holds
 - `migrations/` holds the D1 schema, applied with `wrangler d1 migrations apply nabu --remote`
 - [`docs/config.md`](docs/config.md) lists every config by consumer and sensitivity
