@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { Habit } from "../../api/fields";
+import type { Habit } from "../../api/schema";
 import { addHabit, deleteHabit, renameHabit } from "../api";
 import { Button, Caption, Empty, ErrorText, Form, Group, IconButton, LineInput, Page, PencilIcon, Section, Stack, TrashIcon } from "../components/ui";
 import { useHabits } from "../hooks/useHabits";
