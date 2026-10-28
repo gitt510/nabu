@@ -1,5 +1,5 @@
-// Lints the viewer in app/ so that it keeps no CSS of its own and touches Mantine and Tabler only inside
-// app/components/ui/. Each message says what to use instead, then why.
+// Lints the viewer in src/web/ so that it keeps no CSS of its own and touches Mantine and Tabler only inside
+// src/web/components/ui/. Each message says what to use instead, then why.
 //
 // no-restricted-imports carries four restrictions at once, and an override replaces its options whole, so
 // every scope below restates the full list it needs.
@@ -59,12 +59,12 @@ export default defineConfig({
   },
   overrides: [
     {
-      files: ["app/components/*.ts", "app/components/*.tsx"],
+      files: ["src/web/components/*.ts", "src/web/components/*.tsx"],
       rules: { "no-restricted-imports": imports(LIBRARY, OWN_CSS, VIEWS) },
     },
     // ui wraps Mantine, so the JSX rules stop here; it still keeps no CSS and knows nothing outside ui.
     {
-      files: ["app/components/ui/**"],
+      files: ["src/web/components/ui/**"],
       rules: {
         "no-restricted-imports": imports(OWN_CSS, OUTSIDE_UI),
         "react/forbid-elements": "off",
@@ -73,7 +73,7 @@ export default defineConfig({
       },
     },
     {
-      files: ["app/components/ui/index.ts"],
+      files: ["src/web/components/ui/index.ts"],
       rules: { "no-restricted-imports": imports(OWN_CSS, OUTSIDE_UI, PASS_THROUGH) },
     },
   ],

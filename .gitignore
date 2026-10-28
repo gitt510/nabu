@@ -1,3 +1,6 @@
 /nabu
 .DS_Store
 node_modules/
+dist/
+.wrangler/
+worker-configuration.d.ts

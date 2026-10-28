@@ -1,4 +1,4 @@
-// Builds the viewer from app/ into dist/, which the Worker serves as static assets. In dev the page runs
+// Builds the viewer from src/web/ into dist/, which the Worker serves as static assets. In dev the page runs
 // from the working tree and /api/* goes to the deployed Worker the nabu CLI talks to, signed in with the
 // Access token cloudflared holds, as the CLI is; writes from the dev page reach the production D1.
 import { execFileSync } from "node:child_process";
@@ -20,8 +20,8 @@ const api = () => {
 };
 
 export default defineConfig(({ command }) => ({
-  root: "app",
+  root: "src/web",
   plugins: [react()],
-  build: { outDir: "../dist", emptyOutDir: true },
+  build: { outDir: "../../dist", emptyOutDir: true },
   server: { port: 8787, proxy: command === "serve" ? { "/api/": api() } : undefined },
 }));

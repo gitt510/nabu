@@ -5,7 +5,7 @@
   // Access (sign-in) is set on the Worker in the Zero Trust dashboard, not here; the Worker checks the token
   // Access signs against the team and the application below. Neither value is a secret.
   "name": "nabu",
-  "main": "src/index.ts",
+  "main": "src/api/index.ts",
   "assets": { "directory": "dist" },
   // Pinned on purpose: a moving date would change the Worker's behavior silently.
   "compatibility_date": "2026-10-11",

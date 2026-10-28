@@ -1,12 +1,12 @@
 {
-  "name": "nabu-web",
+  "name": "nabu",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "types": "wrangler types",
-    "check": "wrangler types && tsc && tsc -p app && oxlint -c oxlint.config.ts app",
+    "check": "wrangler types && tsc && tsc -p src/web && oxlint -c oxlint.config.ts src/web",
     "test": "vitest run"
   },
   "dependencies": {

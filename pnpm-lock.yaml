@@ -6,7 +6,7 @@ settings:
 
 importers:
 
-  web:
+  .:
     dependencies:
       '@fontsource-variable/noto-sans-jp':
         specifier: ^5.3.1

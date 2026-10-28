@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { Status } from "../../src/fields";
+import type { Status } from "../../api/fields";
 import { type Item, patch } from "../api";
 import { fmt, isLate, ticket } from "../time";
 import { DropDialog } from "./DropDialog";

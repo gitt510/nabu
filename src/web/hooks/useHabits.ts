@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import type { Habit } from "../../src/fields";
+import type { Habit } from "../../api/fields";
 import { fetchHabits } from "../api";
 
 /** day（YYYY-MM-DD）に見た habit 全部。write で書き込むと読み直し、断られたら error にその理由を入れる */

@@ -5,7 +5,7 @@
 ## Setup
 
 ```bash
-go install github.com/gitt510/nabu@latest
+go install github.com/gitt510/nabu/cmd/nabu@latest
 brew install cloudflared
 mkdir -p ~/.config/nabu
 echo '{"base_url": "https://nabu.<you>.workers.dev"}' > ~/.config/nabu/config.json
@@ -59,13 +59,13 @@ agent: nabu task new review-pr-68 --area work --pr https://github.com/o/r/pull/6
 - The API refuses a task out of shape, so no stored task is out of shape
 - Every write keeps the task before and after it as an event
 - [`frontmatter.go`](frontmatter.go) maps every frontmatter key to its flag, and passes each value to the API unchecked
-- [`web/src/schema.ts`](web/src/schema.ts) defines every rule a write must meet
+- [`src/api/schema.ts`](src/api/schema.ts) defines every rule a write must meet
 - `nabu task schema` prints those rules as JSON Schema, as the API serves them at `/api/schema`
 
 ## Development
 
 - `just` lists the recipes, such as `just test` and `just check`
 - `just dev` serves the viewer from the working tree and relays `/api/*` to the Worker with the token `cloudflared` holds
-- `web/migrations/` holds the D1 schema, applied with `wrangler d1 migrations apply nabu --remote`
+- `migrations/` holds the D1 schema, applied with `wrangler d1 migrations apply nabu --remote`
 - [`docs/config.md`](docs/config.md) lists every config by consumer and sensitivity
 - [`docs/architecture.md`](docs/architecture.md) draws the routes that cross containers and how the task contract reaches each consumer
