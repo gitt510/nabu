@@ -1,9 +1,8 @@
 // /api/tasks: list, read, create, change, and delete tasks in D1. Every write appends an event in the
 // same batch, so the row and its history never disagree.
-import { zValidator } from "@hono/zod-validator";
-import { Hono } from "hono";
-import { LISTS, SECTIONS, type Task, TaskCreate, TaskPatch, whole } from "./schema";
-import { hook, invalid } from "./validate";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { LISTS, SECTIONS, Task, TaskCreate, TaskPatch, whole } from "./schema";
+import { body, failure, hook, invalid, json } from "./validate";
 
 type Row = Omit<Task, (typeof LISTS)[number] | (typeof SECTIONS)[number]> & { id: number } & Record<
     (typeof LISTS)[number] | (typeof SECTIONS)[number],
@@ -35,61 +34,101 @@ const event = (db: D1Database, action: string, slug: string, before: Task | null
     )
     .bind(slug, now(), action, before && JSON.stringify(before), after && JSON.stringify(after));
 
-export const tasks = new Hono<{ Bindings: Env }>()
+const slug = z.strictObject({ slug: z.string() });
+
+export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
   // Every task, ordered by slug: callers narrow them themselves while the list stays small.
-  .get("/", async (c) => {
+  .openapi(createRoute({ method: "get", path: "/", responses: { 200: json(z.array(Task), "every task") } }), async (c) => {
     const { results } = await c.env.DB.prepare("SELECT * FROM tasks ORDER BY slug").all<Row>();
-    return c.json(results.map(toTask));
+    return c.json(results.map(toTask), 200);
   })
 
-  .get("/:slug", async (c) => {
-    const row = await find(c.env.DB, c.req.param("slug"));
-    return row ? c.json(toTask(row)) : c.json({ error: "no such task" }, 404);
-  })
+  .openapi(
+    createRoute({
+      method: "get",
+      path: "/{slug}",
+      request: { params: slug },
+      responses: { 200: json(Task, "the task"), 404: failure("no such task") },
+    }),
+    async (c) => {
+      const row = await find(c.env.DB, c.req.valid("param").slug);
+      return row ? c.json(toTask(row), 200) : c.json({ error: "no such task" }, 404);
+    },
+  )
 
-  .post("/", zValidator("json", TaskCreate, hook), async (c) => {
-    const at = now();
-    const task: Task = {
-      ...c.req.valid("json"),
-      status: "inbox",
-      project: c.req.valid("json").project ?? null,
-      scheduled: c.req.valid("json").scheduled ?? null,
-      waiting: c.req.valid("json").waiting ?? null,
-      created: at,
-      updated: at,
-    };
-    if (await find(c.env.DB, task.slug)) return c.json({ error: `${task.slug} already exists` }, 409);
-    const insert = c.env.DB.prepare(
-      `INSERT INTO tasks (${COLUMNS.join(", ")}) VALUES (${COLUMNS.map(() => "?").join(", ")})`,
-    ).bind(...fromTask(task));
-    await c.env.DB.batch([insert, event(c.env.DB, "create", task.slug, null, task)]);
-    return c.json(task, 201);
-  })
+  .openapi(
+    createRoute({
+      method: "post",
+      path: "/",
+      request: { body: body(TaskCreate, "the new task, filed in inbox") },
+      responses: { 201: json(Task, "the task as stored"), 409: failure("the slug is taken"), 422: failure("the task breaks the contract") },
+    }),
+    async (c) => {
+      const at = now();
+      const fields = c.req.valid("json");
+      const task: Task = {
+        ...fields,
+        status: "inbox",
+        project: fields.project ?? null,
+        scheduled: fields.scheduled ?? null,
+        waiting: fields.waiting ?? null,
+        created: at,
+        updated: at,
+      };
+      if (await find(c.env.DB, task.slug)) return c.json({ error: `${task.slug} already exists` }, 409);
+      const insert = c.env.DB.prepare(
+        `INSERT INTO tasks (${COLUMNS.join(", ")}) VALUES (${COLUMNS.map(() => "?").join(", ")})`,
+      ).bind(...fromTask(task));
+      await c.env.DB.batch([insert, event(c.env.DB, "create", task.slug, null, task)]);
+      return c.json(task, 201);
+    },
+  )
 
-  .patch("/:slug", zValidator("json", TaskPatch, hook), async (c) => {
-    const row = await find(c.env.DB, c.req.param("slug"));
-    if (!row) return c.json({ error: "no such task" }, 404);
-    const before = toTask(row);
-    const after: Task = { ...before, ...c.req.valid("json"), updated: now() };
-    const problem = whole(after);
-    if (problem) return invalid(c, problem);
-    if (after.slug !== before.slug && (await find(c.env.DB, after.slug))) {
-      return c.json({ error: `${after.slug} already exists` }, 409);
-    }
-    const update = c.env.DB.prepare(`UPDATE tasks SET ${COLUMNS.map((k) => `${k} = ?`).join(", ")} WHERE id = ?`).bind(
-      ...fromTask(after),
-      row.id,
-    );
-    await c.env.DB.batch([update, event(c.env.DB, "update", after.slug, before, after)]);
-    return c.json(after);
-  })
+  .openapi(
+    createRoute({
+      method: "patch",
+      path: "/{slug}",
+      request: { params: slug, body: body(TaskPatch, "the fields to change") },
+      responses: {
+        200: json(Task, "the task as stored"),
+        404: failure("no such task"),
+        409: failure("the new slug is taken"),
+        422: failure("the task breaks the contract"),
+      },
+    }),
+    async (c) => {
+      const row = await find(c.env.DB, c.req.valid("param").slug);
+      if (!row) return c.json({ error: "no such task" }, 404);
+      const before = toTask(row);
+      const after: Task = { ...before, ...c.req.valid("json"), updated: now() };
+      const problem = whole(after);
+      if (problem) return invalid(c, problem);
+      if (after.slug !== before.slug && (await find(c.env.DB, after.slug))) {
+        return c.json({ error: `${after.slug} already exists` }, 409);
+      }
+      const update = c.env.DB.prepare(`UPDATE tasks SET ${COLUMNS.map((k) => `${k} = ?`).join(", ")} WHERE id = ?`).bind(
+        ...fromTask(after),
+        row.id,
+      );
+      await c.env.DB.batch([update, event(c.env.DB, "update", after.slug, before, after)]);
+      return c.json(after, 200);
+    },
+  )
 
-  .delete("/:slug", async (c) => {
-    const row = await find(c.env.DB, c.req.param("slug"));
-    if (!row) return c.json({ error: "no such task" }, 404);
-    await c.env.DB.batch([
-      event(c.env.DB, "delete", row.slug, toTask(row), null),
-      c.env.DB.prepare("DELETE FROM tasks WHERE id = ?").bind(row.id),
-    ]);
-    return c.body(null, 204);
-  });
+  .openapi(
+    createRoute({
+      method: "delete",
+      path: "/{slug}",
+      request: { params: slug },
+      responses: { 204: { description: "deleted; its events stay" }, 404: failure("no such task") },
+    }),
+    async (c) => {
+      const row = await find(c.env.DB, c.req.valid("param").slug);
+      if (!row) return c.json({ error: "no such task" }, 404);
+      await c.env.DB.batch([
+        event(c.env.DB, "delete", row.slug, toTask(row), null),
+        c.env.DB.prepare("DELETE FROM tasks WHERE id = ?").bind(row.id),
+      ]);
+      return c.body(null, 204);
+    },
+  );

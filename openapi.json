@@ -1,0 +1,993 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "nabu",
+    "version": "1"
+  },
+  "components": {
+    "schemas": {
+      "Task": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+          },
+          "title": {
+            "type": "string",
+            "pattern": "^[^\\n]*\\S[^\\n]*$"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "personal"
+            ]
+          },
+          "project": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+          },
+          "scheduled": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2}))?$"
+          },
+          "waiting": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[^\\n]*\\S[^\\n]*$"
+          },
+          "tickets": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^https:\\/\\/[^\\s/?#]+"
+            },
+            "uniqueItems": true
+          },
+          "prs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^https:\\/\\/[^\\s/?#]+"
+            },
+            "uniqueItems": true
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^https:\\/\\/[^\\s/?#]+"
+            },
+            "uniqueItems": true
+          },
+          "situation": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 45,
+              "pattern": "\\S"
+            }
+          },
+          "complication": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 45,
+              "pattern": "\\S"
+            }
+          },
+          "question": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 45,
+              "pattern": "\\S"
+            }
+          },
+          "answer": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 45,
+              "pattern": "\\S"
+            }
+          },
+          "why_dropped": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 45,
+              "pattern": "\\S"
+            },
+            "description": "why the task was decided against; a dropped task needs one line at least"
+          },
+          "created": {
+            "type": "string"
+          },
+          "updated": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "status",
+          "area",
+          "project",
+          "scheduled",
+          "waiting",
+          "tickets",
+          "prs",
+          "links",
+          "situation",
+          "complication",
+          "question",
+          "answer",
+          "why_dropped",
+          "created",
+          "updated"
+        ],
+        "additionalProperties": false
+      },
+      "Status": {
+        "type": "string",
+        "enum": [
+          "inbox",
+          "doing",
+          "done",
+          "dropped"
+        ]
+      },
+      "Habit": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string",
+            "pattern": "^[^\\n]*\\S[^\\n]*$"
+          },
+          "done": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "done"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/api/tasks": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "every task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Task"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "description": "the new task, filed in inbox",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "pattern": "^[^\\n]*\\S[^\\n]*$"
+                  },
+                  "area": {
+                    "type": "string",
+                    "enum": [
+                      "work",
+                      "personal"
+                    ]
+                  },
+                  "project": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+                  },
+                  "scheduled": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2}))?$"
+                  },
+                  "waiting": {
+                    "type": "string",
+                    "pattern": "^[^\\n]*\\S[^\\n]*$"
+                  },
+                  "tickets": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^https:\\/\\/[^\\s/?#]+"
+                    },
+                    "default": [],
+                    "uniqueItems": true
+                  },
+                  "prs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^https:\\/\\/[^\\s/?#]+"
+                    },
+                    "default": [],
+                    "uniqueItems": true
+                  },
+                  "links": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^https:\\/\\/[^\\s/?#]+"
+                    },
+                    "default": [],
+                    "uniqueItems": true
+                  },
+                  "situation": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 45,
+                      "pattern": "\\S"
+                    },
+                    "default": []
+                  },
+                  "complication": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 45,
+                      "pattern": "\\S"
+                    },
+                    "default": []
+                  },
+                  "question": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 45,
+                      "pattern": "\\S"
+                    },
+                    "default": []
+                  },
+                  "answer": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 45,
+                      "pattern": "\\S"
+                    },
+                    "default": []
+                  },
+                  "why_dropped": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 45,
+                      "pattern": "\\S"
+                    },
+                    "default": [],
+                    "description": "why the task was decided against; a dropped task needs one line at least"
+                  }
+                },
+                "required": [
+                  "slug",
+                  "title",
+                  "area"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "the task as stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "the slug is taken",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "the task breaks the contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tasks/{slug}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "no such task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "description": "the fields to change",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "pattern": "^[^\\n]*\\S[^\\n]*$"
+                  },
+                  "status": {
+                    "$ref": "#/components/schemas/Status"
+                  },
+                  "area": {
+                    "type": "string",
+                    "enum": [
+                      "work",
+                      "personal"
+                    ]
+                  },
+                  "project": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+                  },
+                  "scheduled": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2}))?$"
+                  },
+                  "waiting": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^[^\\n]*\\S[^\\n]*$"
+                  },
+                  "tickets": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^https:\\/\\/[^\\s/?#]+"
+                    },
+                    "uniqueItems": true
+                  },
+                  "prs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^https:\\/\\/[^\\s/?#]+"
+                    },
+                    "uniqueItems": true
+                  },
+                  "links": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^https:\\/\\/[^\\s/?#]+"
+                    },
+                    "uniqueItems": true
+                  },
+                  "situation": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 45,
+                      "pattern": "\\S"
+                    }
+                  },
+                  "complication": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 45,
+                      "pattern": "\\S"
+                    }
+                  },
+                  "question": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 45,
+                      "pattern": "\\S"
+                    }
+                  },
+                  "answer": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 45,
+                      "pattern": "\\S"
+                    }
+                  },
+                  "why_dropped": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 45,
+                      "pattern": "\\S"
+                    },
+                    "description": "why the task was decided against; a dropped task needs one line at least"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "the task as stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "no such task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "the new slug is taken",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "the task breaks the contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "deleted; its events stay"
+          },
+          "404": {
+            "description": "no such task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/habits": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": true,
+            "name": "date",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "every habit, done or not on date",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Habit"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "date is missing or not a day",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "description": "the new habit",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "pattern": "^[^\\n]*\\S[^\\n]*$"
+                  }
+                },
+                "required": [
+                  "title"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "the habit, not yet done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Habit"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "the habit is out of shape",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/habits/{id}": {
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "description": "the new title",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "pattern": "^[^\\n]*\\S[^\\n]*$"
+                  }
+                },
+                "required": [
+                  "title"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "renamed; its checks stay"
+          },
+          "404": {
+            "description": "no such habit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "the title is out of shape",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "deleted with its checks"
+          },
+          "404": {
+            "description": "no such habit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/habits/{id}/checks/{date}": {
+      "put": {
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": true,
+            "name": "date",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "done on date"
+          },
+          "404": {
+            "description": "no such habit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "date is not a day",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": true,
+            "name": "date",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "not done on date"
+          },
+          "404": {
+            "description": "no such habit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "date is not a day",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}
