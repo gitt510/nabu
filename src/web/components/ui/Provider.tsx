@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { Badge, createTheme, Kbd, localStorageColorSchemeManager, MantineProvider } from "@mantine/core";
 
-// 見た目の CSS は package のもの（Mantine と書体）だけで、theme と一緒にここで読む。自前の CSS は持たない
+// 見た目の CSS は package のもの（Mantine の core と dates、書体）だけで、theme と一緒にここで読む。自前の CSS は持たない
 import "@mantine/core/styles.css";
+import "@mantine/dates/styles.css";
 import "@fontsource-variable/noto-sans-jp";
 import "@fontsource-variable/noto-sans-mono";
 
