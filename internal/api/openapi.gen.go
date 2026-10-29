@@ -64,18 +64,21 @@ type Task struct {
 	Area         Area     `json:"area"`
 	Complication []string `json:"complication"`
 	Created      string   `json:"created"`
-	Links        []string `json:"links"`
-	Project      *string  `json:"project"`
-	Prs          []string `json:"prs"`
-	Question     []string `json:"question"`
-	Scheduled    *string  `json:"scheduled"`
-	Situation    []string `json:"situation"`
-	Slug         string   `json:"slug"`
-	Status       Status   `json:"status"`
-	Tickets      []string `json:"tickets"`
-	Title        string   `json:"title"`
-	Updated      string   `json:"updated"`
-	Waiting      *string  `json:"waiting"`
+
+	// Id the number the task keeps for life, unlike its slug
+	Id        int      `json:"id"`
+	Links     []string `json:"links"`
+	Project   *string  `json:"project"`
+	Prs       []string `json:"prs"`
+	Question  []string `json:"question"`
+	Scheduled *string  `json:"scheduled"`
+	Situation []string `json:"situation"`
+	Slug      string   `json:"slug"`
+	Status    Status   `json:"status"`
+	Tickets   []string `json:"tickets"`
+	Title     string   `json:"title"`
+	Updated   string   `json:"updated"`
+	Waiting   *string  `json:"waiting"`
 
 	// WhyDropped why the task was decided against; a dropped task needs one line at least
 	WhyDropped []string `json:"why_dropped"`

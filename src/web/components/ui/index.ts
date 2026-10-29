@@ -42,7 +42,6 @@ export { Pager } from "./Pager";
 export { Section } from "./Section";
 export { Dialog } from "./Dialog";
 export { Empty } from "./Empty";
-export { Facts } from "./Facts";
 export { KeyTable } from "./KeyTable";
 export { Prose } from "./Prose";
 
