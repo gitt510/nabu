@@ -3,17 +3,17 @@ import { fmtDay } from "../time";
 import { Caption, Empty, Group, ListRow, Stack } from "./ui";
 
 /** task の一覧。1 行は題と、待ちの印と、起票日。放っておかれた task が分かるように */
-export function TaskList({ items, selected, onSelect }: { items: Item[]; selected: string; onSelect: (slug: string) => void }) {
+export function TaskList({ items, selected, onSelect }: { items: Item[]; selected: string; onSelect: (id: string) => void }) {
   if (!items.length) return <Empty title="No tasks" description="Try clearing the search or filters." />;
   return (
     <Stack gap={2}>
       {items.map((t) => (
         <ListRow
-          key={t.slug}
-          id={`task-${t.slug}`}
+          key={t.id}
+          id={`task-${t.id}`}
           label={t.title}
-          active={t.slug === selected}
-          onClick={() => onSelect(t.slug)}
+          active={String(t.id) === selected}
+          onClick={() => onSelect(String(t.id))}
           aside={
             <Group gap={4} wrap="nowrap">
               {t.waiting ? "⏳" : null}

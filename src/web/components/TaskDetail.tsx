@@ -15,7 +15,7 @@ export function TaskDetail({ task, onBack, onChanged, menuOpened, onMenuOpenedCh
   const move = async (status: Status) => {
     if (status === task.status) return;
     if (status === "dropped") return setDropping(true);
-    const problem = await patch(task.slug, { status });
+    const problem = await patch(task.id, { status });
     setError(problem);
     if (!problem) onChanged();
   };
@@ -48,7 +48,7 @@ export function TaskDetail({ task, onBack, onChanged, menuOpened, onMenuOpenedCh
       <Section>
         <Prose html={task.html} />
       </Section>
-      <DropDialog slug={task.slug} opened={dropping} onClose={() => setDropping(false)} onDropped={onChanged} />
+      <DropDialog id={task.id} opened={dropping} onClose={() => setDropping(false)} onDropped={onChanged} />
     </Stack>
   );
 }

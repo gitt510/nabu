@@ -12,7 +12,7 @@ const toItem = (t: Task): Item => {
   const body = SECTIONS.filter((k) => k !== "why_dropped" || t.why_dropped.length)
     .map((k) => `### ${heading(k)}\n\n${t[k].map((l) => `- ${l}`).join("\n")}`)
     .join("\n\n");
-  return { ...t, html: marked.parse(body, { async: false }), text: [t.title, t.slug, t.waiting ?? "", t.project ?? "", body].join("\n").toLowerCase() };
+  return { ...t, html: marked.parse(body, { async: false }), text: [t.title, t.slug, `#${t.id}`, t.waiting ?? "", t.project ?? "", body].join("\n").toLowerCase() };
 };
 
 /** 全部の task を 1 回で読む。no-store なので、reload すると最新の書き込みが見える */
@@ -23,7 +23,7 @@ export async function fetchTasks(): Promise<Item[]> {
 }
 
 /** task を書き換える。断られたら理由を返す */
-export const patch = (slug: string, fields: Partial<Task>) => send("PATCH", `/api/tasks/${encodeURIComponent(slug)}`, fields);
+export const patch = (id: number, fields: Partial<Task>) => send("PATCH", `/api/tasks/${id}`, fields);
 
 /** 全部の habit を、day（YYYY-MM-DD）にやったかどうか付きで読む */
 export async function fetchHabits(day: string): Promise<Habit[]> {

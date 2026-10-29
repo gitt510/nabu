@@ -29,6 +29,10 @@ nabu task schema                             # the rules a write must meet, as J
 nabu task grep <query> [--json]              # where something is written in tasks
 ```
 
+Every command after `new` also takes a task's id in place of its slug: the
+number the viewer shows after a title and copies as `#6`. Pass it as `6`,
+or quote `'#6'`, since a shell reads an unquoted `#` as a comment.
+
 ## How to work
 
 1. **Check what exists first.** `nabu task ls --json` before filing so a

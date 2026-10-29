@@ -117,7 +117,7 @@ func taskNewCmd(e *env) *cobra.Command {
 func taskReplaceCmd(e *env) *cobra.Command {
 	var content string
 	cmd := &cobra.Command{
-		Use:     "replace <slug>",
+		Use:     "replace <slug|id>",
 		Short:   "replace a task's body, keeping its frontmatter",
 		Long:    "replaces the title and the sections the body gives, in a task of any status; its frontmatter is kept as is (see task set).\nthe body is read from stdin unless --content is given.\n" + bodyHelp,
 		GroupID: "update",
@@ -146,7 +146,7 @@ func taskReplaceCmd(e *env) *cobra.Command {
 func taskSetCmd(e *env) *cobra.Command {
 	var mf *metaFlags
 	cmd := &cobra.Command{
-		Use:     "set <slug>",
+		Use:     "set <slug|id>",
 		Short:   "change a task's frontmatter (area, project, scheduled, waiting, tickets, prs, links)",
 		Long:    "changes the frontmatter of a task in any status and prints it as stored; the body is kept as is (see task replace).",
 		GroupID: "update",
@@ -182,7 +182,7 @@ func taskSetCmd(e *env) *cobra.Command {
 
 func taskMvCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "mv <slug> <status>",
+		Use:     "mv <slug|id> <status>",
 		Short:   "move a task to a status (inbox, doing, done, dropped)",
 		Long:    "sets the status of a task.\ndone is finished work; dropped is work decided against, and is refused until the task carries why_dropped (see task replace)",
 		GroupID: "update",
@@ -215,7 +215,7 @@ func taskMvCmd(e *env) *cobra.Command {
 
 func taskRenameCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "rename <slug> <new-slug>",
+		Use:     "rename <slug|id> <new-slug>",
 		Short:   "give a task a new slug, keeping its status and content",
 		Long:    "changes the slug of a task; status, frontmatter, body, and history stay as they are.\na new slug already taken is refused",
 		GroupID: "update",
@@ -241,7 +241,7 @@ func taskRenameCmd(e *env) *cobra.Command {
 
 func taskRmCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "rm <slug>",
+		Use:     "rm <slug|id>",
 		Short:   "delete a task, whatever its status",
 		Long:    "deletes a task; the API keeps its history.\nfor a task that should not have been filed (a duplicate, a mistake); work decided against goes to dropped (see task mv)",
 		GroupID: "update",
@@ -291,7 +291,7 @@ func document(t api.Task) string {
 
 func taskReadCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "read <slug>",
+		Use:     "read <slug|id>",
 		Short:   "print a task, whatever its status",
 		Long:    "prints a task as markdown to read: its frontmatter block, then its title and sections",
 		GroupID: "read",

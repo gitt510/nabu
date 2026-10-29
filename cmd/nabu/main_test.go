@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -23,6 +24,8 @@ import (
 // CLI, not the API's rules.
 type fakeAPI struct {
 	tasks map[string]api.Task
+	// next is the id the last task created took.
+	next int
 	// last is the JSON body of the last write, as the CLI sent it.
 	last map[string]any
 }
@@ -36,7 +39,13 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 	}
-	slug := strings.TrimPrefix(r.URL.Path, "/api/tasks/")
+	// The API addresses a task by its id; find the slug it holds now.
+	slug := ""
+	for k, t := range f.tasks {
+		if r.URL.Path == fmt.Sprintf("/api/tasks/%d", t.Id) {
+			slug = k
+		}
+	}
 	if r.Method == http.MethodPost || r.Method == http.MethodPatch {
 		f.last = map[string]any{}
 		_ = json.NewDecoder(r.Body).Decode(&f.last)
@@ -48,7 +57,9 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodGet && r.URL.Path == "/api/tasks":
 		out := []api.Task{}
 		for _, t := range f.tasks {
-			out = append(out, t)
+			if q := r.URL.Query().Get("slug"); q == "" || q == t.Slug {
+				out = append(out, t)
+			}
 		}
 		// The API lists tasks in workflow order, then by slug.
 		workflow := []api.Status{api.Inbox, api.Doing, api.Done, api.Dropped}
@@ -67,6 +78,8 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			refuse(409, t.Slug+" already exists")
 			return
 		}
+		f.next++
+		t.Id = f.next
 		f.tasks[t.Slug] = t
 		w.WriteHeader(201)
 		_ = json.NewEncoder(w).Encode(t)
@@ -320,6 +333,13 @@ func TestTaskReadPrintsMarkdown(t *testing.T) {
 		t.Fatalf("read:\n%s", got)
 	}
 	nabu(exitFail, "", "task", "read", "missing")
+	// a task is named by its id as well, with or without #
+	for _, ref := range []string{"1", "#1"} {
+		if got := nabu(exitOK, "", "task", "read", ref); got != want {
+			t.Fatalf("read %s:\n%s", ref, got)
+		}
+	}
+	nabu(exitFail, "", "task", "read", "2")
 }
 
 func TestTaskReplaceAndSetViaCLI(t *testing.T) {

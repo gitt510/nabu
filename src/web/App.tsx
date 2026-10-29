@@ -17,15 +17,15 @@ const PAGES: RailItem<Page>[] = [
 
 export function App() {
   const { tasks, error, reload } = useTasks();
-  const [slug, setSlug] = useHash();
-  // #slug で開いたときは Tasks、それ以外は今日から始める
-  const [page, setPage] = useState<Page>(slug ? "tasks" : "calendar");
+  const [selected, setSelected] = useHash();
+  // #番号で開いたときは Tasks、それ以外は今日から始める
+  const [page, setPage] = useState<Page>(selected ? "tasks" : "calendar");
   const [help, setHelp] = useState(false);
   // logo で origin に戻るたびに数を進め、Calendar を作り直して今日から見せる
   const [home, setHome] = useState(0);
   const goHome = () => {
     setPage("calendar");
-    setSlug("");
+    setSelected("");
     setHome((h) => h + 1);
   };
   const { setColorScheme } = useMantineColorScheme();
@@ -37,9 +37,9 @@ export function App() {
     ["shift+?", () => setHelp((h) => !h)],
   ]);
 
-  const openTask = (s: string) => {
+  const openTask = (id: string) => {
     setPage("tasks");
-    setSlug(s);
+    setSelected(id);
   };
 
   return (
@@ -60,9 +60,9 @@ export function App() {
       ) : page === "habits" ? (
         <Habits />
       ) : page === "tasks" ? (
-        <Tasks tasks={tasks} selected={slug} onSelect={setSlug} onChanged={reload} />
+        <Tasks tasks={tasks} selected={selected} onSelect={setSelected} onChanged={reload} />
       ) : (
-        <Calendar key={home} tasks={tasks} selected={slug} onSelect={setSlug} onOpen={openTask} onChanged={reload} />
+        <Calendar key={home} tasks={tasks} selected={selected} onSelect={setSelected} onOpen={openTask} onChanged={reload} />
       )}
       <HelpDialog opened={help} onClose={() => setHelp(false)} />
     </Shell>
