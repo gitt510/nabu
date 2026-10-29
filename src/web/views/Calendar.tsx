@@ -2,7 +2,8 @@ import { type ReactNode, useState } from "react";
 
 import { checkHabit, type Item } from "../api";
 import { STATUS_CHOICES } from "../components/statuses";
-import { Caption, Checkbox, Empty, ErrorText, Group, ListRow, Page, Pager, Section, Stack, Tag, useHotkeys } from "../components/ui";
+import { TaskDetail } from "../components/TaskDetail";
+import { Caption, Checkbox, Columns, Empty, ErrorText, Group, ListRow, Page, Pager, Section, Stack, Tag, useHotkeys, useMediaQuery } from "../components/ui";
 import { useHabits } from "../hooks/useHabits";
 import { addDays, dayLabel, dayOf, fmtDay, instant, isLate, timeOf, todayKey } from "../time";
 
@@ -13,10 +14,14 @@ const bySchedule = (a: Item, b: Item) => instant(a.scheduled!).getTime() - insta
  * 時間で見る page。1 日分の予定を、時刻のあるものから順に並べる（日付だけの予定は終日）。
  * 終わった予定も、その日の記録として残す。今日か先の日を見ているときは、今日の時点で予定日を過ぎてまだ開いている
  * task を下に足す（今日の予定はまだ遅れていないので入れない）。過去の日には出さない。
- * 予定の下には毎日やる habit を並べ、その日にやった印をここで付け外しする
+ * 予定の下には毎日やる habit を並べ、その日にやった印をここで付け外しする。
+ * 広い画面では選んだ task を右の列に開き、狭い画面では Tasks page に移って開く
  */
-export function Calendar({ tasks, onOpen }: { tasks: Item[]; onOpen: (slug: string) => void }) {
+export function Calendar({ tasks, selected, onSelect, onOpen, onChanged }: { tasks: Item[]; selected: string; onSelect: (slug: string) => void; onOpen: (slug: string) => void; onChanged: () => void }) {
   const [day, setDay] = useState(todayKey);
+  const [menuOpened, setMenuOpened] = useState(false);
+  const narrow = useMediaQuery("(max-width: 48em)") ?? false;
+  const task = tasks.find((t) => t.slug === selected);
   const isToday = day === todayKey();
   const { habits, error, write } = useHabits(day);
   const planned = tasks.filter((t) => t.scheduled && dayOf(t.scheduled) === day).sort(bySchedule);
@@ -35,8 +40,8 @@ export function Calendar({ tasks, onOpen }: { tasks: Item[]; onOpen: (slug: stri
       key={t.slug}
       id={`day-${t.slug}`}
       label={t.title}
-      active={false}
-      onClick={() => onOpen(t.slug)}
+      active={!narrow && t.slug === selected}
+      onClick={() => (narrow ? onOpen : onSelect)(t.slug)}
       aside={
         <Group gap={6} wrap="nowrap">
           {open_(t) ? null : <Tag tone="muted">{STATUS_CHOICES.find((c) => c.value === t.status)?.label}</Tag>}
@@ -46,9 +51,8 @@ export function Calendar({ tasks, onOpen }: { tasks: Item[]; onOpen: (slug: stri
     />
   );
 
-  return (
-    <Page>
-      <Stack gap="lg">
+  const day_ = (
+    <Stack gap="lg">
         <Pager
           label={dayLabel(day)}
           prev={{ label: "Previous day (←)", onClick: prev }}
@@ -77,7 +81,21 @@ export function Calendar({ tasks, onOpen }: { tasks: Item[]; onOpen: (slug: stri
             <Stack gap={2}>{late.map((t) => row(t, <Tag tone="late">{fmtDay(t.scheduled!)}</Tag>))}</Stack>
           </Section>
         ) : null}
-      </Stack>
+    </Stack>
+  );
+  if (narrow) return <Page>{day_}</Page>;
+  return (
+    <Page width="wide">
+      <Columns>
+        {day_}
+        <Section>
+          {task ? (
+            <TaskDetail key={task.slug} task={task} onChanged={onChanged} menuOpened={menuOpened} onMenuOpenedChange={setMenuOpened} />
+          ) : (
+            <Empty title="No task selected" description="Pick one from the day." />
+          )}
+        </Section>
+      </Columns>
     </Page>
   );
 }
