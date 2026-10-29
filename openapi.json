@@ -9,6 +9,10 @@
       "Task": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "integer",
+            "description": "the number the task keeps for life, unlike its slug"
+          },
           "slug": {
             "type": "string",
             "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
@@ -117,6 +121,7 @@
           }
         },
         "required": [
+          "id",
           "slug",
           "title",
           "status",

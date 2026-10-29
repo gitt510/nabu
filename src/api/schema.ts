@@ -59,6 +59,7 @@ const nonBlank = z.string().regex(/^[^\n]*\S[^\n]*$/, "must be one non-blank lin
 
 // Task is a task as the API returns it.
 export const Task = z.strictObject({
+  id: z.number().int().meta({ description: "the number the task keeps for life, unlike its slug" }),
   slug: kebab,
   title: nonBlank,
   status: Status,
@@ -99,7 +100,7 @@ export const TaskCreate = z.strictObject({
 
 // TaskPatch is PATCH /api/tasks/:slug: any field, where null drops an optional value and a list replaces
 // the one stored.
-export const TaskPatch = Task.omit({ created: true, updated: true }).partial();
+export const TaskPatch = Task.omit({ id: true, created: true, updated: true }).partial();
 
 // Habit is a habit as GET /api/habits returns it: done on the day asked.
 export const Habit = z.strictObject({ id: z.number().int(), title: nonBlank, done: z.boolean() }).meta({ id: "Habit" });

@@ -12,13 +12,13 @@ type Row = Omit<Task, (typeof LISTS)[number] | (typeof SECTIONS)[number]> & { id
 const JSON_COLUMNS = [...LISTS, ...SECTIONS];
 const COLUMNS = ["slug", "title", "status", "area", "project", "scheduled", "waiting", ...JSON_COLUMNS, "created", "updated"] as const;
 
-const toTask = ({ id: _, ...row }: Row): Task => {
+const toTask = (row: Row): Task => {
   const t = { ...row } as Record<string, unknown>;
   for (const k of JSON_COLUMNS) t[k] = JSON.parse(row[k]);
   return t as Task;
 };
 
-const fromTask = (t: Task): unknown[] =>
+const fromTask = (t: Omit<Task, "id">): unknown[] =>
   COLUMNS.map((k) => ((JSON_COLUMNS as readonly string[]).includes(k) ? JSON.stringify(t[k]) : t[k]));
 
 // WORKFLOW orders rows by status in the order STATUSES gives them.
@@ -30,7 +30,7 @@ const find = (db: D1Database, slug: string) => db.prepare("SELECT * FROM tasks W
 
 // event records a write against the task that holds slug when the statement runs, so a batch places it
 // after an insert or rename and before a delete.
-const event = (db: D1Database, action: string, slug: string, before: Task | null, after: Task | null) =>
+const event = (db: D1Database, action: string, slug: string, before: Omit<Task, "id"> | null, after: Omit<Task, "id"> | null) =>
   db
     .prepare(
       "INSERT INTO events (task_id, at, action, before, after) VALUES ((SELECT id FROM tasks WHERE slug = ?), ?, ?, ?, ?)",
@@ -69,7 +69,7 @@ export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
     async (c) => {
       const at = now();
       const fields = c.req.valid("json");
-      const task: Task = {
+      const task: Omit<Task, "id"> = {
         ...fields,
         status: "inbox",
         project: fields.project ?? null,
@@ -80,10 +80,10 @@ export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
       };
       if (await find(c.env.DB, task.slug)) return c.json({ error: `${task.slug} already exists` }, 409);
       const insert = c.env.DB.prepare(
-        `INSERT INTO tasks (${COLUMNS.join(", ")}) VALUES (${COLUMNS.map(() => "?").join(", ")})`,
+        `INSERT INTO tasks (${COLUMNS.join(", ")}) VALUES (${COLUMNS.map(() => "?").join(", ")}) RETURNING id`,
       ).bind(...fromTask(task));
-      await c.env.DB.batch([insert, event(c.env.DB, "create", task.slug, null, task)]);
-      return c.json(task, 201);
+      const [{ results }] = await c.env.DB.batch<{ id: number }>([insert, event(c.env.DB, "create", task.slug, null, task)]);
+      return c.json({ id: results[0].id, ...task }, 201);
     },
   )
 
