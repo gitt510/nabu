@@ -62,7 +62,7 @@ export function App() {
       ) : page === "tasks" ? (
         <Tasks tasks={tasks} selected={slug} onSelect={setSlug} onChanged={reload} />
       ) : (
-        <Calendar key={home} tasks={tasks} onOpen={openTask} />
+        <Calendar key={home} tasks={tasks} selected={slug} onSelect={setSlug} onOpen={openTask} onChanged={reload} />
       )}
       <HelpDialog opened={help} onClose={() => setHelp(false)} />
     </Shell>

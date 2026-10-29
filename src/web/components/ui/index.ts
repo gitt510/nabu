@@ -13,6 +13,7 @@ export { ListDetail } from "./ListDetail";
 export { Page } from "./Page";
 export { Stack } from "./Stack";
 export { Group } from "./Group";
+export { Columns } from "./Columns";
 export { Form } from "./Form";
 
 // 文字
