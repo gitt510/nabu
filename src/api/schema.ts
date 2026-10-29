@@ -98,7 +98,7 @@ export const TaskCreate = z.strictObject({
   why_dropped: whyDropped.default([]),
 });
 
-// TaskPatch is PATCH /api/tasks/:slug: any field, where null drops an optional value and a list replaces
+// TaskPatch is PATCH /api/tasks/:id: any field, where null drops an optional value and a list replaces
 // the one stored.
 export const TaskPatch = Task.omit({ id: true, created: true, updated: true }).partial();
 

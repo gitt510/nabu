@@ -185,6 +185,18 @@
   "paths": {
     "/api/tasks": {
       "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "only the task with this slug, if any"
+            },
+            "required": false,
+            "description": "only the task with this slug, if any",
+            "name": "slug",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "every task in workflow order, then by slug",
@@ -367,15 +379,18 @@
         }
       }
     },
-    "/api/tasks/{slug}": {
+    "/api/tasks/{id}": {
       "get": {
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": [
+                "integer",
+                "null"
+              ]
             },
-            "required": true,
-            "name": "slug",
+            "required": false,
+            "name": "id",
             "in": "path"
           }
         ],
@@ -414,10 +429,13 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": [
+                "integer",
+                "null"
+              ]
             },
-            "required": true,
-            "name": "slug",
+            "required": false,
+            "name": "id",
             "in": "path"
           }
         ],
@@ -606,10 +624,13 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": [
+                "integer",
+                "null"
+              ]
             },
-            "required": true,
-            "name": "slug",
+            "required": false,
+            "name": "id",
             "in": "path"
           }
         ],

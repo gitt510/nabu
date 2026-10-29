@@ -79,10 +79,15 @@ func (c *Client) List() ([]Task, error) {
 	return out, c.do(http.MethodGet, "/api/tasks", nil, &out)
 }
 
-// Get returns one task.
-func (c *Client) Get(slug string) (Task, error) {
+// Get returns one task. ref is a task's slug or its id (6, or #6), as Patch
+// and Delete take it.
+func (c *Client) Get(ref string) (Task, error) {
+	path, err := c.taskPath(ref)
+	if err != nil {
+		return Task{}, err
+	}
 	var out Task
-	return out, c.do(http.MethodGet, taskPath(slug), nil, &out)
+	return out, c.do(http.MethodGet, path, nil, &out)
 }
 
 // Create files a new task in inbox. fields are the API's names and values.
@@ -92,14 +97,22 @@ func (c *Client) Create(fields map[string]any) (Task, error) {
 }
 
 // Patch changes the fields given; a nil value drops an optional one.
-func (c *Client) Patch(slug string, fields map[string]any) (Task, error) {
+func (c *Client) Patch(ref string, fields map[string]any) (Task, error) {
+	path, err := c.taskPath(ref)
+	if err != nil {
+		return Task{}, err
+	}
 	var out Task
-	return out, c.do(http.MethodPatch, taskPath(slug), fields, &out)
+	return out, c.do(http.MethodPatch, path, fields, &out)
 }
 
 // Delete removes a task; the API keeps its history.
-func (c *Client) Delete(slug string) error {
-	return c.do(http.MethodDelete, taskPath(slug), nil, nil)
+func (c *Client) Delete(ref string) error {
+	path, err := c.taskPath(ref)
+	if err != nil {
+		return err
+	}
+	return c.do(http.MethodDelete, path, nil, nil)
 }
 
 // Schema returns the task contract as JSON Schema, the rules every write must meet.
@@ -108,7 +121,21 @@ func (c *Client) Schema() (json.RawMessage, error) {
 	return out, c.do(http.MethodGet, "/api/schema", nil, &out)
 }
 
-func taskPath(slug string) string { return "/api/tasks/" + url.PathEscape(slug) }
+// taskPath is the API's path to the task ref names. The API addresses a task
+// by its id, so a slug is looked up first.
+func (c *Client) taskPath(ref string) (string, error) {
+	if id := strings.TrimPrefix(ref, "#"); id != "" && strings.Trim(id, "0123456789") == "" {
+		return "/api/tasks/" + id, nil
+	}
+	var found []Task
+	if err := c.do(http.MethodGet, "/api/tasks?slug="+url.QueryEscape(ref), nil, &found); err != nil {
+		return "", err
+	}
+	if len(found) == 0 {
+		return "", &Error{Status: http.StatusNotFound, Message: "no such task"}
+	}
+	return fmt.Sprintf("/api/tasks/%d", found[0].Id), nil
+}
 
 func (c *Client) do(method, path string, in, out any) error {
 	token, err := c.Token(c.URL)

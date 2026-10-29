@@ -99,6 +99,12 @@ type PatchApiHabitsIdJSONBody struct {
 	Title string `json:"title"`
 }
 
+// GetApiTasksParams defines parameters for GetApiTasks.
+type GetApiTasksParams struct {
+	// Slug only the task with this slug, if any
+	Slug *string `form:"slug,omitempty" json:"slug,omitempty"`
+}
+
 // PostApiTasksJSONBody defines parameters for PostApiTasks.
 type PostApiTasksJSONBody struct {
 	Answer       *[]string `json:"answer,omitempty"`
@@ -119,8 +125,8 @@ type PostApiTasksJSONBody struct {
 	WhyDropped *[]string `json:"why_dropped,omitempty"`
 }
 
-// PatchApiTasksSlugJSONBody defines parameters for PatchApiTasksSlug.
-type PatchApiTasksSlugJSONBody struct {
+// PatchApiTasksIdJSONBody defines parameters for PatchApiTasksId.
+type PatchApiTasksIdJSONBody struct {
 	Answer       *[]string `json:"answer,omitempty"`
 	Area         *Area     `json:"area,omitempty"`
 	Complication *[]string `json:"complication,omitempty"`
@@ -149,5 +155,5 @@ type PatchApiHabitsIdJSONRequestBody PatchApiHabitsIdJSONBody
 // PostApiTasksJSONRequestBody defines body for PostApiTasks for application/json ContentType.
 type PostApiTasksJSONRequestBody PostApiTasksJSONBody
 
-// PatchApiTasksSlugJSONRequestBody defines body for PatchApiTasksSlug for application/json ContentType.
-type PatchApiTasksSlugJSONRequestBody PatchApiTasksSlugJSONBody
+// PatchApiTasksIdJSONRequestBody defines body for PatchApiTasksId for application/json ContentType.
+type PatchApiTasksIdJSONRequestBody PatchApiTasksIdJSONBody

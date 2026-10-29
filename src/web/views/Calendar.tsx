@@ -17,11 +17,11 @@ const bySchedule = (a: Item, b: Item) => instant(a.scheduled!).getTime() - insta
  * 予定の下には毎日やる habit を並べ、その日にやった印をここで付け外しする。
  * 広い画面では選んだ task を右の列に開き、狭い画面では Tasks page に移って開く
  */
-export function Calendar({ tasks, selected, onSelect, onOpen, onChanged }: { tasks: Item[]; selected: string; onSelect: (slug: string) => void; onOpen: (slug: string) => void; onChanged: () => void }) {
+export function Calendar({ tasks, selected, onSelect, onOpen, onChanged }: { tasks: Item[]; selected: string; onSelect: (id: string) => void; onOpen: (id: string) => void; onChanged: () => void }) {
   const [day, setDay] = useState(todayKey);
   const [menuOpened, setMenuOpened] = useState(false);
   const narrow = useMediaQuery("(max-width: 48em)") ?? false;
-  const task = tasks.find((t) => t.slug === selected);
+  const task = tasks.find((t) => String(t.id) === selected);
   const isToday = day === todayKey();
   const { habits, error, write } = useHabits(day);
   const planned = tasks.filter((t) => t.scheduled && dayOf(t.scheduled) === day).sort(bySchedule);
@@ -37,11 +37,11 @@ export function Calendar({ tasks, selected, onSelect, onOpen, onChanged }: { tas
 
   const row = (t: Item, aside: ReactNode) => (
     <ListRow
-      key={t.slug}
-      id={`day-${t.slug}`}
+      key={t.id}
+      id={`day-${t.id}`}
       label={t.title}
-      active={!narrow && t.slug === selected}
-      onClick={() => (narrow ? onOpen : onSelect)(t.slug)}
+      active={!narrow && String(t.id) === selected}
+      onClick={() => (narrow ? onOpen : onSelect)(String(t.id))}
       aside={
         <Group gap={6} wrap="nowrap">
           {open_(t) ? null : <Tag tone="muted">{STATUS_CHOICES.find((c) => c.value === t.status)?.label}</Tag>}
@@ -90,7 +90,7 @@ export function Calendar({ tasks, selected, onSelect, onOpen, onChanged }: { tas
         {day_}
         <Section>
           {task ? (
-            <TaskDetail key={task.slug} task={task} onChanged={onChanged} menuOpened={menuOpened} onMenuOpenedChange={setMenuOpened} />
+            <TaskDetail key={task.id} task={task} onChanged={onChanged} menuOpened={menuOpened} onMenuOpenedChange={setMenuOpened} />
           ) : (
             <Empty title="No task selected" description="Pick one from the day." />
           )}

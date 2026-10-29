@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-/** URL の #slug。開いている task を、reload と共有する link に残す */
+/** URL の #番号（task の id）。開いている task を、reload と共有する link に残す */
 export function useHash() {
   const [hash, setHash] = useState(() => decodeURIComponent(location.hash.slice(1)));
   useEffect(() => {

@@ -20,7 +20,7 @@ const TABS: { value: Tab; label: string }[] = [
  * 状態で見る page。status は Tabs で 1 つ選び、area・project・scheduled・waiting はそれに掛け合わせて絞る。
  * 選んだ tab と並び順は次に開いたときも残る
  */
-export function Tasks({ tasks, selected, onSelect, onChanged }: { tasks: Item[]; selected: string; onSelect: (slug: string, push?: boolean) => void; onChanged: () => void }) {
+export function Tasks({ tasks, selected, onSelect, onChanged }: { tasks: Item[]; selected: string; onSelect: (id: string, push?: boolean) => void; onChanged: () => void }) {
   const [view, setView] = useLocalStorage<{ tab: Tab; oldest: boolean }>({ key: "nabu-tasks-view", defaultValue: { tab: "all", oldest: false } });
   const [q, setQ] = useState("");
   const [area, setArea] = useState<string | null>(null);
@@ -40,16 +40,16 @@ export function Tasks({ tasks, selected, onSelect, onChanged }: { tasks: Item[];
       .sort((a, b) => sign * (instant(a.created).getTime() - instant(b.created).getTime()));
   }, [inTab, q, area, project, scheduled, waiting, view.oldest]);
   const projects = useMemo(() => [...new Set(tasks.filter((t) => !area || t.area === area).flatMap((t) => (t.project ? [t.project] : [])))].sort(), [tasks, area]);
-  const task = tasks.find((t) => t.slug === selected);
+  const task = tasks.find((t) => String(t.id) === selected);
 
-  const open = (slug: string) => {
-    onSelect(slug, narrow);
-    document.getElementById(`task-${slug}`)?.scrollIntoView({ block: "nearest" });
+  const open = (id: string) => {
+    onSelect(id, narrow);
+    document.getElementById(`task-${id}`)?.scrollIntoView({ block: "nearest" });
   };
   const step = (delta: number) => {
-    const at = items.findIndex((t) => t.slug === selected);
+    const at = items.findIndex((t) => String(t.id) === selected);
     const next = items[Math.min(items.length - 1, Math.max(0, at + delta))];
-    if (next) open(next.slug);
+    if (next) open(String(next.id));
   };
   const stepTab = (delta: number) => {
     const at = TABS.findIndex((t) => t.value === view.tab);
@@ -97,7 +97,7 @@ export function Tasks({ tasks, selected, onSelect, onChanged }: { tasks: Item[];
       showDetail={!!task}
       detail={
         task ? (
-          <TaskDetail key={task.slug} task={task} onBack={narrow ? () => onSelect("") : undefined} onChanged={onChanged} menuOpened={menuOpened} onMenuOpenedChange={setMenuOpened} />
+          <TaskDetail key={task.id} task={task} onBack={narrow ? () => onSelect("") : undefined} onChanged={onChanged} menuOpened={menuOpened} onMenuOpenedChange={setMenuOpened} />
         ) : (
           <Empty title="No task selected" description="Pick one from the list, or press j / k." />
         )
