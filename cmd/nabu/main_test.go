@@ -124,9 +124,9 @@ func overlay(t *api.Task, fields map[string]any) error {
 	b, _ = json.Marshal(m)
 	*t = api.Task{}
 	_ = json.Unmarshal(b, t)
-	for _, l := range slices.Concat(t.Situation, t.Complication, t.Question, t.Answer, t.WhyDropped) {
+	for _, l := range slices.Concat(t.Why, t.Dod, t.WhyDropped) {
 		if utf8.RuneCountInString(l) > 45 {
-			return errors.New("situation.0: must be at most 45 characters")
+			return errors.New("why.0: must be at most 45 characters")
 		}
 	}
 	if t.Status == "dropped" && len(t.WhyDropped) == 0 {
@@ -176,21 +176,19 @@ func stderrOf(args []string, stdin string) (int, string) {
 	return code, errb.String()
 }
 
-// content is a task body as task new and task replace take it, with answer as its answer lines.
-func content(title string, answer ...string) string {
+// content is a task body as task new and task replace take it, with dod as its DoD lines.
+func content(title string, dod ...string) string {
 	b, _ := json.Marshal(map[string]any{
-		"title":        title,
-		"situation":    []string{"本番と検証が旧 runtime"},
-		"complication": []string{"旧 runtime はサポートが切れる"},
-		"question":     []string{"期限前に止めずに移れる？"},
-		"answer":       append([]string{}, answer...),
+		"title": title,
+		"why":   []string{"旧 runtime はサポートが切れる"},
+		"dod":   append([]string{}, dod...),
 	})
 	return string(b)
 }
 
-// body is the task content renders as task read prints it, with answer under ## Answer.
-func body(title, answer string) string {
-	return "# " + title + "\n\n## Situation\n\n- 本番と検証が旧 runtime\n\n## Complication\n\n- 旧 runtime はサポートが切れる\n\n## Question\n\n- 期限前に止めずに移れる？\n\n## Answer\n\n" + answer
+// body is the task content renders as task read prints it, with dod under ## DoD.
+func body(title, dod string) string {
+	return "# " + title + "\n\n## Why\n\n- 旧 runtime はサポートが切れる\n\n## DoD\n\n" + dod
 }
 
 func TestTaskHelpGroupsCommands(t *testing.T) {
@@ -306,7 +304,7 @@ func TestTaskNewViaCLI(t *testing.T) {
 		t.Fatalf("new:\n%s", got)
 	}
 	// the body reaches the API as it is; what the task lacks is left out
-	if f.last["title"] != "Ok" || !slices.Equal(toStrings(f.last["answer"]), []string{"未定"}) {
+	if f.last["title"] != "Ok" || !slices.Equal(toStrings(f.last["dod"]), []string{"未定"}) {
 		t.Fatalf("sent %v", f.last)
 	}
 	for _, k := range []string{"project", "scheduled", "waiting", "prs", "status", "created", "why_dropped"} {
@@ -346,10 +344,10 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 	f, nabu := newAPI(t)
 	nabu(exitOK, content("Ok", "未定"), "task", "new", "ok", "--area", "work", "--project", "nabu", "--link", "https://example.com/a")
 
-	if got := nabu(exitOK, `{"title": "Renamed", "answer": ["決めた"]}`, "task", "replace", "ok"); strings.Contains(got, "frontmatter") {
+	if got := nabu(exitOK, `{"title": "Renamed", "dod": ["決めた"]}`, "task", "replace", "ok"); strings.Contains(got, "frontmatter") {
 		t.Fatalf("replace prints frontmatter: %s", got)
 	}
-	if tk := f.tasks["ok"]; tk.Title != "Renamed" || tk.Answer[0] != "決めた" || orEmpty(tk.Project) != "nabu" {
+	if tk := f.tasks["ok"]; tk.Title != "Renamed" || tk.Dod[0] != "決めた" || orEmpty(tk.Project) != "nabu" {
 		t.Fatalf("after replace: %+v", tk)
 	}
 	for _, k := range []string{"area", "project", "status"} {
@@ -434,7 +432,7 @@ func TestTaskLsAndGrepViaCLI(t *testing.T) {
 	}
 
 	// grep searches the task as read prints it, frontmatter included
-	if got := nabu(exitOK, "", "task", "grep", "ping"); got != "a:22: - PING them\n" {
+	if got := nabu(exitOK, "", "task", "grep", "ping"); got != "a:14: - PING them\n" {
 		t.Fatalf("grep: %q", got)
 	}
 	if got := nabu(exitOK, "", "task", "grep", "their reply"); got != "a:4: waiting: \"their reply\"\n" {
@@ -461,7 +459,7 @@ func TestCreatedDateIsLocal(t *testing.T) {
 }
 
 func TestRenderBodyLeavesOutAnEmptyReason(t *testing.T) {
-	if got := renderBody(api.Task{Title: "T", Answer: []string{"x"}, WhyDropped: []string{"w"}}); !strings.HasSuffix(got, "## Answer\n\n- x\n\n## Why dropped\n\n- w\n") {
+	if got := renderBody(api.Task{Title: "T", Dod: []string{"x"}, WhyDropped: []string{"w"}}); !strings.HasSuffix(got, "## DoD\n\n- x\n\n## Why dropped\n\n- w\n") {
 		t.Fatalf("%q", got)
 	}
 	if strings.Contains(renderBody(api.Task{Title: "T"}), "Why dropped") {

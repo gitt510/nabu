@@ -49,15 +49,16 @@ or quote `'#6'`, since a shell reads an unquoted `#` as a comment.
    ```json
    {
      "title": "<title>",
-     "situation": ["<what is so now>"],
-     "complication": ["<what goes wrong with it, and why now>"],
-     "question": ["<what the task has to answer>"],
-     "answer": ["<the answer, or 未定 until there is one>"]
+     "why": ["<what is wrong or missing now>"],
+     "dod": ["<what has to be true to close the task>"]
    }
    ```
 
-   The sections are SCQA, the introduction Barbara Minto lays out in *The
-   Pyramid Principle*. The body is only what the user reads: no steps,
+   `why` is the way in: why the task is worth starting. `dod`, its
+   definition of done, is the way out: what closes it. Take both from what
+   the user said. When the user did not give one, ask for it before
+   filing ("なぜやる？", "何が済んだら閉じる？") and file their answer in
+   their words; never invent either. The body is only what the user reads: no steps,
    commands, or notes for the agent, and no other key. Each string is one
 item, without a leading `- `. A line
    holds at most the `maxLength` `nabu task schema` gives; a fact that does
@@ -79,7 +80,7 @@ item, without a leading `- `. A line
 4. **Revise with `task replace` and `task set`.** `task replace` takes the
    keys to change on stdin, in the task shape, and keeps the rest and the
    frontmatter; `task set` changes the frontmatter and keeps the body.
-   Write Situation as state ("password auth is
+   Write Why as state ("password auth is
    off"), not as a log of what was done. Revise the body only when the user
    asks; do not propose updates to it.
 5. **Mark a wait with `task set --waiting`.** When the user has done their

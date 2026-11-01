@@ -5,12 +5,12 @@ import { type Habit, SECTIONS, type Task } from "../api/schema";
 /** page が見せる形の task：本文は題の下の HTML、検索は小文字の全文 */
 export type Item = Task & { html: string; text: string };
 
-const heading = (k: string) => k[0].toUpperCase() + k.slice(1).replace("_", " ");
+const HEADINGS: Record<(typeof SECTIONS)[number], string> = { why: "Why", dod: "DoD", why_dropped: "Why dropped" };
 
 const toItem = (t: Task): Item => {
   // 空の理由は出さない。nabu task read と同じ
   const body = SECTIONS.filter((k) => k !== "why_dropped" || t.why_dropped.length)
-    .map((k) => `### ${heading(k)}\n\n${t[k].map((l) => `- ${l}`).join("\n")}`)
+    .map((k) => `### ${HEADINGS[k]}\n\n${t[k].map((l) => `- ${l}`).join("\n")}`)
     .join("\n\n");
   return { ...t, html: marked.parse(body, { async: false }), text: [t.title, t.slug, `#${t.id}`, t.waiting ?? "", t.project ?? "", body].join("\n").toLowerCase() };
 };

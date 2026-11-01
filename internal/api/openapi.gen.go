@@ -60,25 +60,27 @@ type Status string
 
 // Task defines model for Task.
 type Task struct {
-	Answer       []string `json:"answer"`
-	Area         Area     `json:"area"`
-	Complication []string `json:"complication"`
-	Created      string   `json:"created"`
+	Area    Area   `json:"area"`
+	Created string `json:"created"`
+
+	// Dod the definition of done: what has to be true to close the task
+	Dod []string `json:"dod"`
 
 	// Id the number the task keeps for life, unlike its slug
 	Id        int      `json:"id"`
 	Links     []string `json:"links"`
 	Project   *string  `json:"project"`
 	Prs       []string `json:"prs"`
-	Question  []string `json:"question"`
 	Scheduled *string  `json:"scheduled"`
-	Situation []string `json:"situation"`
 	Slug      string   `json:"slug"`
 	Status    Status   `json:"status"`
 	Tickets   []string `json:"tickets"`
 	Title     string   `json:"title"`
 	Updated   string   `json:"updated"`
 	Waiting   *string  `json:"waiting"`
+
+	// Why why the task is worth starting: what is wrong or missing now
+	Why []string `json:"why"`
 
 	// WhyDropped why the task was decided against; a dropped task needs one line at least
 	WhyDropped []string `json:"why_dropped"`
@@ -107,19 +109,17 @@ type GetApiTasksParams struct {
 
 // PostApiTasksJSONBody defines parameters for PostApiTasks.
 type PostApiTasksJSONBody struct {
-	Answer       *[]string `json:"answer,omitempty"`
-	Area         Area      `json:"area"`
-	Complication *[]string `json:"complication,omitempty"`
-	Links        *[]string `json:"links,omitempty"`
-	Project      *string   `json:"project,omitempty"`
-	Prs          *[]string `json:"prs,omitempty"`
-	Question     *[]string `json:"question,omitempty"`
-	Scheduled    *string   `json:"scheduled,omitempty"`
-	Situation    *[]string `json:"situation,omitempty"`
-	Slug         string    `json:"slug"`
-	Tickets      *[]string `json:"tickets,omitempty"`
-	Title        string    `json:"title"`
-	Waiting      *string   `json:"waiting,omitempty"`
+	Area      Area      `json:"area"`
+	Dod       *[]string `json:"dod,omitempty"`
+	Links     *[]string `json:"links,omitempty"`
+	Project   *string   `json:"project,omitempty"`
+	Prs       *[]string `json:"prs,omitempty"`
+	Scheduled *string   `json:"scheduled,omitempty"`
+	Slug      string    `json:"slug"`
+	Tickets   *[]string `json:"tickets,omitempty"`
+	Title     string    `json:"title"`
+	Waiting   *string   `json:"waiting,omitempty"`
+	Why       *[]string `json:"why,omitempty"`
 
 	// WhyDropped why the task was decided against; a dropped task needs one line at least
 	WhyDropped *[]string `json:"why_dropped,omitempty"`
@@ -127,20 +127,22 @@ type PostApiTasksJSONBody struct {
 
 // PatchApiTasksIdJSONBody defines parameters for PatchApiTasksId.
 type PatchApiTasksIdJSONBody struct {
-	Answer       *[]string `json:"answer,omitempty"`
-	Area         *Area     `json:"area,omitempty"`
-	Complication *[]string `json:"complication,omitempty"`
-	Links        *[]string `json:"links,omitempty"`
-	Project      *string   `json:"project,omitempty"`
-	Prs          *[]string `json:"prs,omitempty"`
-	Question     *[]string `json:"question,omitempty"`
-	Scheduled    *string   `json:"scheduled,omitempty"`
-	Situation    *[]string `json:"situation,omitempty"`
-	Slug         *string   `json:"slug,omitempty"`
-	Status       *Status   `json:"status,omitempty"`
-	Tickets      *[]string `json:"tickets,omitempty"`
-	Title        *string   `json:"title,omitempty"`
-	Waiting      *string   `json:"waiting,omitempty"`
+	Area *Area `json:"area,omitempty"`
+
+	// Dod the definition of done: what has to be true to close the task
+	Dod       *[]string `json:"dod,omitempty"`
+	Links     *[]string `json:"links,omitempty"`
+	Project   *string   `json:"project,omitempty"`
+	Prs       *[]string `json:"prs,omitempty"`
+	Scheduled *string   `json:"scheduled,omitempty"`
+	Slug      *string   `json:"slug,omitempty"`
+	Status    *Status   `json:"status,omitempty"`
+	Tickets   *[]string `json:"tickets,omitempty"`
+	Title     *string   `json:"title,omitempty"`
+	Waiting   *string   `json:"waiting,omitempty"`
+
+	// Why why the task is worth starting: what is wrong or missing now
+	Why *[]string `json:"why,omitempty"`
 
 	// WhyDropped why the task was decided against; a dropped task needs one line at least
 	WhyDropped *[]string `json:"why_dropped,omitempty"`
