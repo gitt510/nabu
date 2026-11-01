@@ -8,9 +8,9 @@ export const AREAS = ["work", "personal"] as const;
 // LINE_LIMIT is the most characters a section line may carry: one fact a reader takes in at a glance.
 export const LINE_LIMIT = 45;
 
-// SECTIONS are SCQA, the introduction Barbara Minto lays out in The Pyramid Principle, then the reason a
-// dropped task was decided against.
-export const SECTIONS = ["situation", "complication", "question", "answer", "why_dropped"] as const;
+// SECTIONS are the body: why the task is worth starting, its definition of done, then the reason a dropped
+// task was decided against. A section that leaves keeps its column, so old rows stay as they were written.
+export const SECTIONS = ["why", "dod", "why_dropped"] as const;
 export const LISTS = ["tickets", "prs", "links"] as const;
 
 // The ids name the schemas the OpenAPI document shares as components, so a generated client names its types.
@@ -70,10 +70,8 @@ export const Task = z.strictObject({
   tickets: urls,
   prs: urls,
   links: urls,
-  situation: section,
-  complication: section,
-  question: section,
-  answer: section,
+  why: section.meta({ description: "why the task is worth starting: what is wrong or missing now" }),
+  dod: section.meta({ description: "the definition of done: what has to be true to close the task" }),
   why_dropped: whyDropped,
   created: z.string(),
   updated: z.string(),
@@ -91,10 +89,8 @@ export const TaskCreate = z.strictObject({
   tickets: urls.default([]),
   prs: urls.default([]),
   links: urls.default([]),
-  situation: section.default([]),
-  complication: section.default([]),
-  question: section.default([]),
-  answer: section.default([]),
+  why: section.default([]),
+  dod: section.default([]),
   why_dropped: whyDropped.default([]),
 });
 

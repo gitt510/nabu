@@ -20,10 +20,8 @@ const task = {
   slug: "move-runtime",
   title: "runtime を新しい version へ移行",
   area: "work",
-  situation: ["本番と検証が旧 runtime"],
-  complication: ["旧 runtime はサポートが切れる"],
-  question: ["期限前に止めずに移れる？"],
-  answer: ["未定"],
+  why: ["旧 runtime はサポートが切れる"],
+  dod: ["本番と検証が新 runtime で動く"],
 };
 
 const events = async () =>
@@ -50,14 +48,26 @@ describe("/api/tasks", () => {
     expect(await events()).toEqual([{ task_id: 1, action: "create" }]);
   });
 
+  it("reads an old task with the current sections only, leaving its SCQA lines in the row", async () => {
+    await env.DB.prepare(
+      `INSERT INTO tasks (slug, title, status, area, situation, created, updated) VALUES ('old', 'Old', 'inbox', 'work', '["前の形"]', 'now', 'now')`,
+    ).run();
+    const res = await json(await call("GET", "/api/tasks/1"));
+    expect(res.body).toMatchObject({ why: [], dod: [] });
+    expect(res.body).not.toHaveProperty("situation");
+
+    expect((await call("PATCH", "/api/tasks/1", { dod: ["閉じる条件"] })).status).toBe(200);
+    expect(await env.DB.prepare("SELECT situation FROM tasks WHERE id = 1").first("situation")).toBe('["前の形"]');
+  });
+
   it("refuses a task out of shape with 422", async () => {
     for (const bad of [
       { ...task, slug: "Bad Slug" },
       { ...task, area: "hobby" },
-      { ...task, situation: ["あ".repeat(46)] },
-      { ...task, situation: ["- 箇条書きの記号"] },
-      { ...task, situation: ["## AI memo"] },
-      { ...task, situation: [" "] },
+      { ...task, why: ["あ".repeat(46)] },
+      { ...task, why: ["- 箇条書きの記号"] },
+      { ...task, why: ["## AI memo"] },
+      { ...task, why: [" "] },
       { ...task, scheduled: "tomorrow" },
       { ...task, tickets: ["http://example.com/1"] },
       { ...task, links: ["https://example.com/1", "https://example.com/1"] },
@@ -78,7 +88,7 @@ describe("/api/tasks", () => {
   });
 
   it("accepts a line of exactly the limit", async () => {
-    const res = await call("POST", "/api/tasks", { ...task, situation: ["あ".repeat(45)] });
+    const res = await call("POST", "/api/tasks", { ...task, why: ["あ".repeat(45)] });
     expect(res.status).toBe(201);
   });
 
@@ -92,10 +102,10 @@ describe("/api/tasks", () => {
   it("changes fields, drops optional ones with null, and records the row before and after", async () => {
     await call("POST", "/api/tasks", { ...task, project: "nabu", waiting: "review" });
     const res = await json(
-      await call("PATCH", "/api/tasks/1", { status: "doing", project: null, waiting: null, answer: ["検証 → 本番の順で切り替える"] }),
+      await call("PATCH", "/api/tasks/1", { status: "doing", project: null, waiting: null, dod: ["検証 → 本番の順で切り替わっている"] }),
     );
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ status: "doing", project: null, waiting: null, answer: ["検証 → 本番の順で切り替える"] });
+    expect(res.body).toMatchObject({ status: "doing", project: null, waiting: null, dod: ["検証 → 本番の順で切り替わっている"] });
 
     const row = await env.DB.prepare("SELECT before, after FROM events WHERE action = 'update'").first<{ before: string; after: string }>();
     expect(JSON.parse(row!.before)).toMatchObject({ status: "inbox", project: "nabu" });
@@ -158,7 +168,7 @@ describe("/api/schema", () => {
     const res = await json(await call("GET", "/api/schema"));
     expect(res.status).toBe(200);
     for (const schema of [res.body.create, res.body.patch]) {
-      expect(schema.properties.situation.items.maxLength).toBe(45);
+      expect(schema.properties.why.items.maxLength).toBe(45);
       expect(schema.properties.area).toEqual({ $ref: "#/$defs/Area" });
       expect(schema.$defs.Area.enum).toEqual(["work", "personal"]);
     }

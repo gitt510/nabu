@@ -26,7 +26,10 @@ const WORKFLOW = `CASE status ${STATUSES.map((s, i) => `WHEN '${s}' THEN ${i}`).
 
 const now = () => new Date().toISOString();
 
-const find = (db: D1Database, id: number) => db.prepare("SELECT * FROM tasks WHERE id = ?").bind(id).first<Row>();
+// SELECT reads the columns the contract names; a column a past contract named stays in the row unread.
+const SELECT = `SELECT id, ${COLUMNS.join(", ")} FROM tasks`;
+
+const find = (db: D1Database, id: number) => db.prepare(`${SELECT} WHERE id = ?`).bind(id).first<Row>();
 const taken = async (db: D1Database, slug: string) => !!(await db.prepare("SELECT 1 FROM tasks WHERE slug = ?").bind(slug).first());
 
 // event records a write against the task that holds slug when the statement runs, so a batch places it
@@ -50,7 +53,7 @@ export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
     async (c) => {
       const { slug } = c.req.valid("query");
       const where = slug === undefined ? "" : "WHERE slug = ?";
-      const { results } = await c.env.DB.prepare(`SELECT * FROM tasks ${where} ORDER BY ${WORKFLOW}, slug`)
+      const { results } = await c.env.DB.prepare(`${SELECT} ${where} ORDER BY ${WORKFLOW}, slug`)
         .bind(...(slug === undefined ? [] : [slug]))
         .all<Row>();
       return c.json(results.map(toTask), 200);

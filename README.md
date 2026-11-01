@@ -53,7 +53,8 @@ agent: nabu task new review-pr-68 --area work --pr https://github.com/o/r/pull/6
 
 - A task lives in Cloudflare D1, and the Worker's `/api/tasks` is the only way in
 - A task's status is one of `inbox`, `doing`, `done`, `dropped`
-- The body is SCQA: `situation`, `complication`, `question`, `answer`, each a list of lines
+- The body is `why`, why the task is worth starting, and `dod`, its definition of done, each a list of lines
+- A change to the body adds columns and leaves old tasks as they were: `situation`, `complication`, `question`, and `answer` stay in D1, unread
 - A dropped task also carries `why_dropped`
 - `nabu task new` and `nabu task replace` take the body as JSON, and `nabu task read` prints it as markdown
 - The API refuses a task out of shape, so no stored task is out of shape

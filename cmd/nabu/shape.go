@@ -12,14 +12,12 @@ type section struct {
 	lines          func(t *api.Task) []string
 }
 
-// sections are the headings every task carries, in this order: SCQA, the
-// introduction Barbara Minto lays out in The Pyramid Principle. whyDropped
-// may follow them; a dropped task must carry it.
+// sections are the headings every task carries, in this order: why the task
+// is worth starting, then its definition of done. whyDropped may follow
+// them; a dropped task must carry it.
 var sections = []section{
-	{"## Situation", "situation", func(t *api.Task) []string { return t.Situation }},
-	{"## Complication", "complication", func(t *api.Task) []string { return t.Complication }},
-	{"## Question", "question", func(t *api.Task) []string { return t.Question }},
-	{"## Answer", "answer", func(t *api.Task) []string { return t.Answer }},
+	{"## Why", "why", func(t *api.Task) []string { return t.Why }},
+	{"## DoD", "dod", func(t *api.Task) []string { return t.Dod }},
 }
 
 var whyDropped = section{"## Why dropped", "why_dropped", func(t *api.Task) []string { return t.WhyDropped }}

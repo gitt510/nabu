@@ -72,37 +72,23 @@
             },
             "uniqueItems": true
           },
-          "situation": {
+          "why": {
             "type": "array",
             "items": {
               "type": "string",
               "maxLength": 45,
               "pattern": "\\S"
-            }
+            },
+            "description": "why the task is worth starting: what is wrong or missing now"
           },
-          "complication": {
+          "dod": {
             "type": "array",
             "items": {
               "type": "string",
               "maxLength": 45,
               "pattern": "\\S"
-            }
-          },
-          "question": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "maxLength": 45,
-              "pattern": "\\S"
-            }
-          },
-          "answer": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "maxLength": 45,
-              "pattern": "\\S"
-            }
+            },
+            "description": "the definition of done: what has to be true to close the task"
           },
           "why_dropped": {
             "type": "array",
@@ -132,10 +118,8 @@
           "tickets",
           "prs",
           "links",
-          "situation",
-          "complication",
-          "question",
-          "answer",
+          "why",
+          "dod",
           "why_dropped",
           "created",
           "updated"
@@ -272,7 +256,7 @@
                     "default": [],
                     "uniqueItems": true
                   },
-                  "situation": {
+                  "why": {
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -281,25 +265,7 @@
                     },
                     "default": []
                   },
-                  "complication": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 45,
-                      "pattern": "\\S"
-                    },
-                    "default": []
-                  },
-                  "question": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 45,
-                      "pattern": "\\S"
-                    },
-                    "default": []
-                  },
-                  "answer": {
+                  "dod": {
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -506,37 +472,23 @@
                     },
                     "uniqueItems": true
                   },
-                  "situation": {
+                  "why": {
                     "type": "array",
                     "items": {
                       "type": "string",
                       "maxLength": 45,
                       "pattern": "\\S"
-                    }
+                    },
+                    "description": "why the task is worth starting: what is wrong or missing now"
                   },
-                  "complication": {
+                  "dod": {
                     "type": "array",
                     "items": {
                       "type": "string",
                       "maxLength": 45,
                       "pattern": "\\S"
-                    }
-                  },
-                  "question": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 45,
-                      "pattern": "\\S"
-                    }
-                  },
-                  "answer": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 45,
-                      "pattern": "\\S"
-                    }
+                    },
+                    "description": "the definition of done: what has to be true to close the task"
                   },
                   "why_dropped": {
                     "type": "array",
