@@ -7,7 +7,7 @@ import {
   Caption,
   Checkbox,
   Columns,
-  Empty,
+  EmptyState,
   ErrorText,
   Group,
   ListRow,
@@ -96,7 +96,7 @@ export function Calendar({
             )}
           </Stack>
         ) : (
-          <Empty title="Nothing scheduled" />
+          <EmptyState title="Nothing scheduled" />
         )}
       </Section>
       {habits?.length ? (
@@ -139,7 +139,7 @@ export function Calendar({
           <TaskDetail key={task.id} task={task} onChanged={onChanged} />
         ) : (
           <Section>
-            <Empty title="No task selected" description="Pick one from the day." />
+            <EmptyState title="No task selected" description="Pick one from the day." />
           </Section>
         )}
       </Columns>

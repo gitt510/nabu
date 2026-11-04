@@ -1,25 +1,24 @@
 import { useState } from "react";
 
-import { HelpDialog } from "./components/HelpDialog";
+import { type RailItem, Shell } from "./Shell";
+import { HelpDialog } from "../components/HelpDialog";
 import {
   CalendarIcon,
   ChecklistIcon,
-  Empty,
+  EmptyState,
   KeyboardIcon,
   MoonIcon,
-  type RailItem,
   SeedlingIcon,
-  Shell,
   SunIcon,
   useComputedColorScheme,
   useHotkeys,
   useMantineColorScheme,
-} from "./components/ui";
-import { useHash } from "./hooks/useHash";
-import { useTasks } from "./hooks/useTasks";
-import { Tasks } from "./views/Tasks";
-import { Calendar } from "./views/Calendar";
-import { Habits } from "./views/Habits";
+} from "../components/ui";
+import { useHash } from "../hooks/useHash";
+import { useTasks } from "../hooks/useTasks";
+import { Tasks } from "../pages/Tasks";
+import { Calendar } from "../pages/Calendar";
+import { Habits } from "../pages/Habits";
 
 type Page = "calendar" | "tasks" | "habits";
 const PAGES: RailItem<Page>[] = [
@@ -73,9 +72,9 @@ export function App() {
       ]}
     >
       {error ? (
-        <Empty title="Couldn't load tasks" description={error} />
+        <EmptyState title="Couldn't load tasks" description={error} />
       ) : !tasks ? (
-        <Empty title="Loading…" />
+        <EmptyState title="Loading…" />
       ) : page === "habits" ? (
         <Habits />
       ) : page === "tasks" ? (

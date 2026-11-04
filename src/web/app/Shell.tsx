@@ -11,7 +11,7 @@ import {
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 
-import type { IconComponent } from "./icons";
+import type { IconComponent } from "../components/ui";
 import logo from "./logo.svg?raw";
 
 export type RailItem<K extends string> = {

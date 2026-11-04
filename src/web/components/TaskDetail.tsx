@@ -12,7 +12,7 @@ import {
   CircleCheckIcon,
   CirclePlusIcon,
   CircleXIcon,
-  DateMenu,
+  DatePickerButton,
   ErrorText,
   ExternalLink,
   GitPullRequestIcon,
@@ -26,7 +26,7 @@ import {
   Prose,
   Passage,
   Stack,
-  Stamp,
+  Timestamp,
   Tag,
   TicketIcon,
   useHotkeys,
@@ -91,20 +91,20 @@ export function TaskDetail({
           {task.status === "todo" ? null : <Caption>{STATUS_LABEL[task.status]}</Caption>}
           <Tag>{task.area}</Tag>
           {task.project ? <Tag>{task.project}</Tag> : null}
-          <DateMenu
+          <DatePickerButton
             label={task.scheduled ? fmt(task.scheduled) : "Schedule"}
             value={task.scheduled ? dayOf(task.scheduled) : null}
             today={todayKey()}
             onSelect={schedule}
           />
           {task.waiting ? <Caption>⏳ {task.waiting}</Caption> : null}
-          <Stamp
+          <Timestamp
             icon={CirclePlusIcon}
             label="created"
             value={fmtDay(task.created)}
             detail={fmt(task.created)}
           />
-          <Stamp
+          <Timestamp
             icon={PencilIcon}
             label="updated"
             value={fmtDay(task.updated)}

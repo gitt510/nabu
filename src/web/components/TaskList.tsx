@@ -1,6 +1,6 @@
 import type { Item } from "../api";
 import { fmtDay } from "../time";
-import { Caption, Empty, Group, ListRow, Stack } from "./ui";
+import { Caption, EmptyState, Group, ListRow, Stack } from "./ui";
 
 /**
  * task の一覧。1 行は題と、待ちの印と、起票日。放っておかれた task が分かるように。
@@ -17,7 +17,7 @@ export function TaskList({
   onSelect: (id: string) => void;
   updated: boolean;
 }) {
-  if (!items.length) return <Empty title="No tasks" description="Try other filters." />;
+  if (!items.length) return <EmptyState title="No tasks" description="Try other filters." />;
   return (
     <Stack gap={2}>
       {items.map((t) => (
