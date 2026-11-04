@@ -5,6 +5,7 @@ import type { ComponentType } from "react";
 export type IconComponent = ComponentType<{ size?: number; stroke?: number }>;
 
 export {
+  IconArchive as ArchiveIcon,
   IconArrowDown as ArrowDownIcon,
   IconArrowLeft as ArrowLeftIcon,
   IconArrowUp as ArrowUpIcon,

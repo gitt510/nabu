@@ -1,9 +1,12 @@
 import type { Item } from "../api";
 import { fmtDay } from "../time";
-import { Caption, Empty, Group, ListRow, Stack } from "./ui";
+import { Caption, Empty, Group, ListRow, Stack, Tag } from "./ui";
 
-/** task の一覧。1 行は題と、待ちの印と、起票日。放っておかれた task が分かるように */
-export function TaskList({ items, selected, onSelect }: { items: Item[]; selected: string; onSelect: (id: string) => void }) {
+/**
+ * task の一覧。1 行は題と、待ちの印と、起票日。放っておかれた task が分かるように。
+ * archive では直した日を出し、dropped の task に札を付ける
+ */
+export function TaskList({ items, selected, onSelect, archive }: { items: Item[]; selected: string; onSelect: (id: string) => void; archive: boolean }) {
   if (!items.length) return <Empty title="No tasks" description="Try clearing the search or filters." />;
   return (
     <Stack gap={2}>
@@ -17,7 +20,8 @@ export function TaskList({ items, selected, onSelect }: { items: Item[]; selecte
           aside={
             <Group gap={4} wrap="nowrap">
               {t.waiting ? "⏳" : null}
-              <Caption mono>{fmtDay(t.created)}</Caption>
+              {t.status === "dropped" ? <Tag tone="muted">Dropped</Tag> : null}
+              <Caption mono>{fmtDay(archive ? t.updated : t.created)}</Caption>
             </Group>
           }
         />

@@ -28,7 +28,6 @@ export { ExternalLink } from "./ExternalLink";
 export { Button } from "./Button";
 export { IconButton } from "./IconButton";
 export { SearchInput } from "./SearchInput";
-export { Segments } from "./Segments";
 export { Select } from "./Select";
 export { Toggle } from "./Toggle";
 export { Checkbox } from "./Checkbox";
