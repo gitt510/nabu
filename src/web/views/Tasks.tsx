@@ -1,86 +1,70 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
-import { AREAS } from "../../api/schema";
+import { AREAS, STATUSES } from "../../api/schema";
 import type { Item } from "../api";
+import { STATUS_LABEL } from "../components/states";
 import { TaskDetail } from "../components/TaskDetail";
 import { TaskList } from "../components/TaskList";
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  CalendarIcon,
-  Caption,
+  Choice,
   Empty,
-  Group,
-  HourglassIcon,
-  IconButton,
+  Filter,
+  type FilterChip,
   ListDetail,
-  SearchInput,
   Select,
-  Toggle,
+  Switch,
   useHotkeys,
-  useLocalStorage,
   useMediaQuery,
 } from "../components/ui";
 import { instant } from "../time";
 
+/** 絞り込み。"all" と null と false は絞らない。最初は todo だけを見せる */
+type Filters = { status: string; area: string; project: string | null; scheduled: boolean };
+const START: Filters = { status: "todo", area: "all", project: null, scheduled: false };
+
+const hit = (t: Item, f: Filters) =>
+  (f.status === "all" || t.status === f.status) &&
+  (f.area === "all" || t.area === f.area) &&
+  (!f.project || t.project === f.project) &&
+  (!f.scheduled || !!t.scheduled);
+const withAll = (values: readonly string[], label: (v: string) => string) => [
+  ...values.map((v) => ({ value: v, label: label(v) })),
+  { value: "all", label: "All" },
+];
+
 /**
- * task を並べる page。Tasks は todo を作った日順に、Archive は done と dropped を直した日順に並べる（閉じた日は
- * 持たないので、直した日をその代わりにする）。area・project・scheduled・waiting で絞り、並び順は次に開いたときも残る
+ * task を並べる page。Filter の小窓で status・area・project・scheduled を絞る。todo だけなら作った日順、
+ * 閉じた task を含むなら直した日順に、新しいものから並べる（閉じた日は持たないので、直した日をその代わりにする）
  */
 export function Tasks({
-  archive,
   tasks,
   selected,
   onSelect,
   onChanged,
 }: {
-  archive: boolean;
   tasks: Item[];
   selected: string;
   onSelect: (id: string, push?: boolean) => void;
   onChanged: () => void;
 }) {
-  const [view, setView] = useLocalStorage<{ oldest: boolean }>({
-    key: archive ? "nabu-archive-view" : "nabu-tasks-view",
-    defaultValue: { oldest: false },
-  });
-  const [q, setQ] = useState("");
-  const [area, setArea] = useState<string | null>(null);
-  const [project, setProject] = useState<string | null>(null);
-  const [scheduled, setScheduled] = useState(false);
-  const [waiting, setWaiting] = useState(false);
-  const search = useRef<HTMLInputElement>(null);
+  const [filters, setFilters] = useState(START);
   const narrow = useMediaQuery("(max-width: 48em)") ?? false;
+  const byUpdated = filters.status !== "todo";
 
-  const shown = useMemo(
-    () => tasks.filter((t) => (t.status === "todo") !== archive),
-    [tasks, archive],
-  );
   const items = useMemo(() => {
-    const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const sign = view.oldest ? 1 : -1;
-    const when = (t: Item) => instant(archive ? t.updated : t.created).getTime();
-    return shown
-      .filter(
-        (t) =>
-          words.every((w) => t.text.includes(w)) &&
-          (!area || t.area === area) &&
-          (!project || t.project === project) &&
-          (!scheduled || t.scheduled) &&
-          (!waiting || t.waiting),
-      )
-      .sort((a, b) => sign * (when(a) - when(b)));
-  }, [shown, q, area, project, scheduled, waiting, view.oldest, archive]);
+    const when = (t: Item) => instant(byUpdated ? t.updated : t.created).getTime();
+    return tasks.filter((t) => hit(t, filters)).sort((a, b) => when(b) - when(a));
+  }, [tasks, filters, byUpdated]);
   const projects = useMemo(
     () =>
       [
         ...new Set(
           tasks
-            .filter((t) => !area || t.area === area)
+            .filter((t) => filters.area === "all" || t.area === filters.area)
             .flatMap((t) => (t.project ? [t.project] : [])),
         ),
       ].sort(),
-    [tasks, area],
+    [tasks, filters.area],
   );
   const task = tasks.find((t) => String(t.id) === selected);
 
@@ -93,57 +77,63 @@ export function Tasks({
     const next = items[Math.min(items.length - 1, Math.max(0, at + delta))];
     if (next) open(String(next.id));
   };
-  const flipOrder = () => setView({ ...view, oldest: !view.oldest });
 
   useHotkeys([
-    ["/", () => search.current?.focus()],
     ["ArrowDown", () => step(1)],
     ["ArrowUp", () => step(-1)],
   ]);
 
+  const set = (f: Partial<Filters>) => setFilters({ ...filters, ...f });
+  const chips: FilterChip[] = [
+    ...(filters.status !== "todo"
+      ? [
+          {
+            label: filters.status === "all" ? "all statuses" : filters.status,
+            onClear: () => set({ status: "todo" }),
+          },
+        ]
+      : []),
+    ...(filters.area !== "all"
+      ? [{ label: filters.area, onClear: () => set({ area: "all", project: null }) }]
+      : []),
+    ...(filters.project ? [{ label: filters.project, onClear: () => set({ project: null }) }] : []),
+    ...(filters.scheduled
+      ? [{ label: "scheduled", onClear: () => set({ scheduled: false }) }]
+      : []),
+  ];
+
   const head = (
-    <>
-      <SearchInput ref={search} value={q} onChange={setQ} />
-      <Group gap="xs" wrap="nowrap">
-        <Select
-          label="area"
-          data={[...AREAS]}
-          value={area}
-          onChange={(a) => {
-            setArea(a);
-            setProject(null);
-          }}
-        />
-        <Select label="project" data={projects} value={project} onChange={setProject} />
-      </Group>
-      <Group justify="space-between">
-        <Group gap={6}>
-          <Toggle
-            label="scheduled"
-            icon={CalendarIcon}
-            checked={scheduled}
-            onChange={setScheduled}
-          />
-          <Toggle label="waiting" icon={HourglassIcon} checked={waiting} onChange={setWaiting} />
-        </Group>
-        <Group gap={4}>
-          <Caption mono>
-            {items.length} / {shown.length}
-          </Caption>
-          <IconButton
-            label={`Sorted by ${archive ? "updated" : "created"}, ${view.oldest ? "oldest" : "newest"} first`}
-            icon={view.oldest ? ArrowUpIcon : ArrowDownIcon}
-            onClick={flipOrder}
-          />
-        </Group>
-      </Group>
-    </>
+    <Filter chips={chips}>
+      <Choice
+        label="Status"
+        data={withAll(STATUSES, (v) => STATUS_LABEL[v as keyof typeof STATUS_LABEL])}
+        value={filters.status}
+        onChange={(status) => set({ status })}
+      />
+      <Choice
+        label="Area"
+        data={[{ value: "all", label: "All" }, ...AREAS.map((a) => ({ value: a, label: a }))]}
+        value={filters.area}
+        onChange={(area) => set({ area, project: null })}
+      />
+      <Select
+        label="Project"
+        data={projects}
+        value={filters.project}
+        onChange={(project) => set({ project })}
+      />
+      <Switch
+        label="Scheduled"
+        checked={filters.scheduled}
+        onChange={(scheduled) => set({ scheduled })}
+      />
+    </Filter>
   );
 
   return (
     <ListDetail
       head={head}
-      list={<TaskList items={items} selected={selected} onSelect={open} archive={archive} />}
+      list={<TaskList items={items} selected={selected} onSelect={open} updated={byUpdated} />}
       showDetail={!!task}
       detail={
         task ? (

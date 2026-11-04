@@ -50,13 +50,13 @@ export function Habits() {
         <Form key={h.id} onSubmit={() => void rename()}>
           <Group gap="xs" wrap="nowrap">
             <LineInput
-              label={`Rename ${h.title}`}
+              label="Rename"
               value={editing.title}
               onChange={(t) => setEditing({ id: h.id, title: t })}
               onEscape={() => setEditing(null)}
               autoFocus
             />
-            <Button small tone="quiet" onClick={() => setEditing(null)}>
+            <Button small onClick={() => setEditing(null)}>
               Cancel
             </Button>
             <Button small type="submit">
@@ -71,17 +71,17 @@ export function Habits() {
         {h.title}
         {deleting === h.id ? (
           <Group gap="xs" wrap="nowrap">
-            <Button small tone="quiet" onClick={() => setDeleting(null)}>
+            <Button small onClick={() => setDeleting(null)}>
               Cancel
             </Button>
-            <Button small tone="danger" onClick={() => void remove(h.id)}>
+            <Button small onClick={() => void remove(h.id)}>
               Delete
             </Button>
           </Group>
         ) : (
           <Group gap={4} wrap="nowrap">
             <IconButton
-              label={`Rename ${h.title}`}
+              label="Rename"
               icon={PencilIcon}
               onClick={() => {
                 setDeleting(null);
@@ -89,7 +89,7 @@ export function Habits() {
               }}
             />
             <IconButton
-              label={`Delete ${h.title}`}
+              label="Delete"
               icon={TrashIcon}
               onClick={() => {
                 setEditing(null);

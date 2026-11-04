@@ -22,7 +22,8 @@ export function ListDetail({
   const narrow = useMediaQuery("(max-width: 48em)") ?? false;
   const listPane = (
     <Stack gap={0} h="100%" w={narrow ? "100%" : 340} miw={narrow ? undefined : 340}>
-      <Stack gap="xs" p="sm">
+      {/* 左右は一覧の行の文字に揃える：一覧の余白（xs）と行の内側の余白（sm）の和 */}
+      <Stack gap="xs" py="sm" px="calc(var(--mantine-spacing-xs) + var(--mantine-spacing-sm))">
         {head}
       </Stack>
       <ScrollArea flex={1} px="xs" pb="xs">
