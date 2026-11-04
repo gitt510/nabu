@@ -1,13 +1,14 @@
 ---
 name: task
-description: File and move the user's tasks through the `nabu` CLI, which keeps them behind the nabu API. Use when the user wants a task recorded, started, or finished — "add a task", "file this as a task", "I started X", "X is done", "drop X", "what am I working on" — including Japanese phrasings such as 「タスクにして」「タスク登録」「着手した」「完了にして」「やらないことにした」「今やってるタスク」. Every read and write goes through nabu.
+description: File, finish, and drop the user's tasks through the `nabu` CLI, which keeps them behind the nabu API. Use when the user wants a task recorded, done, or dropped — "add a task", "file this as a task", "X is done", "drop X", "reopen X", "what is left to do" — including Japanese phrasings such as 「タスクにして」「タスク登録」「完了にして」「やらないことにした」「戻して」「残りのタスク」. Every read and write goes through nabu.
 ---
 
 # nabu task
 
 A task lives behind the nabu API, and nabu is the only way to it. Its
-status is one of `inbox` (new), `doing` (started), `done` (finished), and
-`dropped` (decided against). `nabu task -h` is the source of truth for the
+status is one of `todo`, `done` (its DoD is met), and `dropped` (decided
+against, with `why_dropped` saying why). `--scheduled` says when the work
+happens; there is no "started" status. `nabu task -h` is the source of truth for the
 commands and their flags, and `nabu task schema` for every rule a write
 must meet: the keys, the values they accept, and the line limit. This file
 only says how to use them well.
@@ -15,12 +16,14 @@ only says how to use them well.
 ## Commands
 
 ```bash
-nabu task new <slug> --area <area> [<frontmatter flags>]  # file in inbox, JSON body on stdin
+nabu task new <slug> --area <area> [<frontmatter flags>]  # file a todo task, JSON body on stdin
 nabu task replace <slug>                     # the fields to change, JSON on stdin; frontmatter is kept
 nabu task set <slug> --waiting "<who/what>"  # the ball is with someone else
 nabu task set <slug> --clear-waiting         # the ball is back
 nabu task set <slug> <frontmatter flags>    # other metadata; --clear-* drops
-nabu task mv <slug> <inbox|doing|done|dropped>  # change the status
+nabu task done <slug>                        # the DoD is met
+nabu task drop <slug> "<why>"...             # decided against; one line of why_dropped per argument
+nabu task reopen <slug>                      # back to todo; a dropped task loses its why_dropped
 nabu task rename <slug> <new-slug>           # new slug, same status and content
 nabu task rm <slug>                          # delete a task, whatever its status
 nabu task ls [status] [--json]               # status, title, created; --json adds slug, the frontmatter, and the body
@@ -66,17 +69,17 @@ item, without a leading `- `. A line
    Load the `gitt510-skills:writing-documents` skill, when it is
    available, before writing a body, and write every bullet under it;
    where the two disagree, the task shape here wins.
-3. **Move with `task mv`.** Run `nabu task mv <slug> doing` when work
-   starts and `... done` when it ends. Never write a status into the body
-   or the frontmatter.
+3. **Finish with `task done`, or give up with `task drop`.** Run `nabu task done <slug>`
+   when the work is finished. Never write a status into the body or the
+   frontmatter.
    A task the user decides not to do ("やらない", "見送り", "won't do")
-   goes to `dropped`, not `done`. First `task replace` with the reason in
-   `why_dropped` (`{"why_dropped": ["<reason>"]}`), then
-   `nabu task mv <slug> dropped`.
+   is dropped, not done: `nabu task drop <slug> "<reason>"`, with the
+   reason in the user's words. Ask for it when they gave none; never
+   invent one. `nabu task reopen <slug>` makes a done or dropped task todo again.
    A task that should not have been filed at all (a duplicate, a mistake,
-   「消して」「削除して」) is deleted with `nabu task rm <slug>`, whatever its
-   status. Delete only when the user asks; a decision not to do the work
-   is `dropped`.
+   「消して」「削除して」) is deleted with `nabu task rm <slug>`, whatever
+   its status. Delete only when the user asks; a decision not to do the work
+   is a drop.
 4. **Revise with `task replace` and `task set`.** `task replace` takes the
    keys to change on stdin, in the task shape, and keeps the rest and the
    frontmatter; `task set` changes the frontmatter and keeps the body.
@@ -84,13 +87,13 @@ item, without a leading `- `. A line
    off"), not as a log of what was done. Revise the body only when the user
    asks; do not propose updates to it.
 5. **Mark a wait with `task set --waiting`.** When the user has done their
-   part and waits on someone else (a reply, a review), keep the task in
-   `doing` and run `nabu task set <slug> --waiting "<who or what>"`;
+   part and waits on someone else (a reply, a review), keep the task todo
+   and run `nabu task set <slug> --waiting "<who or what>"`;
    `--clear-waiting` when the ball is back. Do not write the wait into the
    body as well.
 6. **Report the slug and the frontmatter.** After a write, tell the user
-   the slug and status nabu printed (`task mv` and `task rename` print
-   `from` and `to`). After `task new` and `task set`, also show the
+   the slug and status nabu printed (`task rename` also prints `from` and
+   `to`). After `task new` and `task set`, also show the
    `frontmatter` nabu printed, as a YAML block in the order nabu prints
    it, so the user can correct an `area` or `project` you chose on the
    spot.

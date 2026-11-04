@@ -2,17 +2,19 @@ import { marked } from "marked";
 
 import { type Habit, SECTIONS, type Task } from "../api/schema";
 
-/** page が見せる形の task：本文は題の下の HTML、検索は小文字の全文 */
-export type Item = Task & { html: string; text: string };
+/** 本文の 1 section：見出しと、行を箇条書きにした HTML（行がなければ空） */
+export type Part = { key: (typeof SECTIONS)[number]; title: string; html: string };
+
+/** page が見せる形の task：本文は Why と DoD をいつも、Why dropped は行があるときだけ。検索は小文字の全文 */
+export type Item = Task & { parts: Part[]; text: string };
 
 const HEADINGS: Record<(typeof SECTIONS)[number], string> = { why: "Why", dod: "DoD", why_dropped: "Why dropped" };
 
 const toItem = (t: Task): Item => {
-  // 空の理由は出さない。nabu task read と同じ
-  const body = SECTIONS.filter((k) => k !== "why_dropped" || t.why_dropped.length)
-    .map((k) => `### ${HEADINGS[k]}\n\n${t[k].map((l) => `- ${l}`).join("\n")}`)
-    .join("\n\n");
-  return { ...t, html: marked.parse(body, { async: false }), text: [t.title, t.slug, `#${t.id}`, t.waiting ?? "", t.project ?? "", body].join("\n").toLowerCase() };
+  const lists = SECTIONS.filter((k) => k !== "why_dropped" || t[k].length).map((k) => ({ key: k, title: HEADINGS[k], md: t[k].map((l) => `- ${l}`).join("\n") }));
+  const parts = lists.map(({ key, title, md }) => ({ key, title, html: md && marked.parse(md, { async: false }) }));
+  const body = lists.map(({ title, md }) => `${title}\n${md}`);
+  return { ...t, parts, text: [t.title, t.slug, `#${t.id}`, t.waiting ?? "", t.project ?? "", ...body].join("\n").toLowerCase() };
 };
 
 /** 全部の task を 1 回で読む。no-store なので、reload すると最新の書き込みが見える */
@@ -24,6 +26,9 @@ export async function fetchTasks(): Promise<Item[]> {
 
 /** task を書き換える。断られたら理由を返す */
 export const patch = (id: number, fields: Partial<Task>) => send("PATCH", `/api/tasks/${id}`, fields);
+
+/** task を done にする、または todo に戻す。どちらも dropped の理由は消す */
+export const check = (id: number, done: boolean) => patch(id, { status: done ? "done" : "todo", why_dropped: [] });
 
 /** 全部の habit を、day（YYYY-MM-DD）にやったかどうか付きで読む */
 export async function fetchHabits(day: string): Promise<Habit[]> {

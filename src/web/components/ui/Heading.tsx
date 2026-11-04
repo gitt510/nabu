@@ -4,10 +4,10 @@ import { Flex, Group, Title } from "@mantine/core";
 // 題の 1 行の高さ。aside をこの高さの中で縦の中央に置き、1 行目と中央線を揃える
 const LINE = 1.35;
 
-/** page と task の題。aside は右端に置く操作（task の status など）で、題が折り返しても 1 行目に揃う */
-export const Heading = ({ children, aside }: { children: ReactNode; aside?: ReactNode }) => {
+/** page と task の題。aside は右端に置く操作（task を閉じるなど）で、題が折り返しても 1 行目に揃う。muted は閉じたものの題を薄く出す */
+export const Heading = ({ children, aside, muted }: { children: ReactNode; aside?: ReactNode; muted?: boolean }) => {
   const title = (
-    <Title order={1} size="h2" lh={LINE}>
+    <Title order={1} size="h2" lh={LINE} c={muted ? "dimmed" : undefined}>
       {children}
     </Title>
   );

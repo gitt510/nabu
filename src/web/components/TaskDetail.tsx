@@ -1,28 +1,34 @@
 import { useState } from "react";
 
-import type { Status, Task } from "../../api/schema";
-import { type Item, patch } from "../api";
+import type { Task } from "../../api/schema";
+import { check, type Item, patch } from "../api";
 import { dayOf, fmt, fmtDay, isLate, ticket, timeOf, todayKey } from "../time";
 import { DropDialog } from "./DropDialog";
-import { STATUS_CHOICES } from "./statuses";
-import { ArrowLeftIcon, Caption, ChoiceMenu, CirclePlusIcon, CopyText, DateMenu, ErrorText, ExternalLink, GitPullRequestIcon, Group, Heading, IconButton, type IconComponent, LinkIcon, PencilIcon, Prose, Section, Stack, Stamp, Tag, TicketIcon } from "./ui";
+import { STATUS_LABEL } from "./states";
+import { ArrowBackUpIcon, ArrowLeftIcon, Caption, CircleCheckIcon, CirclePlusIcon, CircleXIcon, CopyText, DateMenu, ErrorText, ExternalLink, GitPullRequestIcon, Group, Heading, IconButton, type IconComponent, LinkIcon, PencilIcon, Prose, Section, Stack, Stamp, Tag, TicketIcon, useHotkeys } from "./ui";
 
-/** 開いている task：番号を添えた題と右端の status、その下に properties と作った日・直した日の 1 行と link の 1 行、枠の中に本文。予定日以外の値のない property は出さない */
+/** 開いている task：番号を添えた題と右端の完了・やめる（閉じた task は開き直す）操作、その下に properties と作った日・直した日の 1 行と link の 1 行、Why と DoD（と Why dropped）を 1 つずつ枠に入れて。書かれていない section は見出しだけを出す。予定日以外の値のない property は出さない */
 export function TaskDetail({ task, onBack, onChanged }: { task: Item; onBack?: () => void; onChanged: () => void }) {
   const [error, setError] = useState<string>();
   const [dropping, setDropping] = useState(false);
 
-  const save = async (fields: Partial<Task>) => {
-    const problem = await patch(task.id, fields);
+  const settle = (problem: string | undefined) => {
     setError(problem);
     if (!problem) onChanged();
   };
+  const save = async (fields: Partial<Task>) => settle(await patch(task.id, fields));
+  const close = async (done: boolean) => settle(await check(task.id, done));
+  useHotkeys([["d", () => task.status === "todo" && setDropping(true)]]);
 
-  const move = (status: Status) => {
-    if (status === task.status) return;
-    if (status === "dropped") return setDropping(true);
-    save({ status });
-  };
+  const actions =
+    task.status === "todo" ? (
+      <Group gap={4} wrap="nowrap">
+        <IconButton label="Mark done" icon={CircleCheckIcon} onClick={() => void close(true)} />
+        <IconButton label="Drop… (d)" icon={CircleXIcon} onClick={() => setDropping(true)} />
+      </Group>
+    ) : (
+      <IconButton label="Reopen" icon={ArrowBackUpIcon} onClick={() => void close(false)} />
+    );
 
   // 時刻のある予定は、時刻を残して日だけを移す
   const schedule = (day: string | null) => {
@@ -45,17 +51,18 @@ export function TaskDetail({ task, onBack, onChanged }: { task: Item; onBack?: (
         </Group>
       ) : null}
       <Stack gap="xs">
-        <Heading aside={<ChoiceMenu choices={STATUS_CHOICES} value={task.status} onSelect={move} />}>
+        <Heading aside={actions} muted={task.status !== "todo"}>
           {task.title} <CopyText value={`#${task.id}`} />
         </Heading>
         <Group gap="xs">
+          {task.status === "todo" ? null : <Tag tone="muted">{STATUS_LABEL[task.status]}</Tag>}
           <Tag>{task.area}</Tag>
           {task.project ? <Tag>{task.project}</Tag> : null}
           <DateMenu
             label={task.scheduled ? fmt(task.scheduled) : "Schedule"}
             value={task.scheduled ? dayOf(task.scheduled) : null}
             today={todayKey()}
-            late={!!task.scheduled && task.status !== "done" && isLate(task.scheduled)}
+            late={!!task.scheduled && task.status === "todo" && isLate(task.scheduled)}
             onSelect={schedule}
           />
           {task.waiting ? <Caption>⏳ {task.waiting}</Caption> : null}
@@ -71,9 +78,11 @@ export function TaskDetail({ task, onBack, onChanged }: { task: Item; onBack?: (
         ) : null}
       </Stack>
       <ErrorText>{error}</ErrorText>
-      <Section>
-        <Prose html={task.html} />
-      </Section>
+      {task.parts.map((p) => (
+        <Section key={p.key} title={p.title}>
+          {p.html ? <Prose html={p.html} /> : null}
+        </Section>
+      ))}
       <DropDialog id={task.id} opened={dropping} onClose={() => setDropping(false)} onDropped={onChanged} />
     </Stack>
   );

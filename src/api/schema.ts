@@ -2,14 +2,14 @@
 // out of shape cannot reach the database, and the page reads its fields from here as the Worker does.
 import { z } from "zod";
 
-export const STATUSES = ["inbox", "doing", "done", "dropped"] as const;
+export const STATUSES = ["todo", "done", "dropped"] as const;
 export const AREAS = ["work", "personal"] as const;
 
 // LINE_LIMIT is the most characters a section line may carry: one fact a reader takes in at a glance.
 export const LINE_LIMIT = 45;
 
 // SECTIONS are the body: why the task is worth starting, its definition of done, then the reason a dropped
-// task was decided against. A section that leaves keeps its column, so old rows stay as they were written.
+// task was closed without meeting it. A section that leaves keeps its column, so old rows stay as they were written.
 export const SECTIONS = ["why", "dod", "why_dropped"] as const;
 export const LISTS = ["tickets", "prs", "links"] as const;
 
@@ -53,7 +53,7 @@ const line = z
   .refine((s) => [...s].length <= LINE_LIMIT, `must be at most ${LINE_LIMIT} characters`)
   .meta({ maxLength: LINE_LIMIT });
 const section = z.array(line);
-const whyDropped = section.meta({ description: "why the task was decided against; a dropped task needs one line at least" });
+const whyDropped = section.meta({ description: "why the task was decided against; a dropped task needs one line at least, and no other task has one" });
 
 const nonBlank = z.string().regex(/^[^\n]*\S[^\n]*$/, "must be one non-blank line");
 
@@ -78,7 +78,7 @@ export const Task = z.strictObject({
 }).meta({ id: "Task" });
 export type Task = z.output<typeof Task>;
 
-// TaskCreate is POST /api/tasks: a new task always starts in inbox.
+// TaskCreate is POST /api/tasks: a new task always starts as todo.
 export const TaskCreate = z.strictObject({
   slug: kebab,
   title: nonBlank,
@@ -91,7 +91,6 @@ export const TaskCreate = z.strictObject({
   links: urls.default([]),
   why: section.default([]),
   dod: section.default([]),
-  why_dropped: whyDropped.default([]),
 });
 
 // TaskPatch is PATCH /api/tasks/:id: any field, where null drops an optional value and a list replaces
@@ -114,8 +113,9 @@ export const day = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, "must be a date (2026-10-26)")
   .refine((s) => !Number.isNaN(Date.parse(s)), "must be a date that exists");
 
-// whole checks what no single field can: a dropped task says why. It has no JSON Schema form, so whyDropped
-// says it in words.
+// whole checks what no single field can: a dropped task says why, and only a dropped task does. It has no
+// JSON Schema form, so whyDropped says it in words.
 export function whole(t: Pick<Task, "status" | "why_dropped">): string | undefined {
   if (t.status === "dropped" && t.why_dropped.length === 0) return "a dropped task needs why_dropped";
+  if (t.status !== "dropped" && t.why_dropped.length > 0) return `a ${t.status} task has no why_dropped`;
 }

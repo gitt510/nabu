@@ -72,7 +72,7 @@ var fields = []field{
 	{
 		key: "waiting", flag: "waiting",
 		usage: "who or what the next action waits on",
-		doc:   "--waiting names who or what the next action waits on: while it is set the ball is with someone else, so the task stays in doing/.",
+		doc:   "--waiting names who or what the next action waits on: while it is set the ball is with someone else.",
 		clear: "drop waiting: the ball is back",
 		str:   func(m *meta) *string { return &m.Waiting },
 	},

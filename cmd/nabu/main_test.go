@@ -61,15 +61,15 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				out = append(out, t)
 			}
 		}
-		// The API lists tasks in workflow order, then by slug.
-		workflow := []api.Status{api.Inbox, api.Doing, api.Done, api.Dropped}
+		// The API lists tasks in status order, then by slug.
+		order := []api.Status{api.Todo, api.Done, api.Dropped}
 		slices.SortFunc(out, func(a, b api.Task) int {
-			return cmp.Or(slices.Index(workflow, a.Status)-slices.Index(workflow, b.Status), strings.Compare(a.Slug, b.Slug))
+			return cmp.Or(slices.Index(order, a.Status)-slices.Index(order, b.Status), strings.Compare(a.Slug, b.Slug))
 		})
 		_ = json.NewEncoder(w).Encode(out)
 		return
 	case r.Method == http.MethodPost && r.URL.Path == "/api/tasks":
-		t := api.Task{Status: "inbox", Created: "2026-10-06T09:00:00+09:00", Updated: "2026-10-06T09:00:00+09:00"}
+		t := api.Task{Status: api.Todo, Created: "2026-10-06T09:00:00+09:00", Updated: "2026-10-06T09:00:00+09:00"}
 		if err := overlay(&t, f.last); err != nil {
 			refuse(422, err.Error())
 			return
@@ -113,7 +113,7 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // overlay writes fields onto t the way the API does, null dropping a value,
 // and applies the two rules a CLI test can reach: the line limit and the
-// reason a dropped task needs.
+// reason only a dropped task carries.
 func overlay(t *api.Task, fields map[string]any) error {
 	b, _ := json.Marshal(t)
 	var m map[string]any
@@ -129,8 +129,8 @@ func overlay(t *api.Task, fields map[string]any) error {
 			return errors.New("why.0: must be at most 45 characters")
 		}
 	}
-	if t.Status == "dropped" && len(t.WhyDropped) == 0 {
-		return errors.New("a dropped task needs why_dropped")
+	if (t.Status == api.Dropped) != (len(t.WhyDropped) > 0) {
+		return errors.New("a dropped task needs why_dropped, and no other task has one")
 	}
 	return nil
 }
@@ -290,7 +290,7 @@ func TestTaskNewViaCLI(t *testing.T) {
 	want := `{
   "action": "task new",
   "slug": "ok",
-  "status": "inbox",
+  "status": "todo",
   "frontmatter": {
     "created": "2026-10-06T09:00:00+09:00",
     "area": "work",
@@ -371,24 +371,32 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 	nabu(exitFail, "", "task", "set", "missing", "--waiting", "x")
 }
 
-func TestTaskMvRenameRmViaCLI(t *testing.T) {
+func TestTaskDoneDropReopenRenameRmViaCLI(t *testing.T) {
 	f, nabu := newAPI(t)
 	nabu(exitOK, content("Ok", "未定"), "task", "new", "ok", "--area", "work")
 
-	nabu(exitFail, "", "task", "mv", "ok", "inbox")
-	if got := nabu(exitOK, "", "task", "mv", "ok", "doing"); !strings.Contains(got, `"from": "inbox"`) || !strings.Contains(got, `"to": "doing"`) {
-		t.Fatalf("mv: %s", got)
+	nabu(exitFail, "", "task", "reopen", "ok")
+	if got := nabu(exitOK, "", "task", "done", "ok"); !strings.Contains(got, `"status": "done"`) {
+		t.Fatalf("done: %s", got)
 	}
+	nabu(exitFail, "", "task", "done", "ok")
 
-	// dropped needs the reason first
-	code, stderr := stderrOf([]string{"task", "mv", "ok", "dropped"}, "")
-	if code != exitUsage || !strings.Contains(stderr, "needs why_dropped") || !strings.Contains(stderr, "task replace first") {
-		t.Fatalf("dropped: exit %d stderr=%q", code, stderr)
+	// drop needs a reason, and keeps it as why_dropped
+	nabu(exitUsage, "", "task", "drop", "ok")
+	if got := nabu(exitOK, "", "task", "drop", "ok", "今は使い道がない"); !strings.Contains(got, `"status": "dropped"`) {
+		t.Fatalf("drop: %s", got)
 	}
-	nabu(exitOK, `{"why_dropped": ["今は使い道がない"]}`, "task", "replace", "ok")
-	nabu(exitOK, "", "task", "mv", "ok", "dropped")
-	if f.tasks["ok"].Status != "dropped" {
-		t.Fatalf("not dropped: %+v", f.tasks["ok"])
+	if tk := f.tasks["ok"]; tk.Status != api.Dropped || !slices.Equal(tk.WhyDropped, []string{"今は使い道がない"}) {
+		t.Fatalf("not dropped: %+v", tk)
+	}
+	nabu(exitFail, "", "task", "drop", "ok", "今は使い道がない")
+
+	// reopening forgets the reason
+	if got := nabu(exitOK, "", "task", "reopen", "ok"); !strings.Contains(got, `"status": "todo"`) {
+		t.Fatalf("reopen: %s", got)
+	}
+	if tk := f.tasks["ok"]; tk.Status != api.Todo || len(tk.WhyDropped) != 0 {
+		t.Fatalf("not reopened: %+v", tk)
 	}
 
 	nabu(exitUsage, "", "task", "rename", "ok", "ok")
@@ -409,25 +417,26 @@ func TestTaskMvRenameRmViaCLI(t *testing.T) {
 
 func TestTaskLsAndGrepViaCLI(t *testing.T) {
 	_, nabu := newAPI(t)
-	nabu(exitOK, content("B doing", "未定"), "task", "new", "b", "--area", "work")
-	nabu(exitOK, content("A inbox", "PING them"), "task", "new", "a", "--area", "personal")
+	nabu(exitOK, content("B done", "未定"), "task", "new", "b", "--area", "work")
+	nabu(exitOK, content("A todo", "PING them"), "task", "new", "a", "--area", "personal")
 	nabu(exitOK, "", "task", "set", "a", "--waiting", "their reply")
-	nabu(exitOK, content("C inbox", "未定"), "task", "new", "c", "--area", "work")
-	nabu(exitOK, "", "task", "mv", "b", "doing")
+	nabu(exitOK, content("C dropped", "未定"), "task", "new", "c", "--area", "work")
+	nabu(exitOK, "", "task", "done", "b")
+	nabu(exitOK, "", "task", "drop", "c", "no use")
 
-	if got := nabu(exitOK, "", "task", "ls"); got != "inbox\tA inbox\t2026-10-06\ninbox\tC inbox\t2026-10-06\ndoing\tB doing\t2026-10-06\n" {
+	if got := nabu(exitOK, "", "task", "ls"); got != "todo\tA todo\t2026-10-06\ndone\tB done\t2026-10-06\ndropped\tC dropped\t2026-10-06\n" {
 		t.Fatalf("ls: %q", got)
 	}
-	if got := nabu(exitOK, "", "task", "ls", "doing"); got != "doing\tB doing\t2026-10-06\n" {
-		t.Fatalf("ls doing: %q", got)
+	if got := nabu(exitOK, "", "task", "ls", "dropped"); got != "dropped\tC dropped\t2026-10-06\n" {
+		t.Fatalf("ls dropped: %q", got)
 	}
-	nabu(exitUsage, "", "task", "ls", "later")
+	nabu(exitUsage, "", "task", "ls", "doing")
 
 	var rows []taskEntry
 	if err := json.Unmarshal([]byte(nabu(exitOK, "", "task", "ls", "--json")), &rows); err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 3 || rows[0].Slug != "a" || rows[0].Frontmatter.Waiting != "their reply" || rows[0].Body != body("A inbox", "- PING them\n") {
+	if len(rows) != 3 || rows[0].Slug != "a" || rows[0].Frontmatter.Waiting != "their reply" || rows[0].Body != body("A todo", "- PING them\n") {
 		t.Fatalf("ls --json: %+v", rows)
 	}
 

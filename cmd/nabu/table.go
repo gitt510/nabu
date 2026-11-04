@@ -28,8 +28,7 @@ func terminal(w io.Writer) (int, bool) {
 // statusColors are ANSI palette colors, so each status follows the
 // terminal's own theme, light or dark.
 var statusColors = map[api.Status]string{
-	api.Inbox:   "6", // cyan
-	api.Doing:   "3", // yellow
+	api.Todo:    "6", // cyan
 	api.Done:    "2", // green
 	api.Dropped: "8", // gray
 }

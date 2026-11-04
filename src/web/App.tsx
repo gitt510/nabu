@@ -1,17 +1,18 @@
 import { useState } from "react";
 
 import { HelpDialog } from "./components/HelpDialog";
-import { CalendarIcon, ChecklistIcon, Empty, KeyboardIcon, MoonIcon, type RailItem, SeedlingIcon, Shell, SunIcon, useComputedColorScheme, useHotkeys, useMantineColorScheme } from "./components/ui";
+import { ArchiveIcon, CalendarIcon, ChecklistIcon, Empty, KeyboardIcon, MoonIcon, type RailItem, SeedlingIcon, Shell, SunIcon, useComputedColorScheme, useHotkeys, useMantineColorScheme } from "./components/ui";
 import { useHash } from "./hooks/useHash";
 import { useTasks } from "./hooks/useTasks";
 import { Tasks } from "./views/Tasks";
 import { Calendar } from "./views/Calendar";
 import { Habits } from "./views/Habits";
 
-type Page = "calendar" | "tasks" | "habits";
+type Page = "calendar" | "tasks" | "archive" | "habits";
 const PAGES: RailItem<Page>[] = [
   { key: "calendar", label: "Calendar", icon: CalendarIcon },
   { key: "tasks", label: "Tasks", icon: ChecklistIcon },
+  { key: "archive", label: "Archive", icon: ArchiveIcon },
   { key: "habits", label: "Habits", icon: SeedlingIcon },
 ];
 
@@ -58,8 +59,8 @@ export function App() {
         <Empty title="Loading…" />
       ) : page === "habits" ? (
         <Habits />
-      ) : page === "tasks" ? (
-        <Tasks tasks={tasks} selected={selected} onSelect={setSelected} onChanged={reload} />
+      ) : page === "tasks" || page === "archive" ? (
+        <Tasks key={page} archive={page === "archive"} tasks={tasks} selected={selected} onSelect={setSelected} onChanged={reload} />
       ) : (
         <Calendar key={home} tasks={tasks} selected={selected} onSelect={setSelected} onOpen={openTask} onChanged={reload} />
       )}
