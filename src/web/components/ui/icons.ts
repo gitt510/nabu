@@ -14,7 +14,6 @@ export {
   IconCircleCheck as CircleCheckIcon,
   IconCirclePlus as CirclePlusIcon,
   IconCircleX as CircleXIcon,
-  IconFilter as FilterIcon,
   IconGitPullRequest as GitPullRequestIcon,
   IconKeyboard as KeyboardIcon,
   IconLink as LinkIcon,

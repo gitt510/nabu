@@ -8,6 +8,7 @@
 export { Provider } from "./Provider";
 export { Shell, type RailAction, type RailItem } from "./Shell";
 export { ListDetail } from "./ListDetail";
+export { Pane } from "./Pane";
 
 // 並べる（間隔と揃え方の props だけを持つ）
 export { Page } from "./Page";
@@ -27,10 +28,7 @@ export { ExternalLink } from "./ExternalLink";
 // 入力と操作
 export { Button } from "./Button";
 export { IconButton } from "./IconButton";
-export { Filter, type FilterChip } from "./Filter";
 export { Choice } from "./Choice";
-export { Select } from "./Select";
-export { Switch } from "./Switch";
 export { Checkbox } from "./Checkbox";
 export { LineInput } from "./LineInput";
 export { LinesInput } from "./LinesInput";
@@ -40,6 +38,7 @@ export { Pager } from "./Pager";
 
 // 組み立て
 export { Section } from "./Section";
+export { Passage } from "./Passage";
 export { Dialog } from "./Dialog";
 export { Empty } from "./Empty";
 export { KeyTable } from "./KeyTable";

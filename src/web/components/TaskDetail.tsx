@@ -21,9 +21,10 @@ import {
   IconButton,
   type IconComponent,
   LinkIcon,
+  Pane,
   PencilIcon,
   Prose,
-  Section,
+  Passage,
   Stack,
   Stamp,
   Tag,
@@ -31,7 +32,7 @@ import {
   useHotkeys,
 } from "./ui";
 
-/** 開いている task：番号を添えた題と右端の完了・やめる（閉じた task は開き直す）操作、その下に properties と作った日・直した日の 1 行と link の 1 行、Why と DoD（と Why dropped）を 1 つずつ枠に入れて。書かれていない section は見出しだけを出す。予定日以外の値のない property は出さない */
+/** 開いている task：番号を添えた題と右端の完了・やめる（閉じた task は開き直す）操作、その下に properties と作った日・直した日の 1 行と link の 1 行、端から端までの区切りの線のあとに、scroll する本文として Why と DoD（と Why dropped）を枠なしの文章で。書かれていない section は見出しだけを出す。予定日以外の値のない property は出さない */
 export function TaskDetail({
   task,
   onBack,
@@ -75,8 +76,8 @@ export function TaskDetail({
       </ExternalLink>
     ));
 
-  return (
-    <Stack gap="md">
+  const head = (
+    <Stack gap="xs">
       {onBack ? (
         <Group>
           <IconButton label="Back to list" icon={ArrowLeftIcon} onClick={onBack} />
@@ -119,17 +120,24 @@ export function TaskDetail({
         ) : null}
       </Stack>
       <ErrorText>{error}</ErrorText>
-      {task.parts.map((p) => (
-        <Section key={p.key} title={p.title}>
-          {p.html ? <Prose html={p.html} /> : null}
-        </Section>
-      ))}
+    </Stack>
+  );
+
+  return (
+    <Pane head={head}>
+      <Stack gap="md">
+        {task.parts.map((p) => (
+          <Passage key={p.key} title={p.title}>
+            {p.html ? <Prose html={p.html} /> : null}
+          </Passage>
+        ))}
+      </Stack>
       <DropDialog
         id={task.id}
         opened={dropping}
         onClose={() => setDropping(false)}
         onDropped={onChanged}
       />
-    </Stack>
+    </Pane>
   );
 }

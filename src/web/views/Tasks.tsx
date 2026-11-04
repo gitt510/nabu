@@ -8,32 +8,23 @@ import { TaskList } from "../components/TaskList";
 import {
   Choice,
   Empty,
-  Filter,
-  type FilterChip,
   ListDetail,
-  Select,
-  Switch,
+  Page,
+  Stack,
   useHotkeys,
   useMediaQuery,
 } from "../components/ui";
 import { instant } from "../time";
 
-/** 絞り込み。"all" と null と false は絞らない。最初は todo だけを見せる */
-type Filters = { status: string; area: string; project: string | null; scheduled: boolean };
-const START: Filters = { status: "todo", area: "all", project: null, scheduled: false };
+/** 絞り込み。area の "all" は絞らない。最初は todo だけを見せる */
+type Filters = { status: string; area: string };
+const START: Filters = { status: "todo", area: "all" };
 
 const hit = (t: Item, f: Filters) =>
-  (f.status === "all" || t.status === f.status) &&
-  (f.area === "all" || t.area === f.area) &&
-  (!f.project || t.project === f.project) &&
-  (!f.scheduled || !!t.scheduled);
-const withAll = (values: readonly string[], label: (v: string) => string) => [
-  ...values.map((v) => ({ value: v, label: label(v) })),
-  { value: "all", label: "All" },
-];
+  t.status === f.status && (f.area === "all" || t.area === f.area);
 
 /**
- * task を並べる page。Filter の小窓で status・area・project・scheduled を絞る。todo だけなら作った日順、
+ * task を並べる page。一覧の上に常に出した入力で status と area を絞る。todo だけなら作った日順、
  * 閉じた task を含むなら直した日順に、新しいものから並べる（閉じた日は持たないので、直した日をその代わりにする）
  */
 export function Tasks({
@@ -55,17 +46,6 @@ export function Tasks({
     const when = (t: Item) => instant(byUpdated ? t.updated : t.created).getTime();
     return tasks.filter((t) => hit(t, filters)).sort((a, b) => when(b) - when(a));
   }, [tasks, filters, byUpdated]);
-  const projects = useMemo(
-    () =>
-      [
-        ...new Set(
-          tasks
-            .filter((t) => filters.area === "all" || t.area === filters.area)
-            .flatMap((t) => (t.project ? [t.project] : [])),
-        ),
-      ].sort(),
-    [tasks, filters.area],
-  );
   const task = tasks.find((t) => String(t.id) === selected);
 
   const open = (id: string) => {
@@ -84,29 +64,12 @@ export function Tasks({
   ]);
 
   const set = (f: Partial<Filters>) => setFilters({ ...filters, ...f });
-  const chips: FilterChip[] = [
-    ...(filters.status !== "todo"
-      ? [
-          {
-            label: filters.status === "all" ? "all statuses" : filters.status,
-            onClear: () => set({ status: "todo" }),
-          },
-        ]
-      : []),
-    ...(filters.area !== "all"
-      ? [{ label: filters.area, onClear: () => set({ area: "all", project: null }) }]
-      : []),
-    ...(filters.project ? [{ label: filters.project, onClear: () => set({ project: null }) }] : []),
-    ...(filters.scheduled
-      ? [{ label: "scheduled", onClear: () => set({ scheduled: false }) }]
-      : []),
-  ];
 
   const head = (
-    <Filter chips={chips}>
+    <Stack gap="sm">
       <Choice
         label="Status"
-        data={withAll(STATUSES, (v) => STATUS_LABEL[v as keyof typeof STATUS_LABEL])}
+        data={STATUSES.map((v) => ({ value: v, label: STATUS_LABEL[v] }))}
         value={filters.status}
         onChange={(status) => set({ status })}
       />
@@ -114,20 +77,9 @@ export function Tasks({
         label="Area"
         data={[{ value: "all", label: "All" }, ...AREAS.map((a) => ({ value: a, label: a }))]}
         value={filters.area}
-        onChange={(area) => set({ area, project: null })}
+        onChange={(area) => set({ area })}
       />
-      <Select
-        label="Project"
-        data={projects}
-        value={filters.project}
-        onChange={(project) => set({ project })}
-      />
-      <Switch
-        label="Scheduled"
-        checked={filters.scheduled}
-        onChange={(scheduled) => set({ scheduled })}
-      />
-    </Filter>
+    </Stack>
   );
 
   return (
@@ -144,7 +96,9 @@ export function Tasks({
             onChanged={onChanged}
           />
         ) : (
-          <Empty title="No task selected" description="Pick one from the list, or press ↓ / ↑." />
+          <Page>
+            <Empty title="No task selected" description="Pick one from the list, or press ↓ / ↑." />
+          </Page>
         )
       }
     />
