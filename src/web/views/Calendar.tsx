@@ -15,7 +15,6 @@ import {
   Pager,
   Section,
   Stack,
-  Tag,
   useHotkeys,
   useMediaQuery,
 } from "../components/ui";
@@ -74,7 +73,7 @@ export function Calendar({
       onClick={() => (narrow ? onOpen : onSelect)(String(t.id))}
       aside={
         <Group gap={6} wrap="nowrap">
-          {t.status === "todo" ? null : <Tag tone="muted">{STATUS_LABEL[t.status]}</Tag>}
+          {t.status === "todo" ? null : <Caption>{STATUS_LABEL[t.status]}</Caption>}
           {aside}
         </Group>
       }
@@ -125,7 +124,7 @@ export function Calendar({
       {late.length ? (
         <Section title="Overdue">
           <Stack gap={2}>
-            {late.map((t) => row(t, <Tag tone="late">{fmtDay(t.scheduled!)}</Tag>))}
+            {late.map((t) => row(t, <Caption mono>{fmtDay(t.scheduled!)}</Caption>))}
           </Stack>
         </Section>
       ) : null}

@@ -1,21 +1,9 @@
 import type { ReactNode } from "react";
 import { Badge } from "@mantine/core";
 
-/** 値の札。area、project、期限 */
-export const Tag = ({
-  children,
-  tone = "default",
-}: {
-  children: ReactNode;
-  tone?: "default" | "late" | "muted";
-}) => (
-  <Badge
-    size="sm"
-    radius="sm"
-    variant="light"
-    color={tone === "late" ? "red" : tone === "muted" ? "gray" : undefined}
-    tt="none"
-  >
+/** 分類の札。area、project。状態は持たない */
+export const Tag = ({ children }: { children: ReactNode }) => (
+  <Badge size="sm" radius="sm" variant="default" tt="none">
     {children}
   </Badge>
 );

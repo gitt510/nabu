@@ -5,8 +5,8 @@ import { type Habit, SECTIONS, type Task } from "../api/schema";
 /** 本文の 1 section：見出しと、行を箇条書きにした HTML（行がなければ空） */
 export type Part = { key: (typeof SECTIONS)[number]; title: string; html: string };
 
-/** page が見せる形の task：本文は Why と DoD をいつも、Why dropped は行があるときだけ。検索は小文字の全文 */
-export type Item = Task & { parts: Part[]; text: string };
+/** page が見せる形の task：本文は Why と DoD をいつも、Why dropped は行があるときだけ */
+export type Item = Task & { parts: Part[] };
 
 const HEADINGS: Record<(typeof SECTIONS)[number], string> = {
   why: "Why",
@@ -25,14 +25,7 @@ const toItem = (t: Task): Item => {
     title,
     html: md && marked.parse(md, { async: false }),
   }));
-  const body = lists.map(({ title, md }) => `${title}\n${md}`);
-  return {
-    ...t,
-    parts,
-    text: [t.title, t.slug, `#${t.id}`, t.waiting ?? "", t.project ?? "", ...body]
-      .join("\n")
-      .toLowerCase(),
-  };
+  return { ...t, parts };
 };
 
 /** 全部の task を 1 回で読む。no-store なので、reload すると最新の書き込みが見える */

@@ -2,7 +2,6 @@ import { useState } from "react";
 
 import { HelpDialog } from "./components/HelpDialog";
 import {
-  ArchiveIcon,
   CalendarIcon,
   ChecklistIcon,
   Empty,
@@ -22,11 +21,10 @@ import { Tasks } from "./views/Tasks";
 import { Calendar } from "./views/Calendar";
 import { Habits } from "./views/Habits";
 
-type Page = "calendar" | "tasks" | "archive" | "habits";
+type Page = "calendar" | "tasks" | "habits";
 const PAGES: RailItem<Page>[] = [
   { key: "calendar", label: "Calendar", icon: CalendarIcon },
   { key: "tasks", label: "Tasks", icon: ChecklistIcon },
-  { key: "archive", label: "Archive", icon: ArchiveIcon },
   { key: "habits", label: "Habits", icon: SeedlingIcon },
 ];
 
@@ -80,15 +78,8 @@ export function App() {
         <Empty title="Loading…" />
       ) : page === "habits" ? (
         <Habits />
-      ) : page === "tasks" || page === "archive" ? (
-        <Tasks
-          key={page}
-          archive={page === "archive"}
-          tasks={tasks}
-          selected={selected}
-          onSelect={setSelected}
-          onChanged={reload}
-        />
+      ) : page === "tasks" ? (
+        <Tasks tasks={tasks} selected={selected} onSelect={setSelected} onChanged={reload} />
       ) : (
         <Calendar
           key={home}

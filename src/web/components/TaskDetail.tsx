@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import type { Task } from "../../api/schema";
 import { check, type Item, patch } from "../api";
-import { dayOf, fmt, fmtDay, isLate, ticket, timeOf, todayKey } from "../time";
+import { dayOf, fmt, fmtDay, ticket, timeOf, todayKey } from "../time";
 import { DropDialog } from "./DropDialog";
 import { STATUS_LABEL } from "./states";
 import {
@@ -12,7 +12,6 @@ import {
   CircleCheckIcon,
   CirclePlusIcon,
   CircleXIcon,
-  CopyText,
   DateMenu,
   ErrorText,
   ExternalLink,
@@ -84,18 +83,17 @@ export function TaskDetail({
         </Group>
       ) : null}
       <Stack gap="xs">
-        <Heading aside={actions} muted={task.status !== "todo"}>
-          {task.title} <CopyText value={`#${task.id}`} />
+        <Heading number={`#${task.id}`} aside={actions} muted={task.status !== "todo"}>
+          {task.title}
         </Heading>
         <Group gap="xs">
-          {task.status === "todo" ? null : <Tag tone="muted">{STATUS_LABEL[task.status]}</Tag>}
+          {task.status === "todo" ? null : <Caption>{STATUS_LABEL[task.status]}</Caption>}
           <Tag>{task.area}</Tag>
           {task.project ? <Tag>{task.project}</Tag> : null}
           <DateMenu
             label={task.scheduled ? fmt(task.scheduled) : "Schedule"}
             value={task.scheduled ? dayOf(task.scheduled) : null}
             today={todayKey()}
-            late={!!task.scheduled && task.status === "todo" && isLate(task.scheduled)}
             onSelect={schedule}
           />
           {task.waiting ? <Caption>⏳ {task.waiting}</Caption> : null}

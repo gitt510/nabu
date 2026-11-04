@@ -9,13 +9,11 @@ export function DateMenu({
   label,
   value,
   today,
-  late,
   onSelect,
 }: {
   label: string;
   value: string | null;
   today: string;
-  late?: boolean;
   onSelect: (day: string | null) => void;
 }) {
   const [opened, setOpened] = useState(false);
@@ -29,8 +27,7 @@ export function DateMenu({
         <Button
           size="compact-xs"
           radius="sm"
-          variant={value ? "light" : "default"}
-          color={late ? "red" : undefined}
+          variant="default"
           leftSection={<CalendarIcon size={14} />}
           onClick={() => setOpened((o) => !o)}
         >
