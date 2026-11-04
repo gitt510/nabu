@@ -33,7 +33,6 @@ export function App() {
   const flipTheme = () => setColorScheme(scheme === "dark" ? "light" : "dark");
 
   useHotkeys([
-    ["t", flipTheme],
     ["shift+?", () => setHelp((h) => !h)],
   ]);
 
@@ -49,7 +48,7 @@ export function App() {
       onSelect={setPage}
       onHome={goHome}
       actions={[
-        { label: scheme === "dark" ? "Light theme (t)" : "Dark theme (t)", icon: scheme === "dark" ? SunIcon : MoonIcon, onClick: flipTheme },
+        { label: scheme === "dark" ? "Light theme" : "Dark theme", icon: scheme === "dark" ? SunIcon : MoonIcon, onClick: flipTheme },
         { label: "Keyboard shortcuts (?)", icon: KeyboardIcon, onClick: () => setHelp(true), keyboard: true },
       ]}
     >
