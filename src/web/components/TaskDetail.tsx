@@ -8,7 +8,7 @@ import { STATUS_CHOICES } from "./statuses";
 import { ArrowLeftIcon, Caption, ChoiceMenu, CirclePlusIcon, CopyText, DateMenu, ErrorText, ExternalLink, GitPullRequestIcon, Group, Heading, IconButton, type IconComponent, LinkIcon, PencilIcon, Prose, Section, Stack, Stamp, Tag, TicketIcon } from "./ui";
 
 /** 開いている task：番号を添えた題と右端の status、その下に properties と作った日・直した日の 1 行と link の 1 行、枠の中に本文。予定日以外の値のない property は出さない */
-export function TaskDetail({ task, onBack, onChanged, menuOpened, onMenuOpenedChange }: { task: Item; onBack?: () => void; onChanged: () => void; menuOpened: boolean; onMenuOpenedChange: (o: boolean) => void }) {
+export function TaskDetail({ task, onBack, onChanged }: { task: Item; onBack?: () => void; onChanged: () => void }) {
   const [error, setError] = useState<string>();
   const [dropping, setDropping] = useState(false);
 
@@ -45,7 +45,7 @@ export function TaskDetail({ task, onBack, onChanged, menuOpened, onMenuOpenedCh
         </Group>
       ) : null}
       <Stack gap="xs">
-        <Heading aside={<ChoiceMenu choices={STATUS_CHOICES} value={task.status} onSelect={move} opened={menuOpened} onOpenedChange={onMenuOpenedChange} />}>
+        <Heading aside={<ChoiceMenu choices={STATUS_CHOICES} value={task.status} onSelect={move} />}>
           {task.title} <CopyText value={`#${task.id}`} />
         </Heading>
         <Group gap="xs">

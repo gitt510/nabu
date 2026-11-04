@@ -27,7 +27,6 @@ export function Tasks({ tasks, selected, onSelect, onChanged }: { tasks: Item[];
   const [project, setProject] = useState<string | null>(null);
   const [scheduled, setScheduled] = useState(false);
   const [waiting, setWaiting] = useState(false);
-  const [menuOpened, setMenuOpened] = useState(false);
   const search = useRef<HTMLInputElement>(null);
   const narrow = useMediaQuery("(max-width: 48em)") ?? false;
 
@@ -59,12 +58,10 @@ export function Tasks({ tasks, selected, onSelect, onChanged }: { tasks: Item[];
 
   useHotkeys([
     ["/", () => search.current?.focus()],
-    ["j", () => step(1)],
-    ["k", () => step(-1)],
+    ["ArrowDown", () => step(1)],
+    ["ArrowUp", () => step(-1)],
     ["[", () => stepTab(-1)],
     ["]", () => stepTab(1)],
-    ["s", flipOrder],
-    ["m", () => task && setMenuOpened((o) => !o)],
   ]);
 
   const head = (
@@ -84,7 +81,7 @@ export function Tasks({ tasks, selected, onSelect, onChanged }: { tasks: Item[];
           <Caption mono>
             {items.length} / {inTab.length}
           </Caption>
-          <IconButton label={`Sorted by created, ${view.oldest ? "oldest" : "newest"} first (s)`} icon={view.oldest ? ArrowUpIcon : ArrowDownIcon} onClick={flipOrder} />
+          <IconButton label={`Sorted by created, ${view.oldest ? "oldest" : "newest"} first`} icon={view.oldest ? ArrowUpIcon : ArrowDownIcon} onClick={flipOrder} />
         </Group>
       </Group>
     </>
@@ -97,9 +94,9 @@ export function Tasks({ tasks, selected, onSelect, onChanged }: { tasks: Item[];
       showDetail={!!task}
       detail={
         task ? (
-          <TaskDetail key={task.id} task={task} onBack={narrow ? () => onSelect("") : undefined} onChanged={onChanged} menuOpened={menuOpened} onMenuOpenedChange={setMenuOpened} />
+          <TaskDetail key={task.id} task={task} onBack={narrow ? () => onSelect("") : undefined} onChanged={onChanged} />
         ) : (
-          <Empty title="No task selected" description="Pick one from the list, or press j / k." />
+          <Empty title="No task selected" description="Pick one from the list, or press ↓ / ↑." />
         )
       }
     />

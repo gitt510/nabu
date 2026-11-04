@@ -19,7 +19,6 @@ const bySchedule = (a: Item, b: Item) => instant(a.scheduled!).getTime() - insta
  */
 export function Calendar({ tasks, selected, onSelect, onOpen, onChanged }: { tasks: Item[]; selected: string; onSelect: (id: string) => void; onOpen: (id: string) => void; onChanged: () => void }) {
   const [day, setDay] = useState(todayKey);
-  const [menuOpened, setMenuOpened] = useState(false);
   const narrow = useMediaQuery("(max-width: 48em)") ?? false;
   const task = tasks.find((t) => String(t.id) === selected);
   const isToday = day === todayKey();
@@ -32,7 +31,6 @@ export function Calendar({ tasks, selected, onSelect, onOpen, onChanged }: { tas
   useHotkeys([
     ["ArrowLeft", prev],
     ["ArrowRight", next],
-    ["0", () => setDay(todayKey())],
   ]);
 
   const row = (t: Item, aside: ReactNode) => (
@@ -57,7 +55,7 @@ export function Calendar({ tasks, selected, onSelect, onOpen, onChanged }: { tas
           label={dayLabel(day)}
           prev={{ label: "Previous day (←)", onClick: prev }}
           next={{ label: "Next day (→)", onClick: next }}
-          reset={isToday ? undefined : { label: "Today (0)", onClick: () => setDay(todayKey()) }}
+          reset={isToday ? undefined : { label: "Today", onClick: () => setDay(todayKey()) }}
         />
         <Section title="Scheduled">
           {planned.length ? (
@@ -90,7 +88,7 @@ export function Calendar({ tasks, selected, onSelect, onOpen, onChanged }: { tas
         {day_}
         <Section>
           {task ? (
-            <TaskDetail key={task.id} task={task} onChanged={onChanged} menuOpened={menuOpened} onMenuOpenedChange={setMenuOpened} />
+            <TaskDetail key={task.id} task={task} onChanged={onChanged} />
           ) : (
             <Empty title="No task selected" description="Pick one from the day." />
           )}
