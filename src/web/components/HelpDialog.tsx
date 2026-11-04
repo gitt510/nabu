@@ -5,6 +5,7 @@ export const KEYS = [
   { keys: ["/"], label: "Focus search" },
   { keys: ["↓", "↑"], label: "Open next / previous task" },
   { keys: ["[", "]"], label: "Todo / Done tab" },
+  { keys: ["d"], label: "Drop the open task, saying why" },
   { keys: ["?"], label: "Show this list" },
 ];
 

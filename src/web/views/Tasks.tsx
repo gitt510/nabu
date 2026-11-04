@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState } from "react";
 
 import { AREAS } from "../../api/schema";
-import { check, type Item } from "../api";
+import type { Item } from "../api";
 import { TaskDetail } from "../components/TaskDetail";
 import { TaskList } from "../components/TaskList";
-import { ArrowDownIcon, ArrowUpIcon, CalendarIcon, Caption, Empty, ErrorText, Group, HourglassIcon, IconButton, ListDetail, SearchInput, Segments, Select, Toggle, useHotkeys, useLocalStorage, useMediaQuery } from "../components/ui";
+import { ArrowDownIcon, ArrowUpIcon, CalendarIcon, Caption, Empty, Group, HourglassIcon, IconButton, ListDetail, SearchInput, Segments, Select, Toggle, useHotkeys, useLocalStorage, useMediaQuery } from "../components/ui";
 import { instant } from "../time";
 
 // Done には完了と dropped の両方が並ぶ
@@ -22,7 +22,6 @@ export function Tasks({ tasks, selected, onSelect, onChanged }: { tasks: Item[];
   const [view, setView] = useLocalStorage<{ tab: Tab; oldest: boolean }>({ key: "nabu-tasks-view", defaultValue: { tab: "todo", oldest: false } });
   // 前の版が残した tab（all、inbox…）は Todo として読む
   const tab: Tab = view.tab === "done" ? "done" : "todo";
-  const [error, setError] = useState<string>();
   const [q, setQ] = useState("");
   const [area, setArea] = useState<string | null>(null);
   const [project, setProject] = useState<string | null>(null);
@@ -55,11 +54,6 @@ export function Tasks({ tasks, selected, onSelect, onChanged }: { tasks: Item[];
     const at = TABS.findIndex((t) => t.value === tab);
     setView({ ...view, tab: TABS[(at + delta + TABS.length) % TABS.length].value });
   };
-  const mark = async (id: number, done: boolean) => {
-    const problem = await check(id, done);
-    setError(problem);
-    if (!problem) onChanged();
-  };
   const flipOrder = () => setView({ ...view, oldest: !view.oldest });
 
   useHotkeys([
@@ -90,14 +84,13 @@ export function Tasks({ tasks, selected, onSelect, onChanged }: { tasks: Item[];
           <IconButton label={`Sorted by created, ${view.oldest ? "oldest" : "newest"} first`} icon={view.oldest ? ArrowUpIcon : ArrowDownIcon} onClick={flipOrder} />
         </Group>
       </Group>
-      <ErrorText>{error}</ErrorText>
     </>
   );
 
   return (
     <ListDetail
       head={head}
-      list={<TaskList items={items} selected={selected} onSelect={open} onCheck={(t, done) => void mark(t.id, done)} />}
+      list={<TaskList items={items} selected={selected} onSelect={open} />}
       showDetail={!!task}
       detail={
         task ? (

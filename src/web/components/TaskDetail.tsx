@@ -5,12 +5,13 @@ import { check, type Item, patch } from "../api";
 import { dayOf, fmt, fmtDay, isLate, ticket, timeOf, todayKey } from "../time";
 import { DropDialog } from "./DropDialog";
 import { STATUS_LABEL } from "./states";
-import { ArrowBackUpIcon, ArrowLeftIcon, Caption, CircleCheckIcon, CirclePlusIcon, CircleXIcon, CopyText, DateMenu, ErrorText, ExternalLink, GitPullRequestIcon, Group, Heading, IconButton, type IconComponent, LinkIcon, PencilIcon, Prose, Section, Stack, Stamp, Tag, TicketIcon } from "./ui";
+import { ArrowBackUpIcon, ArrowLeftIcon, Caption, CircleCheckIcon, CirclePlusIcon, CircleXIcon, CopyText, DateMenu, ErrorText, ExternalLink, GitPullRequestIcon, Group, Heading, IconButton, type IconComponent, LinkIcon, PencilIcon, Prose, Section, Stack, Stamp, Tag, TicketIcon, useHotkeys } from "./ui";
 
 /** 開いている task：番号を添えた題と右端の完了・やめる（閉じた task は開き直す）操作、その下に properties と作った日・直した日の 1 行と link の 1 行、枠の中に本文。予定日以外の値のない property は出さない */
 export function TaskDetail({ task, onBack, onChanged }: { task: Item; onBack?: () => void; onChanged: () => void }) {
   const [error, setError] = useState<string>();
   const [dropping, setDropping] = useState(false);
+  useHotkeys([["d", () => task.status === "todo" && setDropping(true)]]);
 
   const settle = (problem: string | undefined) => {
     setError(problem);
@@ -23,7 +24,7 @@ export function TaskDetail({ task, onBack, onChanged }: { task: Item; onBack?: (
     task.status === "todo" ? (
       <Group gap={4} wrap="nowrap">
         <IconButton label="Mark done" icon={CircleCheckIcon} onClick={() => void close(true)} />
-        <IconButton label="Drop…" icon={CircleXIcon} onClick={() => setDropping(true)} />
+        <IconButton label="Drop… (d)" icon={CircleXIcon} onClick={() => setDropping(true)} />
       </Group>
     ) : (
       <IconButton label="Reopen" icon={ArrowBackUpIcon} onClick={() => void close(false)} />
