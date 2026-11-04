@@ -18,7 +18,6 @@ export type RailItem<K extends string> = {
   key: K;
   label: string;
   icon: IconComponent;
-  disabled?: boolean;
 };
 /** page をまたぐ操作。keyboard の操作は、keyboard の無い狭い画面では出さない */
 export type RailAction = {
@@ -55,21 +54,15 @@ export function Shell<K extends string>({
     Icon: IconComponent,
     onClick: () => void,
     active = false,
-    disabled = false,
     header = false,
   ) => (
-    <Tooltip
-      key={label}
-      label={disabled ? `${label} (coming soon)` : label}
-      position={header ? "bottom" : "right"}
-    >
+    <Tooltip key={label} label={label} position={header ? "bottom" : "right"}>
       <ActionIcon
         size={header || narrow ? "lg" : "xl"}
         variant={active ? "light" : "subtle"}
         color={active ? undefined : "gray"}
         aria-label={label}
         aria-current={active ? "page" : undefined}
-        disabled={disabled}
         onClick={onClick}
       >
         <Icon size={header || narrow ? 20 : 22} stroke={1.75} />
@@ -99,7 +92,7 @@ export function Shell<K extends string>({
             </Group>
           </UnstyledButton>
           <Group gap="xs" wrap="nowrap">
-            {shown.map((a) => iconButton(a.label, a.icon, a.onClick, false, false, true))}
+            {shown.map((a) => iconButton(a.label, a.icon, a.onClick, false, true))}
           </Group>
         </Group>
       </AppShell.Header>
@@ -108,7 +101,7 @@ export function Shell<K extends string>({
         <AppShell.Navbar p="xs">
           <Stack align="center" gap="xs" component="nav" aria-label="Pages">
             {items.map((i) =>
-              iconButton(i.label, i.icon, () => onSelect(i.key), i.key === current, i.disabled),
+              iconButton(i.label, i.icon, () => onSelect(i.key), i.key === current),
             )}
           </Stack>
         </AppShell.Navbar>
@@ -123,21 +116,13 @@ export function Shell<K extends string>({
                 <UnstyledButton
                   key={i.key}
                   h="100%"
-                  disabled={i.disabled}
                   aria-current={active ? "page" : undefined}
                   onClick={() => onSelect(i.key)}
                 >
                   <Stack
                     align="center"
                     gap={2}
-                    c={
-                      i.disabled
-                        ? "dimmed"
-                        : active
-                          ? "var(--mantine-primary-color-filled)"
-                          : "var(--mantine-color-text)"
-                    }
-                    opacity={i.disabled ? 0.5 : 1}
+                    c={active ? "var(--mantine-primary-color-filled)" : "var(--mantine-color-text)"}
                   >
                     <i.icon size={22} stroke={1.75} />
                     <Text span size="xs" fw={active ? 700 : 400}>

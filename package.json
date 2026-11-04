@@ -6,8 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "types": "wrangler types",
-    "fmt": "oxfmt src *.config.ts",
-    "check": "wrangler types && oxfmt --check src *.config.ts && tsc && tsc -p src/web && oxlint -c oxlint.config.ts src/web",
+    "fmt": "oxfmt src lint *.config.ts",
+    "check": "wrangler types && oxfmt --check src lint *.config.ts && tsc && tsc -p src/web && oxlint -c oxlint.config.ts src/web",
     "test": "vitest run"
   },
   "dependencies": {

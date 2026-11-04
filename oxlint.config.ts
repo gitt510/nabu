@@ -1,5 +1,6 @@
 // Lints the viewer in src/web/ so that it keeps no CSS of its own and touches Mantine and Tabler only inside
-// src/web/components/ui/. Each message says what to use instead, then why.
+// src/web/components/ui/, and so that a ui part never picks its color by state. Each message says what to use
+// instead, then why.
 //
 // no-restricted-imports carries four restrictions at once, and an override replaces its options whole, so
 // every scope below restates the full list it needs.
@@ -45,6 +46,7 @@ const RENDER = "Use a ui part made for it instead: ui decides what is rendered";
 
 export default defineConfig({
   plugins: ["react", "typescript", "unicorn", "oxc"],
+  jsPlugins: ["./lint/nabu.js"],
   rules: {
     "no-restricted-imports": imports(LIBRARY, OWN_CSS),
     "react/forbid-elements": ["error", { forbid: ELEMENTS }],
@@ -85,7 +87,13 @@ export default defineConfig({
         "react/forbid-elements": "off",
         "react/forbid-dom-props": "off",
         "react/forbid-component-props": "off",
+        "nabu/no-conditional-color": "error",
       },
+    },
+    // Shell marks the current page by hand: Mantine has no rail or tab bar that marks it on its own.
+    {
+      files: ["src/web/components/ui/Shell.tsx"],
+      rules: { "nabu/no-conditional-color": "off" },
     },
     {
       files: ["src/web/components/ui/index.ts"],
