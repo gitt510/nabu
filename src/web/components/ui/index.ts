@@ -19,7 +19,6 @@ export { Form } from "./Form";
 export { Heading } from "./Heading";
 export { Caption } from "./Caption";
 export { ErrorText } from "./ErrorText";
-export { Tag } from "./Tag";
 export { Timestamp } from "./Timestamp";
 export { ExternalLink } from "./ExternalLink";
 
