@@ -80,7 +80,7 @@ export function TaskDetail({ task, onBack, onChanged }: { task: Item; onBack?: (
       <ErrorText>{error}</ErrorText>
       {task.parts.map((p) => (
         <Section key={p.key} title={p.title}>
-          {p.html ? <Prose html={p.html} /> : <Caption>No description</Caption>}
+          <Prose html={p.html || "<p>No description</p>"} />
         </Section>
       ))}
       <DropDialog id={task.id} opened={dropping} onClose={() => setDropping(false)} onDropped={onChanged} />
