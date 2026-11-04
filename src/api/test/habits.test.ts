@@ -14,11 +14,15 @@ const call = async (method: string, path: string, body?: unknown) =>
     }),
   );
 
-const list = async (date: string) => (await (await call("GET", `/api/habits?date=${date}`)).json()) as unknown[];
+const list = async (date: string) =>
+  (await (await call("GET", `/api/habits?date=${date}`)).json()) as unknown[];
 
 // Storage outlives a test within the file; start each one empty.
 beforeEach(async () => {
-  await env.DB.batch([env.DB.prepare("DELETE FROM habit_checks"), env.DB.prepare("DELETE FROM habits")]);
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM habit_checks"),
+    env.DB.prepare("DELETE FROM habits"),
+  ]);
 });
 
 describe("/api/habits", () => {
@@ -38,30 +42,47 @@ describe("/api/habits", () => {
   });
 
   it("checks a habit on one day only, and checking twice or unchecking twice changes nothing", async () => {
-    const { id } = (await (await call("POST", "/api/habits", { title: "read" })).json()) as { id: number };
-    for (let i = 0; i < 2; i++) expect((await call("PUT", `/api/habits/${id}/checks/2026-10-26`)).status).toBe(204);
+    const { id } = (await (await call("POST", "/api/habits", { title: "read" })).json()) as {
+      id: number;
+    };
+    for (let i = 0; i < 2; i++)
+      expect((await call("PUT", `/api/habits/${id}/checks/2026-10-26`)).status).toBe(204);
     expect(await list("2026-10-26")).toEqual([{ id, title: "read", done: true }]);
     expect(await list("2026-10-27")).toEqual([{ id, title: "read", done: false }]);
 
-    for (let i = 0; i < 2; i++) expect((await call("DELETE", `/api/habits/${id}/checks/2026-10-26`)).status).toBe(204);
+    for (let i = 0; i < 2; i++)
+      expect((await call("DELETE", `/api/habits/${id}/checks/2026-10-26`)).status).toBe(204);
     expect(await list("2026-10-26")).toEqual([{ id, title: "read", done: false }]);
   });
 
   it("renames a habit and keeps its checks", async () => {
-    const { id } = (await (await call("POST", "/api/habits", { title: "monst(main) do event quest" })).json()) as { id: number };
+    const { id } = (await (
+      await call("POST", "/api/habits", { title: "monst(main) do event quest" })
+    ).json()) as { id: number };
     await call("PUT", `/api/habits/${id}/checks/2026-10-26`);
-    expect((await call("PATCH", `/api/habits/${id}`, { title: "Monst main: clear event quests" })).status).toBe(204);
-    expect(await list("2026-10-26")).toEqual([{ id, title: "Monst main: clear event quests", done: true }]);
+    expect(
+      (await call("PATCH", `/api/habits/${id}`, { title: "Monst main: clear event quests" }))
+        .status,
+    ).toBe(204);
+    expect(await list("2026-10-26")).toEqual([
+      { id, title: "Monst main: clear event quests", done: true },
+    ]);
     expect((await call("PATCH", `/api/habits/${id}`, { title: " " })).status).toBe(422);
     expect((await call("PATCH", "/api/habits/999", { title: "read" })).status).toBe(404);
   });
 
   it("deletes a habit with its checks", async () => {
-    const { id } = (await (await call("POST", "/api/habits", { title: "read" })).json()) as { id: number };
+    const { id } = (await (await call("POST", "/api/habits", { title: "read" })).json()) as {
+      id: number;
+    };
     await call("PUT", `/api/habits/${id}/checks/2026-10-26`);
     expect((await call("DELETE", `/api/habits/${id}`)).status).toBe(204);
     expect(await list("2026-10-26")).toEqual([]);
-    expect(await env.DB.prepare("SELECT * FROM habit_checks").all().then((r) => r.results)).toEqual([]);
+    expect(
+      await env.DB.prepare("SELECT * FROM habit_checks")
+        .all()
+        .then((r) => r.results),
+    ).toEqual([]);
     expect((await call("DELETE", `/api/habits/${id}`)).status).toBe(404);
     expect((await call("PUT", `/api/habits/${id}/checks/2026-10-26`)).status).toBe(404);
   });

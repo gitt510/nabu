@@ -24,7 +24,8 @@ const OUTSIDE_UI = {
 };
 const PASS_THROUGH = {
   regex: "^[^.]",
-  message: "Wrap it in a ui file and export that instead: index.ts must not pass library parts through",
+  message:
+    "Wrap it in a ui file and export that instead: index.ts must not pass library parts through",
 };
 const imports = (...patterns: object[]) => ["error", { patterns }];
 
@@ -32,7 +33,11 @@ const imports = (...patterns: object[]) => ["error", { patterns }];
 // bring CSS in on their own are forbidden.
 const ELEMENTS = [
   { element: "style", message: "Use the theme instead: nabu keeps no CSS of its own" },
-  { element: "link", message: "Import package CSS in components/ui/Provider.tsx instead: stylesheets load in one place" },
+  {
+    element: "link",
+    message:
+      "Import package CSS in components/ui/Provider.tsx instead: stylesheets load in one place",
+  },
 ];
 
 const LOOK = "Use the ui part's own props instead: the ui part decides the look";
@@ -45,14 +50,24 @@ export default defineConfig({
     "react/forbid-elements": ["error", { forbid: ELEMENTS }],
     "react/forbid-dom-props": [
       "error",
-      { forbid: ["style", "className"].map((propName) => ({ propName, message: LOOK })).concat({ propName: "dangerouslySetInnerHTML", message: RENDER }) },
+      {
+        forbid: ["style", "className"]
+          .map((propName) => ({ propName, message: LOOK }))
+          .concat({ propName: "dangerouslySetInnerHTML", message: RENDER }),
+      },
     ],
     "react/forbid-component-props": [
       "error",
       {
         forbid: [
-          ...["style", "className", "styles", "classNames", "vars"].map((propName) => ({ propName, message: LOOK })),
-          ...["component", "renderRoot", "dangerouslySetInnerHTML"].map((propName) => ({ propName, message: RENDER })),
+          ...["style", "className", "styles", "classNames", "vars"].map((propName) => ({
+            propName,
+            message: LOOK,
+          })),
+          ...["component", "renderRoot", "dangerouslySetInnerHTML"].map((propName) => ({
+            propName,
+            message: RENDER,
+          })),
         ],
       },
     ],

@@ -5,7 +5,15 @@ import { Flex, Group, Title } from "@mantine/core";
 const LINE = 1.35;
 
 /** page と task の題。aside は右端に置く操作（task を閉じるなど）で、題が折り返しても 1 行目に揃う。muted は閉じたものの題を薄く出す */
-export const Heading = ({ children, aside, muted }: { children: ReactNode; aside?: ReactNode; muted?: boolean }) => {
+export const Heading = ({
+  children,
+  aside,
+  muted,
+}: {
+  children: ReactNode;
+  aside?: ReactNode;
+  muted?: boolean;
+}) => {
   const title = (
     <Title order={1} size="h2" lh={LINE} c={muted ? "dimmed" : undefined}>
       {children}

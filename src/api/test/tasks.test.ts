@@ -25,7 +25,12 @@ const task = {
 };
 
 const events = async () =>
-  (await env.DB.prepare("SELECT task_id, action FROM events ORDER BY id").all<{ task_id: number; action: string }>()).results;
+  (
+    await env.DB.prepare("SELECT task_id, action FROM events ORDER BY id").all<{
+      task_id: number;
+      action: string;
+    }>()
+  ).results;
 
 // Storage outlives a test within the file; start each one empty, ids from 1.
 beforeEach(async () => {
@@ -40,10 +45,20 @@ describe("/api/tasks", () => {
   it("creates a todo task and reads it back", async () => {
     const created = await json(await call("POST", "/api/tasks", task));
     expect(created.status).toBe(201);
-    expect(created.body).toMatchObject({ ...task, id: 1, status: "todo", project: null, tickets: [], why_dropped: [] });
+    expect(created.body).toMatchObject({
+      ...task,
+      id: 1,
+      status: "todo",
+      project: null,
+      tickets: [],
+      why_dropped: [],
+    });
     expect(created.body.created).toBe(created.body.updated);
 
-    expect(await json(await call("GET", "/api/tasks/1"))).toEqual({ status: 200, body: created.body });
+    expect(await json(await call("GET", "/api/tasks/1"))).toEqual({
+      status: 200,
+      body: created.body,
+    });
     expect((await json(await call("GET", "/api/tasks"))).body).toEqual([created.body]);
     expect(await events()).toEqual([{ task_id: 1, action: "create" }]);
   });
@@ -57,7 +72,9 @@ describe("/api/tasks", () => {
     expect(res.body).not.toHaveProperty("situation");
 
     expect((await call("PATCH", "/api/tasks/1", { dod: ["閉じる条件"] })).status).toBe(200);
-    expect(await env.DB.prepare("SELECT situation FROM tasks WHERE id = 1").first("situation")).toBe('["前の形"]');
+    expect(
+      await env.DB.prepare("SELECT situation FROM tasks WHERE id = 1").first("situation"),
+    ).toBe('["前の形"]');
   });
 
   it("refuses a task out of shape with 422", async () => {
@@ -83,9 +100,14 @@ describe("/api/tasks", () => {
   });
 
   it("names every problem of a task, one per line", async () => {
-    const res = await json(await call("POST", "/api/tasks", { ...task, slug: "Bad Slug", area: "hobby" }));
+    const res = await json(
+      await call("POST", "/api/tasks", { ...task, slug: "Bad Slug", area: "hobby" }),
+    );
     expect(res.status).toBe(422);
-    expect(res.body.error.split("\n")).toEqual([expect.stringMatching(/^slug: /), expect.stringMatching(/^area: /)]);
+    expect(res.body.error.split("\n")).toEqual([
+      expect.stringMatching(/^slug: /),
+      expect.stringMatching(/^area: /),
+    ]);
   });
 
   it("accepts a line of exactly the limit", async () => {
@@ -103,12 +125,24 @@ describe("/api/tasks", () => {
   it("changes fields, drops optional ones with null, and records the row before and after", async () => {
     await call("POST", "/api/tasks", { ...task, project: "nabu", waiting: "review" });
     const res = await json(
-      await call("PATCH", "/api/tasks/1", { status: "done", project: null, waiting: null, dod: ["検証 → 本番の順で切り替わっている"] }),
+      await call("PATCH", "/api/tasks/1", {
+        status: "done",
+        project: null,
+        waiting: null,
+        dod: ["検証 → 本番の順で切り替わっている"],
+      }),
     );
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ status: "done", project: null, waiting: null, dod: ["検証 → 本番の順で切り替わっている"] });
+    expect(res.body).toMatchObject({
+      status: "done",
+      project: null,
+      waiting: null,
+      dod: ["検証 → 本番の順で切り替わっている"],
+    });
 
-    const row = await env.DB.prepare("SELECT before, after FROM events WHERE action = 'update'").first<{ before: string; after: string }>();
+    const row = await env.DB.prepare(
+      "SELECT before, after FROM events WHERE action = 'update'",
+    ).first<{ before: string; after: string }>();
     expect(JSON.parse(row!.before)).toMatchObject({ status: "todo", project: "nabu" });
     expect(JSON.parse(row!.after)).toMatchObject({ status: "done", project: null });
   });
@@ -128,13 +162,18 @@ describe("/api/tasks", () => {
     const res = await json(await call("PATCH", "/api/tasks/1", { status: "dropped" }));
     expect(res).toEqual({ status: 422, body: { error: "a dropped task needs why_dropped" } });
 
-    const ok = await call("PATCH", "/api/tasks/1", { status: "dropped", why_dropped: ["今は使い道がない"] });
+    const ok = await call("PATCH", "/api/tasks/1", {
+      status: "dropped",
+      why_dropped: ["今は使い道がない"],
+    });
     expect(ok.status).toBe(200);
 
     // leaving dropped takes the reason with it
     const kept = await json(await call("PATCH", "/api/tasks/1", { status: "todo" }));
     expect(kept).toEqual({ status: 422, body: { error: "a todo task has no why_dropped" } });
-    expect((await call("PATCH", "/api/tasks/1", { status: "todo", why_dropped: [] })).status).toBe(200);
+    expect((await call("PATCH", "/api/tasks/1", { status: "todo", why_dropped: [] })).status).toBe(
+      200,
+    );
   });
 
   it("lists every task in workflow order, then by slug", async () => {
@@ -142,12 +181,19 @@ describe("/api/tasks", () => {
     await call("PATCH", "/api/tasks/4", { status: "dropped", why_dropped: ["不要"] });
     await call("PATCH", "/api/tasks/3", { status: "done" });
     const { body } = await json(await call("GET", "/api/tasks"));
-    expect(body.map((t: any) => [t.slug, t.status])).toEqual([["c", "todo"], ["d", "todo"], ["b", "done"], ["a", "dropped"]]);
+    expect(body.map((t: any) => [t.slug, t.status])).toEqual([
+      ["c", "todo"],
+      ["d", "todo"],
+      ["b", "done"],
+      ["a", "dropped"],
+    ]);
   });
 
   it("narrows the list to the task with a slug", async () => {
     for (const slug of ["a", "b"]) await call("POST", "/api/tasks", { ...task, slug });
-    expect((await json(await call("GET", "/api/tasks?slug=b"))).body.map((t: any) => [t.id, t.slug])).toEqual([[2, "b"]]);
+    expect(
+      (await json(await call("GET", "/api/tasks?slug=b"))).body.map((t: any) => [t.id, t.slug]),
+    ).toEqual([[2, "b"]]);
     expect((await json(await call("GET", "/api/tasks?slug=z"))).body).toEqual([]);
   });
 

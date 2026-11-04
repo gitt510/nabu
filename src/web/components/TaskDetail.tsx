@@ -5,10 +5,43 @@ import { check, type Item, patch } from "../api";
 import { dayOf, fmt, fmtDay, isLate, ticket, timeOf, todayKey } from "../time";
 import { DropDialog } from "./DropDialog";
 import { STATUS_LABEL } from "./states";
-import { ArrowBackUpIcon, ArrowLeftIcon, Caption, CircleCheckIcon, CirclePlusIcon, CircleXIcon, CopyText, DateMenu, ErrorText, ExternalLink, GitPullRequestIcon, Group, Heading, IconButton, type IconComponent, LinkIcon, PencilIcon, Prose, Section, Stack, Stamp, Tag, TicketIcon, useHotkeys } from "./ui";
+import {
+  ArrowBackUpIcon,
+  ArrowLeftIcon,
+  Caption,
+  CircleCheckIcon,
+  CirclePlusIcon,
+  CircleXIcon,
+  CopyText,
+  DateMenu,
+  ErrorText,
+  ExternalLink,
+  GitPullRequestIcon,
+  Group,
+  Heading,
+  IconButton,
+  type IconComponent,
+  LinkIcon,
+  PencilIcon,
+  Prose,
+  Section,
+  Stack,
+  Stamp,
+  Tag,
+  TicketIcon,
+  useHotkeys,
+} from "./ui";
 
 /** 開いている task：番号を添えた題と右端の完了・やめる（閉じた task は開き直す）操作、その下に properties と作った日・直した日の 1 行と link の 1 行、Why と DoD（と Why dropped）を 1 つずつ枠に入れて。書かれていない section は見出しだけを出す。予定日以外の値のない property は出さない */
-export function TaskDetail({ task, onBack, onChanged }: { task: Item; onBack?: () => void; onChanged: () => void }) {
+export function TaskDetail({
+  task,
+  onBack,
+  onChanged,
+}: {
+  task: Item;
+  onBack?: () => void;
+  onChanged: () => void;
+}) {
   const [error, setError] = useState<string>();
   const [dropping, setDropping] = useState(false);
 
@@ -66,8 +99,18 @@ export function TaskDetail({ task, onBack, onChanged }: { task: Item; onBack?: (
             onSelect={schedule}
           />
           {task.waiting ? <Caption>⏳ {task.waiting}</Caption> : null}
-          <Stamp icon={CirclePlusIcon} label="created" value={fmtDay(task.created)} detail={fmt(task.created)} />
-          <Stamp icon={PencilIcon} label="updated" value={fmtDay(task.updated)} detail={fmt(task.updated)} />
+          <Stamp
+            icon={CirclePlusIcon}
+            label="created"
+            value={fmtDay(task.created)}
+            detail={fmt(task.created)}
+          />
+          <Stamp
+            icon={PencilIcon}
+            label="updated"
+            value={fmtDay(task.updated)}
+            detail={fmt(task.updated)}
+          />
         </Group>
         {task.tickets.length + task.prs.length + task.links.length ? (
           <Group gap="md">
@@ -83,7 +126,12 @@ export function TaskDetail({ task, onBack, onChanged }: { task: Item; onBack?: (
           {p.html ? <Prose html={p.html} /> : null}
         </Section>
       ))}
-      <DropDialog id={task.id} opened={dropping} onClose={() => setDropping(false)} onDropped={onChanged} />
+      <DropDialog
+        id={task.id}
+        opened={dropping}
+        onClose={() => setDropping(false)}
+        onDropped={onChanged}
+      />
     </Stack>
   );
 }

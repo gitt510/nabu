@@ -8,7 +8,17 @@ import { Page } from "./Page";
  * 一覧と詳細の 2 pane。それぞれが自分の中で scroll する。
  * 幅が狭いと 1 枚ずつになり、detail が開いているあいだは detail だけを出す
  */
-export function ListDetail({ head, list, detail, showDetail }: { head: ReactNode; list: ReactNode; detail: ReactNode; showDetail: boolean }) {
+export function ListDetail({
+  head,
+  list,
+  detail,
+  showDetail,
+}: {
+  head: ReactNode;
+  list: ReactNode;
+  detail: ReactNode;
+  showDetail: boolean;
+}) {
   const narrow = useMediaQuery("(max-width: 48em)") ?? false;
   const listPane = (
     <Stack gap={0} h="100%" w={narrow ? "100%" : 340} miw={narrow ? undefined : 340}>

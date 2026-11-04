@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
-import { Badge, createTheme, Kbd, localStorageColorSchemeManager, MantineProvider } from "@mantine/core";
+import {
+  Badge,
+  createTheme,
+  Kbd,
+  localStorageColorSchemeManager,
+  MantineProvider,
+} from "@mantine/core";
 
 // 見た目の CSS は package のもの（Mantine の core と dates、書体）だけで、theme と一緒にここで読む。自前の CSS は持たない
 import "@mantine/core/styles.css";
@@ -16,10 +22,16 @@ const theme = createTheme({
   fontFamily: '"Noto Sans JP Variable", -apple-system, BlinkMacSystemFont, sans-serif',
   fontFamilyMonospace: '"Noto Sans Mono Variable", ui-monospace, Menlo, monospace',
   components: {
-    Badge: Badge.extend({ vars: () => ({ root: { "--badge-fz": "var(--mantine-font-size-xs)", "--badge-height": "1.375rem" } }) }),
+    Badge: Badge.extend({
+      vars: () => ({
+        root: { "--badge-fz": "var(--mantine-font-size-xs)", "--badge-height": "1.375rem" },
+      }),
+    }),
     Kbd: Kbd.extend({ vars: () => ({ root: { "--kbd-fz": "var(--mantine-font-size-xs)" } }) }),
   },
-  headings: { fontFamily: '"Noto Sans JP Variable", -apple-system, BlinkMacSystemFont, sans-serif' },
+  headings: {
+    fontFamily: '"Noto Sans JP Variable", -apple-system, BlinkMacSystemFont, sans-serif',
+  },
 });
 
 /** light / dark の明示選択だけを保存する key。index.html の inline script と共有する */
@@ -27,7 +39,11 @@ const colorSchemeManager = localStorageColorSchemeManager({ key: "nabu-color-sch
 
 export function Provider({ children }: { children: ReactNode }) {
   return (
-    <MantineProvider theme={theme} colorSchemeManager={colorSchemeManager} defaultColorScheme="auto">
+    <MantineProvider
+      theme={theme}
+      colorSchemeManager={colorSchemeManager}
+      defaultColorScheme="auto"
+    >
       {children}
     </MantineProvider>
   );

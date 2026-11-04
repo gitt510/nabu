@@ -11,6 +11,12 @@ test *args:
     pnpm install --frozen-lockfile --silent
     pnpm --silent test
 
+# Format the Go and TypeScript sources in place
+fmt:
+    gofmt -w .
+    pnpm install --frozen-lockfile --silent
+    pnpm --silent fmt
+
 # Verify formatting and run static analysis
 check:
     test -z "$(gofmt -l .)"

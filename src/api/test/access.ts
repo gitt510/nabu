@@ -8,11 +8,20 @@ const team = env.CF_ACCESS_TEAM_DOMAIN;
 
 const pair = async (kid: string) => {
   const keys = (await crypto.subtle.generateKey(
-    { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-256",
+    },
     true,
     ["sign", "verify"],
   )) as CryptoKeyPair;
-  const jwk = async (k: CryptoKey) => ({ ...((await crypto.subtle.exportKey("jwk", k)) as JsonWebKey), kid, alg: "RS256" });
+  const jwk = async (k: CryptoKey) => ({
+    ...((await crypto.subtle.exportKey("jwk", k)) as JsonWebKey),
+    kid,
+    alg: "RS256",
+  });
   return { private: await jwk(keys.privateKey), public: await jwk(keys.publicKey) };
 };
 
@@ -28,10 +37,21 @@ vi.spyOn(globalThis, "fetch").mockImplementation((input, init) =>
 );
 
 // token is what Access would put in cf-access-jwt-assertion; claims override the valid defaults.
-export const token = (claims: Record<string, unknown> = {}, key: "access" | "stranger" = "access") => {
+export const token = (
+  claims: Record<string, unknown> = {},
+  key: "access" | "stranger" = "access",
+) => {
   const now = Math.floor(Date.now() / 1000);
   return sign(
-    { iss: team, aud: [env.CF_ACCESS_AUD], email: "me@example.com", iat: now, nbf: now, exp: now + 600, ...claims },
+    {
+      iss: team,
+      aud: [env.CF_ACCESS_AUD],
+      email: "me@example.com",
+      iat: now,
+      nbf: now,
+      exp: now + 600,
+      ...claims,
+    },
     (key === "access" ? access : stranger).private as never,
   );
 };

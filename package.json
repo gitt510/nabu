@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "types": "wrangler types",
-    "check": "wrangler types && tsc && tsc -p src/web && oxlint -c oxlint.config.ts src/web",
+    "fmt": "oxfmt src *.config.ts",
+    "check": "wrangler types && oxfmt --check src *.config.ts && tsc && tsc -p src/web && oxlint -c oxlint.config.ts src/web",
     "test": "vitest run"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
+    "oxfmt": "0.74.0",
     "oxlint": "1.89.0",
     "typescript": "^7.0.2",
     "vite": "8.3.5",

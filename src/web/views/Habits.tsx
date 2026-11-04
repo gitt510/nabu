@@ -2,7 +2,21 @@ import { useState } from "react";
 
 import type { Habit } from "../../api/schema";
 import { addHabit, deleteHabit, renameHabit } from "../api";
-import { Button, Caption, Empty, ErrorText, Form, Group, IconButton, LineInput, Page, PencilIcon, Section, Stack, TrashIcon } from "../components/ui";
+import {
+  Button,
+  Caption,
+  Empty,
+  ErrorText,
+  Form,
+  Group,
+  IconButton,
+  LineInput,
+  Page,
+  PencilIcon,
+  Section,
+  Stack,
+  TrashIcon,
+} from "../components/ui";
 import { useHabits } from "../hooks/useHabits";
 import { todayKey } from "../time";
 
@@ -35,7 +49,13 @@ export function Habits() {
       return (
         <Form key={h.id} onSubmit={() => void rename()}>
           <Group gap="xs" wrap="nowrap">
-            <LineInput label={`Rename ${h.title}`} value={editing.title} onChange={(t) => setEditing({ id: h.id, title: t })} onEscape={() => setEditing(null)} autoFocus />
+            <LineInput
+              label={`Rename ${h.title}`}
+              value={editing.title}
+              onChange={(t) => setEditing({ id: h.id, title: t })}
+              onEscape={() => setEditing(null)}
+              autoFocus
+            />
             <Button small tone="quiet" onClick={() => setEditing(null)}>
               Cancel
             </Button>
@@ -60,8 +80,22 @@ export function Habits() {
           </Group>
         ) : (
           <Group gap={4} wrap="nowrap">
-            <IconButton label={`Rename ${h.title}`} icon={PencilIcon} onClick={() => { setDeleting(null); setEditing({ id: h.id, title: h.title }); }} />
-            <IconButton label={`Delete ${h.title}`} icon={TrashIcon} onClick={() => { setEditing(null); setDeleting(h.id); }} />
+            <IconButton
+              label={`Rename ${h.title}`}
+              icon={PencilIcon}
+              onClick={() => {
+                setDeleting(null);
+                setEditing({ id: h.id, title: h.title });
+              }}
+            />
+            <IconButton
+              label={`Delete ${h.title}`}
+              icon={TrashIcon}
+              onClick={() => {
+                setEditing(null);
+                setDeleting(h.id);
+              }}
+            />
           </Group>
         )}
       </Group>
@@ -74,12 +108,23 @@ export function Habits() {
         <Stack gap="sm">
           <Form onSubmit={() => void add()}>
             <Group gap="xs" wrap="nowrap">
-              <LineInput label="New habit" placeholder="Something to do every day" value={title} onChange={setTitle} />
+              <LineInput
+                label="New habit"
+                placeholder="Something to do every day"
+                value={title}
+                onChange={setTitle}
+              />
               <Button type="submit">Add</Button>
             </Group>
           </Form>
           <ErrorText>{error}</ErrorText>
-          {!habits ? <Empty title="Loading…" /> : habits.length ? <Stack gap="xs">{habits.map(row)}</Stack> : <Empty title="No habits yet" description="Add one above." />}
+          {!habits ? (
+            <Empty title="Loading…" />
+          ) : habits.length ? (
+            <Stack gap="xs">{habits.map(row)}</Stack>
+          ) : (
+            <Empty title="No habits yet" description="Add one above." />
+          )}
         </Stack>
       </Section>
     </Page>
