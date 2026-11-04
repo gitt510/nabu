@@ -1,7 +1,21 @@
 import { useState } from "react";
 
 import { HelpDialog } from "./components/HelpDialog";
-import { ArchiveIcon, CalendarIcon, ChecklistIcon, Empty, KeyboardIcon, MoonIcon, type RailItem, SeedlingIcon, Shell, SunIcon, useComputedColorScheme, useHotkeys, useMantineColorScheme } from "./components/ui";
+import {
+  ArchiveIcon,
+  CalendarIcon,
+  ChecklistIcon,
+  Empty,
+  KeyboardIcon,
+  MoonIcon,
+  type RailItem,
+  SeedlingIcon,
+  Shell,
+  SunIcon,
+  useComputedColorScheme,
+  useHotkeys,
+  useMantineColorScheme,
+} from "./components/ui";
 import { useHash } from "./hooks/useHash";
 import { useTasks } from "./hooks/useTasks";
 import { Tasks } from "./views/Tasks";
@@ -33,9 +47,7 @@ export function App() {
   const scheme = useComputedColorScheme("light");
   const flipTheme = () => setColorScheme(scheme === "dark" ? "light" : "dark");
 
-  useHotkeys([
-    ["shift+?", () => setHelp((h) => !h)],
-  ]);
+  useHotkeys([["shift+?", () => setHelp((h) => !h)]]);
 
   const openTask = (id: string) => {
     setPage("tasks");
@@ -49,8 +61,17 @@ export function App() {
       onSelect={setPage}
       onHome={goHome}
       actions={[
-        { label: scheme === "dark" ? "Light theme" : "Dark theme", icon: scheme === "dark" ? SunIcon : MoonIcon, onClick: flipTheme },
-        { label: "Keyboard shortcuts (?)", icon: KeyboardIcon, onClick: () => setHelp(true), keyboard: true },
+        {
+          label: scheme === "dark" ? "Light theme" : "Dark theme",
+          icon: scheme === "dark" ? SunIcon : MoonIcon,
+          onClick: flipTheme,
+        },
+        {
+          label: "Keyboard shortcuts (?)",
+          icon: KeyboardIcon,
+          onClick: () => setHelp(true),
+          keyboard: true,
+        },
       ]}
     >
       {error ? (
@@ -60,9 +81,23 @@ export function App() {
       ) : page === "habits" ? (
         <Habits />
       ) : page === "tasks" || page === "archive" ? (
-        <Tasks key={page} archive={page === "archive"} tasks={tasks} selected={selected} onSelect={setSelected} onChanged={reload} />
+        <Tasks
+          key={page}
+          archive={page === "archive"}
+          tasks={tasks}
+          selected={selected}
+          onSelect={setSelected}
+          onChanged={reload}
+        />
       ) : (
-        <Calendar key={home} tasks={tasks} selected={selected} onSelect={setSelected} onOpen={openTask} onChanged={reload} />
+        <Calendar
+          key={home}
+          tasks={tasks}
+          selected={selected}
+          onSelect={setSelected}
+          onOpen={openTask}
+          onChanged={reload}
+        />
       )}
       <HelpDialog opened={help} onClose={() => setHelp(false)} />
     </Shell>

@@ -53,29 +53,41 @@ const line = z
   .refine((s) => [...s].length <= LINE_LIMIT, `must be at most ${LINE_LIMIT} characters`)
   .meta({ maxLength: LINE_LIMIT });
 const section = z.array(line);
-const whyDropped = section.meta({ description: "why the task was decided against; a dropped task needs one line at least, and no other task has one" });
+const whyDropped = section.meta({
+  description:
+    "why the task was decided against; a dropped task needs one line at least, and no other task has one",
+});
 
 const nonBlank = z.string().regex(/^[^\n]*\S[^\n]*$/, "must be one non-blank line");
 
 // Task is a task as the API returns it.
-export const Task = z.strictObject({
-  id: z.number().int().meta({ description: "the number the task keeps for life, unlike its slug" }),
-  slug: kebab,
-  title: nonBlank,
-  status: Status,
-  area: Area,
-  project: kebab.nullable(),
-  scheduled: scheduled.nullable(),
-  waiting: nonBlank.nullable(),
-  tickets: urls,
-  prs: urls,
-  links: urls,
-  why: section.meta({ description: "why the task is worth starting: what is wrong or missing now" }),
-  dod: section.meta({ description: "the definition of done: what has to be true to close the task" }),
-  why_dropped: whyDropped,
-  created: z.string(),
-  updated: z.string(),
-}).meta({ id: "Task" });
+export const Task = z
+  .strictObject({
+    id: z
+      .number()
+      .int()
+      .meta({ description: "the number the task keeps for life, unlike its slug" }),
+    slug: kebab,
+    title: nonBlank,
+    status: Status,
+    area: Area,
+    project: kebab.nullable(),
+    scheduled: scheduled.nullable(),
+    waiting: nonBlank.nullable(),
+    tickets: urls,
+    prs: urls,
+    links: urls,
+    why: section.meta({
+      description: "why the task is worth starting: what is wrong or missing now",
+    }),
+    dod: section.meta({
+      description: "the definition of done: what has to be true to close the task",
+    }),
+    why_dropped: whyDropped,
+    created: z.string(),
+    updated: z.string(),
+  })
+  .meta({ id: "Task" });
 export type Task = z.output<typeof Task>;
 
 // TaskCreate is POST /api/tasks: a new task always starts as todo.
@@ -98,7 +110,9 @@ export const TaskCreate = z.strictObject({
 export const TaskPatch = Task.omit({ id: true, created: true, updated: true }).partial();
 
 // Habit is a habit as GET /api/habits returns it: done on the day asked.
-export const Habit = z.strictObject({ id: z.number().int(), title: nonBlank, done: z.boolean() }).meta({ id: "Habit" });
+export const Habit = z
+  .strictObject({ id: z.number().int(), title: nonBlank, done: z.boolean() })
+  .meta({ id: "Habit" });
 export type Habit = z.output<typeof Habit>;
 
 // HabitCreate is POST /api/habits.
@@ -116,6 +130,8 @@ export const day = z
 // whole checks what no single field can: a dropped task says why, and only a dropped task does. It has no
 // JSON Schema form, so whyDropped says it in words.
 export function whole(t: Pick<Task, "status" | "why_dropped">): string | undefined {
-  if (t.status === "dropped" && t.why_dropped.length === 0) return "a dropped task needs why_dropped";
-  if (t.status !== "dropped" && t.why_dropped.length > 0) return `a ${t.status} task has no why_dropped`;
+  if (t.status === "dropped" && t.why_dropped.length === 0)
+    return "a dropped task needs why_dropped";
+  if (t.status !== "dropped" && t.why_dropped.length > 0)
+    return `a ${t.status} task has no why_dropped`;
 }

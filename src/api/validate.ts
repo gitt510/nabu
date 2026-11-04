@@ -16,11 +16,19 @@ export const json = <T extends z.ZodType>(schema: T, description: string) => ({
 });
 
 // body describes the JSON body a route requires; without required, a request with no body skips validation.
-export const body = <T extends z.ZodType>(schema: T, description: string) => ({ ...json(schema, description), required: true });
+export const body = <T extends z.ZodType>(schema: T, description: string) => ({
+  ...json(schema, description),
+  required: true,
+});
 
 // hook is the validator hook that turns a failed parse into invalid.
 export const hook = (result: { success: boolean; error?: Issues }, c: Context) => {
   if (!result.success && result.error) {
-    return invalid(c, result.error.issues.map((i) => `${i.path.map(String).join(".") || "body"}: ${i.message}`).join("\n"));
+    return invalid(
+      c,
+      result.error.issues
+        .map((i) => `${i.path.map(String).join(".") || "body"}: ${i.message}`)
+        .join("\n"),
+    );
   }
 };

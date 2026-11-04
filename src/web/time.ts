@@ -7,12 +7,19 @@ const day = { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric" } as cons
 export const fmt = (iso: string) => {
   const d = instant(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return dateOnly(iso) ? d.toLocaleDateString("ja-JP", day) : d.toLocaleString("ja-JP", { ...day, hour: "2-digit", minute: "2-digit" });
+  return dateOnly(iso)
+    ? d.toLocaleDateString("ja-JP", day)
+    : d.toLocaleString("ja-JP", { ...day, hour: "2-digit", minute: "2-digit" });
 };
 export const fmtDay = (iso: string) => fmt(iso).split(" ")[0];
 
 // 暦の 1 日は Asia/Tokyo の YYYY-MM-DD で表す。文字列のまま大小を比べられる
-const KEY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" });
+const KEY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Tokyo",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 export const todayKey = () => KEY.format(new Date());
 export const dayOf = (iso: string) => KEY.format(instant(iso));
 /** 予定日が今日より前 */
@@ -23,9 +30,22 @@ export const addDays = (key: string, n: number) => {
 };
 /** Mon, Oct 26, 2026 */
 export const dayLabel = (key: string) =>
-  new Date(`${key}T00:00:00Z`).toLocaleDateString("en-US", { timeZone: "UTC", year: "numeric", month: "short", day: "numeric", weekday: "short" });
+  new Date(`${key}T00:00:00Z`).toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    weekday: "short",
+  });
 /** 時刻のある予定は 18:00、日付だけの予定は null */
-export const timeOf = (iso: string) => (dateOnly(iso) ? null : instant(iso).toLocaleTimeString("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" }));
+export const timeOf = (iso: string) =>
+  dateOnly(iso)
+    ? null
+    : instant(iso).toLocaleTimeString("ja-JP", {
+        timeZone: "Asia/Tokyo",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 
 /** ticket や PR の URL を、短い名前にする（Wrike 123、repo#45） */
 export const ticket = (u: string) => {

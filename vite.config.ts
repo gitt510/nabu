@@ -10,12 +10,14 @@ import { defineConfig } from "vite";
 const api = () => {
   const config = `${process.env.XDG_CONFIG_HOME || `${homedir()}/.config`}/nabu/config.json`;
   const { base_url: target } = JSON.parse(readFileSync(config, "utf8"));
-  const token = () => execFileSync("cloudflared", ["access", "token", `-app=${target}`], { encoding: "utf8" }).trim();
+  const token = () =>
+    execFileSync("cloudflared", ["access", "token", `-app=${target}`], { encoding: "utf8" }).trim();
   return {
     target,
     changeOrigin: true,
-    configure: (proxy: { on: (e: "proxyReq", f: (req: { setHeader: (k: string, v: string) => void }) => void) => void }) =>
-      proxy.on("proxyReq", (req) => req.setHeader("cf-access-token", token())),
+    configure: (proxy: {
+      on: (e: "proxyReq", f: (req: { setHeader: (k: string, v: string) => void }) => void) => void;
+    }) => proxy.on("proxyReq", (req) => req.setHeader("cf-access-token", token())),
   };
 };
 

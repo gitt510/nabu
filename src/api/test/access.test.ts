@@ -16,7 +16,11 @@ describe("access", () => {
       { "cf-access-jwt-assertion": "not-a-jwt" },
       { "cf-access-jwt-assertion": await token({}, "stranger") },
       { "cf-access-jwt-assertion": await token({ aud: ["another-application"] }) },
-      { "cf-access-jwt-assertion": await token({ iss: "https://another-team.cloudflareaccess.com" }) },
+      {
+        "cf-access-jwt-assertion": await token({
+          iss: "https://another-team.cloudflareaccess.com",
+        }),
+      },
       { "cf-access-jwt-assertion": await token({ exp: Math.floor(Date.now() / 1000) - 60 }) },
     ]) {
       const res = await get(headers);
@@ -26,8 +30,12 @@ describe("access", () => {
   });
 
   it("guards every route the Worker answers", async () => {
-    expect((await exports.default.fetch(new Request("https://nabu.test/api/tasks/any"))).status).toBe(401);
-    expect((await exports.default.fetch(new Request("https://nabu.test/anything"))).status).toBe(401);
+    expect(
+      (await exports.default.fetch(new Request("https://nabu.test/api/tasks/any"))).status,
+    ).toBe(401);
+    expect((await exports.default.fetch(new Request("https://nabu.test/anything"))).status).toBe(
+      401,
+    );
     expect(env.CF_ACCESS_AUD).not.toBe("");
   });
 });

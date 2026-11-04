@@ -4,7 +4,15 @@ import { TextInput } from "@mantine/core";
 import { SearchIcon } from "./icons";
 
 /** 一覧の上の検索欄 */
-export const SearchInput = ({ value, onChange, ref }: { value: string; onChange: (v: string) => void; ref?: Ref<HTMLInputElement> }) => (
+export const SearchInput = ({
+  value,
+  onChange,
+  ref,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  ref?: Ref<HTMLInputElement>;
+}) => (
   <TextInput
     ref={ref}
     type="search"

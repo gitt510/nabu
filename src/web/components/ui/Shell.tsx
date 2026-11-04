@@ -1,13 +1,32 @@
 import type { ReactNode } from "react";
-import { ActionIcon, AppShell, Box, Group, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core";
+import {
+  ActionIcon,
+  AppShell,
+  Box,
+  Group,
+  Stack,
+  Text,
+  Tooltip,
+  UnstyledButton,
+} from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 
 import type { IconComponent } from "./icons";
 import logo from "./logo.svg?raw";
 
-export type RailItem<K extends string> = { key: K; label: string; icon: IconComponent; disabled?: boolean };
+export type RailItem<K extends string> = {
+  key: K;
+  label: string;
+  icon: IconComponent;
+  disabled?: boolean;
+};
 /** page をまたぐ操作。keyboard の操作は、keyboard の無い狭い画面では出さない */
-export type RailAction = { label: string; icon: IconComponent; onClick: () => void; keyboard?: boolean };
+export type RailAction = {
+  label: string;
+  icon: IconComponent;
+  onClick: () => void;
+  keyboard?: boolean;
+};
 
 /**
  * 画面の枠：上の帯、page の切り替え、本文。広い画面では左の rail が page の切り替え（上）と操作（下）を持つ。
@@ -31,8 +50,18 @@ export function Shell<K extends string>({
 }) {
   const narrow = useMediaQuery("(max-width: 48em)") ?? false;
   const shown = actions.filter((a) => !(narrow && a.keyboard));
-  const iconButton = (label: string, Icon: IconComponent, onClick: () => void, active = false, disabled = false) => (
-    <Tooltip key={label} label={disabled ? `${label} (coming soon)` : label} position={narrow ? "bottom" : "right"}>
+  const iconButton = (
+    label: string,
+    Icon: IconComponent,
+    onClick: () => void,
+    active = false,
+    disabled = false,
+  ) => (
+    <Tooltip
+      key={label}
+      label={disabled ? `${label} (coming soon)` : label}
+      position={narrow ? "bottom" : "right"}
+    >
       <ActionIcon
         size={narrow ? "lg" : "xl"}
         variant={active ? "light" : "subtle"}
@@ -68,14 +97,18 @@ export function Shell<K extends string>({
               <Text fw={700}>nabu</Text>
             </Group>
           </UnstyledButton>
-          {narrow ? <Group gap="xs">{shown.map((a) => iconButton(a.label, a.icon, a.onClick))}</Group> : null}
+          {narrow ? (
+            <Group gap="xs">{shown.map((a) => iconButton(a.label, a.icon, a.onClick))}</Group>
+          ) : null}
         </Group>
       </AppShell.Header>
       {/* 隠れている側は描かない。AppShell は畳んだ枠を画面の外へ動かすだけなので、残すと Tab や読み上げが届いてしまう */}
       {narrow ? null : (
         <AppShell.Navbar p="xs">
           <Stack align="center" gap="xs" h="100%">
-            {items.map((i) => iconButton(i.label, i.icon, () => onSelect(i.key), i.key === current, i.disabled))}
+            {items.map((i) =>
+              iconButton(i.label, i.icon, () => onSelect(i.key), i.key === current, i.disabled),
+            )}
             <Stack align="center" gap="xs" mt="auto">
               {shown.map((a) => iconButton(a.label, a.icon, a.onClick))}
             </Stack>
@@ -89,8 +122,25 @@ export function Shell<K extends string>({
             {items.map((i) => {
               const active = i.key === current;
               return (
-                <UnstyledButton key={i.key} h="100%" disabled={i.disabled} aria-current={active ? "page" : undefined} onClick={() => onSelect(i.key)}>
-                  <Stack align="center" gap={2} c={i.disabled ? "dimmed" : active ? "var(--mantine-primary-color-filled)" : "var(--mantine-color-text)"} opacity={i.disabled ? 0.5 : 1}>
+                <UnstyledButton
+                  key={i.key}
+                  h="100%"
+                  disabled={i.disabled}
+                  aria-current={active ? "page" : undefined}
+                  onClick={() => onSelect(i.key)}
+                >
+                  <Stack
+                    align="center"
+                    gap={2}
+                    c={
+                      i.disabled
+                        ? "dimmed"
+                        : active
+                          ? "var(--mantine-primary-color-filled)"
+                          : "var(--mantine-color-text)"
+                    }
+                    opacity={i.disabled ? 0.5 : 1}
+                  >
                     <i.icon size={22} stroke={1.75} />
                     <Text span size="xs" fw={active ? 700 : 400}>
                       {i.label}
