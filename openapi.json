@@ -97,7 +97,7 @@
               "maxLength": 45,
               "pattern": "\\S"
             },
-            "description": "why the task was decided against; a dropped task needs one line at least"
+            "description": "why the task was decided against; a dropped task needs one line at least, and no other task has one"
           },
           "created": {
             "type": "string"
@@ -129,8 +129,7 @@
       "Status": {
         "type": "string",
         "enum": [
-          "inbox",
-          "doing",
+          "todo",
           "done",
           "dropped"
         ]
@@ -199,7 +198,7 @@
       },
       "post": {
         "requestBody": {
-          "description": "the new task, filed in inbox",
+          "description": "the new task, filed as todo",
           "required": true,
           "content": {
             "application/json": {
@@ -273,16 +272,6 @@
                       "pattern": "\\S"
                     },
                     "default": []
-                  },
-                  "why_dropped": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 45,
-                      "pattern": "\\S"
-                    },
-                    "default": [],
-                    "description": "why the task was decided against; a dropped task needs one line at least"
                   }
                 },
                 "required": [
@@ -497,7 +486,7 @@
                       "maxLength": 45,
                       "pattern": "\\S"
                     },
-                    "description": "why the task was decided against; a dropped task needs one line at least"
+                    "description": "why the task was decided against; a dropped task needs one line at least, and no other task has one"
                   }
                 },
                 "additionalProperties": false

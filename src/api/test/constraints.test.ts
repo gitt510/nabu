@@ -16,7 +16,7 @@ const allowed = (sql: string, column: string) => {
 };
 
 const insert = (fields: Record<string, string>) => {
-  const row = { slug: "a", title: "A", status: "inbox", area: "work", created: "now", updated: "now", ...fields };
+  const row = { slug: "a", title: "A", status: "todo", area: "work", created: "now", updated: "now", ...fields };
   return env.DB.prepare(`INSERT INTO tasks (${Object.keys(row).join(", ")}) VALUES (${Object.keys(row).map(() => "?").join(", ")})`)
     .bind(...Object.values(row))
     .run();
@@ -39,6 +39,7 @@ describe("the tasks table", () => {
     await expect(insert({ status: "wip" })).rejects.toThrow(/CHECK constraint failed/);
     await expect(insert({ area: "hobby" })).rejects.toThrow(/CHECK constraint failed/);
     await expect(insert({ status: "dropped" })).rejects.toThrow(/CHECK constraint failed/);
+    await expect(insert({ status: "done", why_dropped: '["no use for it now"]' })).rejects.toThrow(/CHECK constraint failed/);
     await expect(insert({ status: "dropped", why_dropped: '["no use for it now"]' })).resolves.toBeDefined();
   });
 });

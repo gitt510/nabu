@@ -46,16 +46,16 @@ cloudflared access login https://nabu.<you>.workers.dev
 ```
 user:  この PR のレビュー待ち、task にしといて
 agent: nabu task new review-pr-68 --area work --pr https://github.com/o/r/pull/68
-→ {"action": "task new", "slug": "review-pr-68", "status": "inbox", ...}
+→ {"action": "task new", "slug": "review-pr-68", "status": "todo", ...}
 ```
 
 ### Overview
 
 - A task lives in Cloudflare D1, and the Worker's `/api/tasks` is the only way in
-- A task's status is one of `inbox`, `doing`, `done`, `dropped`
+- A task's status is one of `todo`, `done`, `dropped`, set by `nabu task done`, `nabu task drop`, and `nabu task reopen`
 - The body is `why`, why the task is worth starting, and `dod`, its definition of done, each a list of lines
 - A change to the body adds columns and leaves old tasks as they were: `situation`, `complication`, `question`, and `answer` stay in D1, unread
-- A dropped task also carries `why_dropped`
+- A dropped task also carries `why_dropped`, and no other task does
 - `nabu task new` and `nabu task replace` take the body as JSON, and `nabu task read` prints it as markdown
 - The API refuses a task out of shape, so no stored task is out of shape
 - Every write keeps the task before and after it as an event

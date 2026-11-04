@@ -37,10 +37,10 @@ beforeEach(async () => {
 });
 
 describe("/api/tasks", () => {
-  it("creates a task in inbox and reads it back", async () => {
+  it("creates a todo task and reads it back", async () => {
     const created = await json(await call("POST", "/api/tasks", task));
     expect(created.status).toBe(201);
-    expect(created.body).toMatchObject({ ...task, id: 1, status: "inbox", project: null, tickets: [], why_dropped: [] });
+    expect(created.body).toMatchObject({ ...task, id: 1, status: "todo", project: null, tickets: [], why_dropped: [] });
     expect(created.body.created).toBe(created.body.updated);
 
     expect(await json(await call("GET", "/api/tasks/1"))).toEqual({ status: 200, body: created.body });
@@ -50,7 +50,7 @@ describe("/api/tasks", () => {
 
   it("reads an old task with the current sections only, leaving its SCQA lines in the row", async () => {
     await env.DB.prepare(
-      `INSERT INTO tasks (slug, title, status, area, situation, created, updated) VALUES ('old', 'Old', 'inbox', 'work', '["前の形"]', 'now', 'now')`,
+      `INSERT INTO tasks (slug, title, status, area, situation, created, updated) VALUES ('old', 'Old', 'todo', 'work', '["前の形"]', 'now', 'now')`,
     ).run();
     const res = await json(await call("GET", "/api/tasks/1"));
     expect(res.body).toMatchObject({ why: [], dod: [] });
@@ -72,6 +72,7 @@ describe("/api/tasks", () => {
       { ...task, tickets: ["http://example.com/1"] },
       { ...task, links: ["https://example.com/1", "https://example.com/1"] },
       { ...task, status: "done" },
+      { ...task, why_dropped: ["今は使い道がない"] },
       { ...task, memo: "free notes" },
     ]) {
       const res = await json(await call("POST", "/api/tasks", bad));
@@ -102,14 +103,14 @@ describe("/api/tasks", () => {
   it("changes fields, drops optional ones with null, and records the row before and after", async () => {
     await call("POST", "/api/tasks", { ...task, project: "nabu", waiting: "review" });
     const res = await json(
-      await call("PATCH", "/api/tasks/1", { status: "doing", project: null, waiting: null, dod: ["検証 → 本番の順で切り替わっている"] }),
+      await call("PATCH", "/api/tasks/1", { status: "done", project: null, waiting: null, dod: ["検証 → 本番の順で切り替わっている"] }),
     );
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ status: "doing", project: null, waiting: null, dod: ["検証 → 本番の順で切り替わっている"] });
+    expect(res.body).toMatchObject({ status: "done", project: null, waiting: null, dod: ["検証 → 本番の順で切り替わっている"] });
 
     const row = await env.DB.prepare("SELECT before, after FROM events WHERE action = 'update'").first<{ before: string; after: string }>();
-    expect(JSON.parse(row!.before)).toMatchObject({ status: "inbox", project: "nabu" });
-    expect(JSON.parse(row!.after)).toMatchObject({ status: "doing", project: null });
+    expect(JSON.parse(row!.before)).toMatchObject({ status: "todo", project: "nabu" });
+    expect(JSON.parse(row!.after)).toMatchObject({ status: "done", project: null });
   });
 
   it("renames a task and keeps its id and its history", async () => {
@@ -129,14 +130,19 @@ describe("/api/tasks", () => {
 
     const ok = await call("PATCH", "/api/tasks/1", { status: "dropped", why_dropped: ["今は使い道がない"] });
     expect(ok.status).toBe(200);
+
+    // leaving dropped takes the reason with it
+    const kept = await json(await call("PATCH", "/api/tasks/1", { status: "todo" }));
+    expect(kept).toEqual({ status: 422, body: { error: "a todo task has no why_dropped" } });
+    expect((await call("PATCH", "/api/tasks/1", { status: "todo", why_dropped: [] })).status).toBe(200);
   });
 
   it("lists every task in workflow order, then by slug", async () => {
     for (const slug of ["d", "c", "b", "a"]) await call("POST", "/api/tasks", { ...task, slug });
-    await call("PATCH", "/api/tasks/4", { status: "done" });
-    await call("PATCH", "/api/tasks/3", { status: "doing" });
+    await call("PATCH", "/api/tasks/4", { status: "dropped", why_dropped: ["不要"] });
+    await call("PATCH", "/api/tasks/3", { status: "done" });
     const { body } = await json(await call("GET", "/api/tasks"));
-    expect(body.map((t: any) => [t.slug, t.status])).toEqual([["c", "inbox"], ["d", "inbox"], ["b", "doing"], ["a", "done"]]);
+    expect(body.map((t: any) => [t.slug, t.status])).toEqual([["c", "todo"], ["d", "todo"], ["b", "done"], ["a", "dropped"]]);
   });
 
   it("narrows the list to the task with a slug", async () => {

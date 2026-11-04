@@ -77,7 +77,7 @@ export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
     createRoute({
       method: "post",
       path: "/",
-      request: { body: body(TaskCreate, "the new task, filed in inbox") },
+      request: { body: body(TaskCreate, "the new task, filed as todo") },
       responses: { 201: json(Task, "the task as stored"), 409: failure("the slug is taken"), 422: failure("the task breaks the contract") },
     }),
     async (c) => {
@@ -85,7 +85,8 @@ export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
       const fields = c.req.valid("json");
       const task: Omit<Task, "id"> = {
         ...fields,
-        status: "inbox",
+        status: "todo",
+        why_dropped: [],
         project: fields.project ?? null,
         scheduled: fields.scheduled ?? null,
         waiting: fields.waiting ?? null,

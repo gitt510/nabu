@@ -1,13 +1,12 @@
 import { type ReactNode, useState } from "react";
 
 import { checkHabit, type Item } from "../api";
-import { STATUS_CHOICES } from "../components/statuses";
+import { STATUS_LABEL } from "../components/states";
 import { TaskDetail } from "../components/TaskDetail";
 import { Caption, Checkbox, Columns, Empty, ErrorText, Group, ListRow, Page, Pager, Section, Stack, Tag, useHotkeys, useMediaQuery } from "../components/ui";
 import { useHabits } from "../hooks/useHabits";
 import { addDays, dayLabel, dayOf, fmtDay, instant, isLate, timeOf, todayKey } from "../time";
 
-const open_ = (t: Item) => t.status !== "done" && t.status !== "dropped";
 const bySchedule = (a: Item, b: Item) => instant(a.scheduled!).getTime() - instant(b.scheduled!).getTime();
 
 /**
@@ -24,7 +23,7 @@ export function Calendar({ tasks, selected, onSelect, onOpen, onChanged }: { tas
   const isToday = day === todayKey();
   const { habits, error, write } = useHabits(day);
   const planned = tasks.filter((t) => t.scheduled && dayOf(t.scheduled) === day).sort(bySchedule);
-  const late = day >= todayKey() ? tasks.filter((t) => open_(t) && t.scheduled && isLate(t.scheduled)).sort(bySchedule) : [];
+  const late = day >= todayKey() ? tasks.filter((t) => t.status === "todo" && t.scheduled && isLate(t.scheduled)).sort(bySchedule) : [];
 
   const prev = () => setDay((d) => addDays(d, -1));
   const next = () => setDay((d) => addDays(d, 1));
@@ -42,7 +41,7 @@ export function Calendar({ tasks, selected, onSelect, onOpen, onChanged }: { tas
       onClick={() => (narrow ? onOpen : onSelect)(String(t.id))}
       aside={
         <Group gap={6} wrap="nowrap">
-          {open_(t) ? null : <Tag tone="muted">{STATUS_CHOICES.find((c) => c.value === t.status)?.label}</Tag>}
+          {t.status === "todo" ? null : <Tag tone="muted">{STATUS_LABEL[t.status]}</Tag>}
           {aside}
         </Group>
       }

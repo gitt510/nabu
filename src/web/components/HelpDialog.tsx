@@ -4,7 +4,7 @@ export const KEYS = [
   { keys: ["←", "→"], label: "Calendar: previous / next day" },
   { keys: ["/"], label: "Focus search" },
   { keys: ["↓", "↑"], label: "Open next / previous task" },
-  { keys: ["[", "]"], label: "Previous / next status tab" },
+  { keys: ["[", "]"], label: "Todo / Done tab" },
   { keys: ["?"], label: "Show this list" },
 ];
 

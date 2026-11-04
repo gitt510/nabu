@@ -35,7 +35,6 @@ export { Checkbox } from "./Checkbox";
 export { LineInput } from "./LineInput";
 export { LinesInput } from "./LinesInput";
 export { CopyText } from "./CopyText";
-export { ChoiceMenu, type Choice } from "./ChoiceMenu";
 export { DateMenu } from "./DateMenu";
 export { ListRow } from "./ListRow";
 export { Pager } from "./Pager";

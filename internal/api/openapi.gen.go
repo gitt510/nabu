@@ -23,22 +23,19 @@ func (e Area) Valid() bool {
 
 // Defines values for Status.
 const (
-	Doing   Status = "doing"
 	Done    Status = "done"
 	Dropped Status = "dropped"
-	Inbox   Status = "inbox"
+	Todo    Status = "todo"
 )
 
 // Valid indicates whether the value is a known member of the Status enum.
 func (e Status) Valid() bool {
 	switch e {
-	case Doing:
-		return true
 	case Done:
 		return true
 	case Dropped:
 		return true
-	case Inbox:
+	case Todo:
 		return true
 	default:
 		return false
@@ -82,7 +79,7 @@ type Task struct {
 	// Why why the task is worth starting: what is wrong or missing now
 	Why []string `json:"why"`
 
-	// WhyDropped why the task was decided against; a dropped task needs one line at least
+	// WhyDropped why the task was decided against; a dropped task needs one line at least, and no other task has one
 	WhyDropped []string `json:"why_dropped"`
 }
 
@@ -120,9 +117,6 @@ type PostApiTasksJSONBody struct {
 	Title     string    `json:"title"`
 	Waiting   *string   `json:"waiting,omitempty"`
 	Why       *[]string `json:"why,omitempty"`
-
-	// WhyDropped why the task was decided against; a dropped task needs one line at least
-	WhyDropped *[]string `json:"why_dropped,omitempty"`
 }
 
 // PatchApiTasksIdJSONBody defines parameters for PatchApiTasksId.
@@ -144,7 +138,7 @@ type PatchApiTasksIdJSONBody struct {
 	// Why why the task is worth starting: what is wrong or missing now
 	Why *[]string `json:"why,omitempty"`
 
-	// WhyDropped why the task was decided against; a dropped task needs one line at least
+	// WhyDropped why the task was decided against; a dropped task needs one line at least, and no other task has one
 	WhyDropped *[]string `json:"why_dropped,omitempty"`
 }
 

@@ -8,8 +8,8 @@ export type Item = Task & { html: string; text: string };
 const HEADINGS: Record<(typeof SECTIONS)[number], string> = { why: "Why", dod: "DoD", why_dropped: "Why dropped" };
 
 const toItem = (t: Task): Item => {
-  // 空の理由は出さない。nabu task read と同じ
-  const body = SECTIONS.filter((k) => k !== "why_dropped" || t.why_dropped.length)
+  // 中身のある section だけを出す
+  const body = SECTIONS.filter((k) => t[k].length)
     .map((k) => `### ${HEADINGS[k]}\n\n${t[k].map((l) => `- ${l}`).join("\n")}`)
     .join("\n\n");
   return { ...t, html: marked.parse(body, { async: false }), text: [t.title, t.slug, `#${t.id}`, t.waiting ?? "", t.project ?? "", body].join("\n").toLowerCase() };
@@ -24,6 +24,9 @@ export async function fetchTasks(): Promise<Item[]> {
 
 /** task を書き換える。断られたら理由を返す */
 export const patch = (id: number, fields: Partial<Task>) => send("PATCH", `/api/tasks/${id}`, fields);
+
+/** task を done にする、または todo に戻す。どちらも dropped の理由は消す */
+export const check = (id: number, done: boolean) => patch(id, { status: done ? "done" : "todo", why_dropped: [] });
 
 /** 全部の habit を、day（YYYY-MM-DD）にやったかどうか付きで読む */
 export async function fetchHabits(day: string): Promise<Habit[]> {

@@ -2,12 +2,13 @@
 // 大きさと線の太さは icon を置く部品が決める
 import type { ComponentType } from "react";
 
-export type IconComponent = ComponentType<{ size?: number; stroke?: number }>;
+export type IconComponent = ComponentType<{ size?: number; stroke?: number; className?: string }>;
 
 export {
   IconArrowDown as ArrowDownIcon,
   IconArrowLeft as ArrowLeftIcon,
   IconArrowUp as ArrowUpIcon,
+  IconArrowBackUp as ArrowBackUpIcon,
   IconCalendar as CalendarIcon,
   IconCheck as CheckIcon,
   IconChevronDown as ChevronDownIcon,
@@ -31,4 +32,5 @@ export {
   IconSun as SunIcon,
   IconTicket as TicketIcon,
   IconTrash as TrashIcon,
+  IconX as XIcon,
 } from "@tabler/icons-react";
