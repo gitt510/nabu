@@ -25,9 +25,9 @@ export function DatePickerButton({
     <Popover opened={opened} onChange={setOpened} position="bottom-start" shadow="md" trapFocus>
       <Popover.Target>
         <Button
-          size="compact-xs"
-          radius="sm"
-          variant="default"
+          size="compact-sm"
+          radius="xl"
+          variant="light"
           leftSection={<CalendarIcon size={14} />}
           onClick={() => setOpened((o) => !o)}
         >

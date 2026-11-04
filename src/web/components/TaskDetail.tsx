@@ -15,9 +15,11 @@ import {
   DatePickerButton,
   ErrorText,
   ExternalLink,
+  FolderIcon,
   GitPullRequestIcon,
   Group,
   Heading,
+  HourglassIcon,
   IconButton,
   type IconComponent,
   LinkIcon,
@@ -27,12 +29,12 @@ import {
   Passage,
   Stack,
   Timestamp,
-  Tag,
+  TagIcon,
   TicketIcon,
   useHotkeys,
 } from "./ui";
 
-/** 開いている task：番号を添えた題と右端の完了・やめる（閉じた task は開き直す）操作、その下に properties と作った日・直した日の 1 行と link の 1 行、端から端までの区切りの線のあとに、scroll する本文として Why と DoD（と Why dropped）を枠なしの文章で。書かれていない section は見出しだけを出す。予定日以外の値のない property は出さない */
+/** 開いている task：番号を添えた題と右端の完了・やめる（閉じた task は開き直す）操作、その下に予定日の札・作った日・直した日の 1 行と、area・project・waiting・link を icon つきで並べる 1 行、端から端までの区切りの線のあとに、scroll する本文として Why と DoD（と Why dropped）を枠なしの文章で。書かれていない section は見出しだけを出す */
 export function TaskDetail({
   task,
   onBack,
@@ -89,15 +91,12 @@ export function TaskDetail({
         </Heading>
         <Group gap="xs">
           {task.status === "todo" ? null : <Caption>{STATUS_LABEL[task.status]}</Caption>}
-          <Tag>{task.area}</Tag>
-          {task.project ? <Tag>{task.project}</Tag> : null}
           <DatePickerButton
             label={task.scheduled ? fmt(task.scheduled) : "Schedule"}
             value={task.scheduled ? dayOf(task.scheduled) : null}
             today={todayKey()}
             onSelect={schedule}
           />
-          {task.waiting ? <Caption>⏳ {task.waiting}</Caption> : null}
           <Timestamp
             icon={CirclePlusIcon}
             label="created"
@@ -111,13 +110,14 @@ export function TaskDetail({
             detail={fmt(task.updated)}
           />
         </Group>
-        {task.tickets.length + task.prs.length + task.links.length ? (
-          <Group gap="md">
-            {links(task.tickets, TicketIcon)}
-            {links(task.prs, GitPullRequestIcon)}
-            {links(task.links, LinkIcon)}
-          </Group>
-        ) : null}
+        <Group gap="md">
+          <Caption icon={TagIcon}>{task.area}</Caption>
+          {task.project ? <Caption icon={FolderIcon}>{task.project}</Caption> : null}
+          {task.waiting ? <Caption icon={HourglassIcon}>{task.waiting}</Caption> : null}
+          {links(task.tickets, TicketIcon)}
+          {links(task.prs, GitPullRequestIcon)}
+          {links(task.links, LinkIcon)}
+        </Group>
       </Stack>
       <ErrorText>{error}</ErrorText>
     </Stack>
