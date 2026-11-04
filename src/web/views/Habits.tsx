@@ -50,7 +50,7 @@ export function Habits() {
         <Form key={h.id} onSubmit={() => void rename()}>
           <Group gap="xs" wrap="nowrap">
             <LineInput
-              label={`Rename ${h.title}`}
+              label="Rename"
               value={editing.title}
               onChange={(t) => setEditing({ id: h.id, title: t })}
               onEscape={() => setEditing(null)}
@@ -81,7 +81,7 @@ export function Habits() {
         ) : (
           <Group gap={4} wrap="nowrap">
             <IconButton
-              label={`Rename ${h.title}`}
+              label="Rename"
               icon={PencilIcon}
               onClick={() => {
                 setDeleting(null);
@@ -89,7 +89,7 @@ export function Habits() {
               }}
             />
             <IconButton
-              label={`Delete ${h.title}`}
+              label="Delete"
               icon={TrashIcon}
               onClick={() => {
                 setEditing(null);
