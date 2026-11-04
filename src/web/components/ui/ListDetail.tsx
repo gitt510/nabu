@@ -1,11 +1,9 @@
 import type { ReactNode } from "react";
-import { Divider, Group, ScrollArea, Stack } from "@mantine/core";
+import { Box, Divider, Group, ScrollArea, Stack } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 
-import { Page } from "./Page";
-
 /**
- * 一覧と詳細の 2 pane。それぞれが自分の中で scroll する。
+ * 一覧と詳細の 2 pane。左は上の head（絞り込みなど）と下の一覧に分け、一覧と詳細がそれぞれ自分の中で scroll する（詳細の scroll は detail が持つ）。
  * 幅が狭いと 1 枚ずつになり、detail が開いているあいだは detail だけを出す
  */
 export function ListDetail({
@@ -26,15 +24,17 @@ export function ListDetail({
       <Stack gap="xs" py="sm" px="calc(var(--mantine-spacing-xs) + var(--mantine-spacing-sm))">
         {head}
       </Stack>
-      <ScrollArea flex={1} px="xs" pb="xs">
+      <Divider />
+      <ScrollArea flex={1} p="xs">
         {list}
       </ScrollArea>
     </Stack>
   );
+  // 詳細の余白と scroll は detail が自分で持つ（Pane や Page で）
   const detailPane = (
-    <ScrollArea h="100%" flex={1} miw={0}>
-      <Page>{detail}</Page>
-    </ScrollArea>
+    <Box h="100%" flex={1} miw={0}>
+      {detail}
+    </Box>
   );
   if (narrow) return showDetail ? detailPane : listPane;
   return (

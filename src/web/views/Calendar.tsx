@@ -135,13 +135,13 @@ export function Calendar({
     <Page width="wide">
       <Columns>
         {day_}
-        <Section>
-          {task ? (
-            <TaskDetail key={task.id} task={task} onChanged={onChanged} />
-          ) : (
+        {task ? (
+          <TaskDetail key={task.id} task={task} onChanged={onChanged} />
+        ) : (
+          <Section>
             <Empty title="No task selected" description="Pick one from the day." />
-          )}
-        </Section>
+          </Section>
+        )}
       </Columns>
     </Page>
   );
