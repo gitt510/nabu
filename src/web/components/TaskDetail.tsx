@@ -18,16 +18,13 @@ export function TaskDetail({ task, onBack, onChanged }: { task: Item; onBack?: (
   };
   const save = async (fields: Partial<Task>) => settle(await patch(task.id, fields));
   const close = async (done: boolean) => settle(await check(task.id, done));
-  useHotkeys([
-    ["d", () => task.status === "todo" && void close(true)],
-    ["x", () => task.status === "todo" && setDropping(true)],
-  ]);
+  useHotkeys([["d", () => task.status === "todo" && setDropping(true)]]);
 
   const actions =
     task.status === "todo" ? (
       <Group gap={4} wrap="nowrap">
-        <IconButton label="Mark done (d)" icon={CircleCheckIcon} onClick={() => void close(true)} />
-        <IconButton label="Drop… (x)" icon={CircleXIcon} onClick={() => setDropping(true)} />
+        <IconButton label="Mark done" icon={CircleCheckIcon} onClick={() => void close(true)} />
+        <IconButton label="Drop… (d)" icon={CircleXIcon} onClick={() => setDropping(true)} />
       </Group>
     ) : (
       <IconButton label="Reopen" icon={ArrowBackUpIcon} onClick={() => void close(false)} />

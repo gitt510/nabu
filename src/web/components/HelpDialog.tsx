@@ -4,8 +4,7 @@ export const KEYS = [
   { keys: ["←", "→"], label: "Calendar: previous / next day" },
   { keys: ["/"], label: "Focus search" },
   { keys: ["↓", "↑"], label: "Open next / previous task" },
-  { keys: ["d"], label: "Mark the open task done" },
-  { keys: ["x"], label: "Drop the open task, saying why" },
+  { keys: ["d"], label: "Drop the open task, saying why" },
   { keys: ["?"], label: "Show this list" },
 ];
 
