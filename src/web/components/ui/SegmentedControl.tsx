@@ -1,11 +1,11 @@
-import { Input, SegmentedControl } from "@mantine/core";
+import { Input, SegmentedControl as MantineSegmentedControl } from "@mantine/core";
 
 /**
  * 少ない選択肢から 1 つ選ぶ。横一列の切り替えにして、狭い列にも 1 行で収める。
  * pointer で選んだときは focus を外し、矢印 key を page の操作に返す（Tab で入ったときは矢印で選べるまま）。
  * 矢印 key で radio を選んだときの click は detail が 0 なので、それで pointer と見分ける
  */
-export const Choice = ({
+export const SegmentedControl = ({
   label,
   data,
   value,
@@ -27,6 +27,6 @@ export const Choice = ({
         });
     }}
   >
-    <SegmentedControl fullWidth size="xs" data={data} value={value} onChange={onChange} />
+    <MantineSegmentedControl fullWidth size="xs" data={data} value={value} onChange={onChange} />
   </Input.Wrapper>
 );

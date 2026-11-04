@@ -5,7 +5,7 @@ import { DatePicker } from "@mantine/dates";
 import { CalendarIcon } from "./icons";
 
 /** 日を選ぶ札。押すと月の暦が開き、日を選んだ時点で決まって閉じる。日は YYYY-MM-DD、外すと null */
-export function DateMenu({
+export function DatePickerButton({
   label,
   value,
   today,

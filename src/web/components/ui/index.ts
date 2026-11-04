@@ -1,13 +1,11 @@
 /**
- * nabu の土台の部品の玄関。@mantine/* と @tabler/icons-react を import してよいのはこの directory だけで、
- * components と views はここから役割（見出し・補足・一覧の行…）を選ぶだけにする。大きさと色は部品が決める。
+ * nabu の土台の部品の玄関。@mantine/* と @tabler/icons-react を import してよいのはこの directory だけ（app/ の Provider と Shell は @mantine/* だけ例外）で、
+ * components と pages はここから役割（見出し・補足・一覧の行…）を選ぶだけにする。大きさと色は部品が決める。
  * この file は ui の file から出し直すだけで、ライブラリを直に参照しない（素通しにしない）
  */
 
 // 枠
-export { Provider } from "./Provider";
-export { Shell, type RailAction, type RailItem } from "./Shell";
-export { ListDetail } from "./ListDetail";
+export { ListDetailLayout } from "./ListDetailLayout";
 export { Pane } from "./Pane";
 
 // 並べる（間隔と揃え方の props だけを持つ）
@@ -22,17 +20,17 @@ export { Heading } from "./Heading";
 export { Caption } from "./Caption";
 export { ErrorText } from "./ErrorText";
 export { Tag } from "./Tag";
-export { Stamp } from "./Stamp";
+export { Timestamp } from "./Timestamp";
 export { ExternalLink } from "./ExternalLink";
 
 // 入力と操作
 export { Button } from "./Button";
 export { IconButton } from "./IconButton";
-export { Choice } from "./Choice";
+export { SegmentedControl } from "./SegmentedControl";
 export { Checkbox } from "./Checkbox";
 export { LineInput } from "./LineInput";
 export { LinesInput } from "./LinesInput";
-export { DateMenu } from "./DateMenu";
+export { DatePickerButton } from "./DatePickerButton";
 export { ListRow } from "./ListRow";
 export { Pager } from "./Pager";
 
@@ -40,7 +38,7 @@ export { Pager } from "./Pager";
 export { Section } from "./Section";
 export { Passage } from "./Passage";
 export { Dialog } from "./Dialog";
-export { Empty } from "./Empty";
+export { EmptyState } from "./EmptyState";
 export { KeyTable } from "./KeyTable";
 export { Prose } from "./Prose";
 
