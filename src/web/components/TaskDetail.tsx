@@ -7,7 +7,7 @@ import { DropDialog } from "./DropDialog";
 import { STATUS_LABEL } from "./states";
 import { ArrowBackUpIcon, ArrowLeftIcon, Caption, CircleCheckIcon, CirclePlusIcon, CircleXIcon, CopyText, DateMenu, ErrorText, ExternalLink, GitPullRequestIcon, Group, Heading, IconButton, type IconComponent, LinkIcon, PencilIcon, Prose, Section, Stack, Stamp, Tag, TicketIcon, useHotkeys } from "./ui";
 
-/** 開いている task：番号を添えた題と右端の完了・やめる（閉じた task は開き直す）操作、その下に properties と作った日・直した日の 1 行と link の 1 行、中身のある section を 1 つずつ枠に入れて。予定日以外の値のない property は出さない */
+/** 開いている task：番号を添えた題と右端の完了・やめる（閉じた task は開き直す）操作、その下に properties と作った日・直した日の 1 行と link の 1 行、Why と DoD（と Why dropped）を 1 つずつ枠に入れて。書かれていない section はそうと示す。予定日以外の値のない property は出さない */
 export function TaskDetail({ task, onBack, onChanged }: { task: Item; onBack?: () => void; onChanged: () => void }) {
   const [error, setError] = useState<string>();
   const [dropping, setDropping] = useState(false);
@@ -80,7 +80,7 @@ export function TaskDetail({ task, onBack, onChanged }: { task: Item; onBack?: (
       <ErrorText>{error}</ErrorText>
       {task.parts.map((p) => (
         <Section key={p.key} title={p.title}>
-          <Prose html={p.html} />
+          {p.html ? <Prose html={p.html} /> : <Caption>No description</Caption>}
         </Section>
       ))}
       <DropDialog id={task.id} opened={dropping} onClose={() => setDropping(false)} onDropped={onChanged} />

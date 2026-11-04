@@ -2,17 +2,17 @@ import { marked } from "marked";
 
 import { type Habit, SECTIONS, type Task } from "../api/schema";
 
-/** 本文の 1 section：見出しと、行を箇条書きにした HTML */
+/** 本文の 1 section：見出しと、行を箇条書きにした HTML（行がなければ空） */
 export type Part = { key: (typeof SECTIONS)[number]; title: string; html: string };
 
-/** page が見せる形の task：本文は中身のある section だけ、検索は小文字の全文 */
+/** page が見せる形の task：本文は Why と DoD をいつも、Why dropped は行があるときだけ。検索は小文字の全文 */
 export type Item = Task & { parts: Part[]; text: string };
 
 const HEADINGS: Record<(typeof SECTIONS)[number], string> = { why: "Why", dod: "DoD", why_dropped: "Why dropped" };
 
 const toItem = (t: Task): Item => {
-  const lists = SECTIONS.filter((k) => t[k].length).map((k) => ({ key: k, title: HEADINGS[k], md: t[k].map((l) => `- ${l}`).join("\n") }));
-  const parts = lists.map(({ key, title, md }) => ({ key, title, html: marked.parse(md, { async: false }) }));
+  const lists = SECTIONS.filter((k) => k !== "why_dropped" || t[k].length).map((k) => ({ key: k, title: HEADINGS[k], md: t[k].map((l) => `- ${l}`).join("\n") }));
+  const parts = lists.map(({ key, title, md }) => ({ key, title, html: md && marked.parse(md, { async: false }) }));
   const body = lists.map(({ title, md }) => `${title}\n${md}`);
   return { ...t, parts, text: [t.title, t.slug, `#${t.id}`, t.waiting ?? "", t.project ?? "", ...body].join("\n").toLowerCase() };
 };
