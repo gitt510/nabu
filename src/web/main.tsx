@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 
-import { App } from "./App";
-import { Provider } from "./components/ui";
+import { App } from "./app/App";
+import { Provider } from "./app/Provider";
 
 // vite の dev server（just dev）で開いた画面は、tab の題で deploy 版と見分ける
 if (import.meta.env.DEV) document.title += " (dev)";

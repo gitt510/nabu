@@ -6,9 +6,9 @@ import { STATUS_LABEL } from "../components/states";
 import { TaskDetail } from "../components/TaskDetail";
 import { TaskList } from "../components/TaskList";
 import {
-  Choice,
-  Empty,
-  ListDetail,
+  SegmentedControl,
+  EmptyState,
+  ListDetailLayout,
   Page,
   Stack,
   useHotkeys,
@@ -67,13 +67,13 @@ export function Tasks({
 
   const head = (
     <Stack gap="sm">
-      <Choice
+      <SegmentedControl
         label="Status"
         data={STATUSES.map((v) => ({ value: v, label: STATUS_LABEL[v] }))}
         value={filters.status}
         onChange={(status) => set({ status })}
       />
-      <Choice
+      <SegmentedControl
         label="Area"
         data={[{ value: "all", label: "All" }, ...AREAS.map((a) => ({ value: a, label: a }))]}
         value={filters.area}
@@ -83,7 +83,7 @@ export function Tasks({
   );
 
   return (
-    <ListDetail
+    <ListDetailLayout
       head={head}
       list={<TaskList items={items} selected={selected} onSelect={open} updated={byUpdated} />}
       showDetail={!!task}
@@ -97,7 +97,10 @@ export function Tasks({
           />
         ) : (
           <Page>
-            <Empty title="No task selected" description="Pick one from the list, or press ↓ / ↑." />
+            <EmptyState
+              title="No task selected"
+              description="Pick one from the list, or press ↓ / ↑."
+            />
           </Page>
         )
       }

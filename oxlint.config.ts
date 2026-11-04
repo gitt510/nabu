@@ -1,8 +1,8 @@
 // Lints the viewer in src/web/ so that it keeps no CSS of its own and touches Mantine and Tabler only inside
-// src/web/components/ui/, and so that a ui part never picks its color by state. Each message says what to use
+// src/web/components/ui/ (plus Mantine in app/Provider.tsx and app/Shell.tsx), and so that a ui part never picks its color by state. Each message says what to use
 // instead, then why.
 //
-// no-restricted-imports carries four restrictions at once, and an override replaces its options whole, so
+// no-restricted-imports carries several restrictions at once, and an override replaces its options whole, so
 // every scope below restates the full list it needs.
 import { defineConfig } from "oxlint";
 
@@ -15,9 +15,19 @@ const OWN_CSS = {
   regex: "^(\\.{1,2}/|/).*\\.css([?#].*)?$",
   message: "Use ui parts and the theme instead: nabu keeps no CSS of its own",
 };
-const VIEWS = {
-  regex: "^\\.\\./views/",
-  message: "Pass it in through props instead: components must not depend on views",
+const PAGES = {
+  regex: "^\\.\\./pages/",
+  message: "Pass it in through props instead: components must not depend on pages",
+};
+const APP = {
+  regex: "^(\\.\\./)+app/",
+  message: "Pass it in through props instead: only main.tsx and App.tsx put the app together",
+};
+// app/Provider.tsx and app/Shell.tsx set up the whole app on Mantine, so they reach Mantine directly; icons
+// still come through ui.
+const TABLER = {
+  group: ["@tabler/**"],
+  message: "Use components/ui instead: ui is the one door to Tabler",
 };
 const OUTSIDE_UI = {
   regex: "^\\.\\./",
@@ -77,7 +87,21 @@ export default defineConfig({
   overrides: [
     {
       files: ["src/web/components/*.ts", "src/web/components/*.tsx"],
-      rules: { "no-restricted-imports": imports(LIBRARY, OWN_CSS, VIEWS) },
+      rules: { "no-restricted-imports": imports(LIBRARY, OWN_CSS, PAGES, APP) },
+    },
+    {
+      files: ["src/web/pages/**", "src/web/hooks/**"],
+      rules: { "no-restricted-imports": imports(LIBRARY, OWN_CSS, APP) },
+    },
+    // The two files that set up the app: the theme and the frame around every page.
+    {
+      files: ["src/web/app/Provider.tsx", "src/web/app/Shell.tsx"],
+      rules: {
+        "no-restricted-imports": imports(TABLER, OWN_CSS),
+        "react/forbid-elements": "off",
+        "react/forbid-dom-props": "off",
+        "react/forbid-component-props": "off",
+      },
     },
     // ui wraps Mantine, so the JSX rules stop here; it still keeps no CSS and knows nothing outside ui.
     {
@@ -89,11 +113,6 @@ export default defineConfig({
         "react/forbid-component-props": "off",
         "nabu/no-conditional-color": "error",
       },
-    },
-    // Shell marks the current page by hand: Mantine has no rail or tab bar that marks it on its own.
-    {
-      files: ["src/web/components/ui/Shell.tsx"],
-      rules: { "nabu/no-conditional-color": "off" },
     },
     {
       files: ["src/web/components/ui/index.ts"],

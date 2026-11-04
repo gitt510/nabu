@@ -6,7 +6,7 @@ import { useMediaQuery } from "@mantine/hooks";
  * 一覧と詳細の 2 pane。左は上の head（絞り込みなど）と下の一覧に分け、一覧と詳細がそれぞれ自分の中で scroll する（詳細の scroll は detail が持つ）。
  * 幅が狭いと 1 枚ずつになり、detail が開いているあいだは detail だけを出す
  */
-export function ListDetail({
+export function ListDetailLayout({
   head,
   list,
   detail,

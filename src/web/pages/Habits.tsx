@@ -5,7 +5,7 @@ import { addHabit, deleteHabit, renameHabit } from "../api";
 import {
   Button,
   Caption,
-  Empty,
+  EmptyState,
   ErrorText,
   Form,
   Group,
@@ -119,11 +119,11 @@ export function Habits() {
           </Form>
           <ErrorText>{error}</ErrorText>
           {!habits ? (
-            <Empty title="Loading…" />
+            <EmptyState title="Loading…" />
           ) : habits.length ? (
             <Stack gap="xs">{habits.map(row)}</Stack>
           ) : (
-            <Empty title="No habits yet" description="Add one above." />
+            <EmptyState title="No habits yet" description="Add one above." />
           )}
         </Stack>
       </Section>
