@@ -83,7 +83,7 @@ export function TaskDetail({
         </Group>
       ) : null}
       <Stack gap="xs">
-        <Heading number={`#${task.id}`} aside={actions} muted={task.status !== "todo"}>
+        <Heading number={`#${task.id}`} aside={actions}>
           {task.title}
         </Heading>
         <Group gap="xs">

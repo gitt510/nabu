@@ -6,21 +6,19 @@ const LINE = 1.35;
 
 /**
  * page と task の題。number は題のあとに薄く添える番号（task の #6 など）。aside は右端に置く操作（task を閉じるなど）で、
- * 題が折り返しても 1 行目に揃う。muted は閉じたものの題を薄く出す
+ * 題が折り返しても 1 行目に揃う
  */
 export const Heading = ({
   children,
   number,
   aside,
-  muted,
 }: {
   children: ReactNode;
   number?: string;
   aside?: ReactNode;
-  muted?: boolean;
 }) => {
   const title = (
-    <Title order={1} size="h2" lh={LINE} c={muted ? "dimmed" : undefined}>
+    <Title order={1} size="h2" lh={LINE}>
       {children}
       {number ? (
         <Text span inherit c="dimmed" fw={400}>

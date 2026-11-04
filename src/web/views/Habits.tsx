@@ -56,7 +56,7 @@ export function Habits() {
               onEscape={() => setEditing(null)}
               autoFocus
             />
-            <Button small tone="quiet" onClick={() => setEditing(null)}>
+            <Button small onClick={() => setEditing(null)}>
               Cancel
             </Button>
             <Button small type="submit">
@@ -71,10 +71,10 @@ export function Habits() {
         {h.title}
         {deleting === h.id ? (
           <Group gap="xs" wrap="nowrap">
-            <Button small tone="quiet" onClick={() => setDeleting(null)}>
+            <Button small onClick={() => setDeleting(null)}>
               Cancel
             </Button>
-            <Button small tone="danger" onClick={() => void remove(h.id)}>
+            <Button small onClick={() => void remove(h.id)}>
               Delete
             </Button>
           </Group>
