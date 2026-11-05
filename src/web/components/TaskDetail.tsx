@@ -4,6 +4,7 @@ import type { Task } from "../../api/schema";
 import { check, type Item, patch } from "../api";
 import { dayOf, fmt, fmtDay, ticket, timeOf, todayKey } from "../time";
 import { DropDialog } from "./DropDialog";
+import { Memo } from "./Memo";
 import { STATUS_LABEL } from "./states";
 import {
   ArrowBackUpIcon,
@@ -34,7 +35,7 @@ import {
   useHotkeys,
 } from "./ui";
 
-/** 開いている task：番号を添えた題と右端の完了・やめる（閉じた task は開き直す）操作、その下に予定日の札・作った日・直した日の 1 行と、area・project・waiting・link を icon つきで並べる 1 行、端から端までの区切りの線のあとに、scroll する本文として Why と DoD（と Why dropped）を枠なしの文章で。書かれていない section は見出しだけを出す */
+/** 開いている task：番号を添えた題と右端の完了・やめる（閉じた task は開き直す）操作、その下に予定日の札・作った日・直した日の 1 行と、area・project・waiting・link を icon つきで並べる 1 行、端から端までの区切りの線のあとに、scroll する本文として Why と DoD（と Why dropped）を枠なしの文章で、そのあとに書き足せる Memo を。書かれていない section は見出しだけを出す */
 export function TaskDetail({
   task,
   onBack,
@@ -131,6 +132,15 @@ export function TaskDetail({
             {p.html ? <Prose html={p.html} /> : null}
           </Passage>
         ))}
+        <Memo
+          key={task.id}
+          lines={task.memo}
+          onSave={async (memo) => {
+            const problem = await patch(task.id, { memo });
+            if (!problem) onChanged();
+            return problem;
+          }}
+        />
       </Stack>
       <DropDialog
         id={task.id}

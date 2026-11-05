@@ -64,8 +64,11 @@ type Task struct {
 	Dod []string `json:"dod"`
 
 	// Id the number the task keeps for life, unlike its slug
-	Id        int      `json:"id"`
-	Links     []string `json:"links"`
+	Id    int      `json:"id"`
+	Links []string `json:"links"`
+
+	// Memo what the owner did or thought while working on the task, one note per line
+	Memo      []string `json:"memo"`
 	Project   *string  `json:"project"`
 	Prs       []string `json:"prs"`
 	Scheduled *string  `json:"scheduled"`
@@ -124,8 +127,11 @@ type PatchApiTasksIdJSONBody struct {
 	Area *Area `json:"area,omitempty"`
 
 	// Dod the definition of done: what has to be true to close the task
-	Dod       *[]string `json:"dod,omitempty"`
-	Links     *[]string `json:"links,omitempty"`
+	Dod   *[]string `json:"dod,omitempty"`
+	Links *[]string `json:"links,omitempty"`
+
+	// Memo what the owner did or thought while working on the task, one note per line
+	Memo      *[]string `json:"memo,omitempty"`
 	Project   *string   `json:"project,omitempty"`
 	Prs       *[]string `json:"prs,omitempty"`
 	Scheduled *string   `json:"scheduled,omitempty"`

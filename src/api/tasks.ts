@@ -119,6 +119,7 @@ export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
         ...fields,
         status: "todo",
         why_dropped: [],
+        memo: [],
         project: fields.project ?? null,
         scheduled: fields.scheduled ?? null,
         waiting: fields.waiting ?? null,

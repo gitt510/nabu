@@ -99,6 +99,15 @@
             },
             "description": "why the task was decided against; a dropped task needs one line at least, and no other task has one"
           },
+          "memo": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 45,
+              "pattern": "\\S"
+            },
+            "description": "what the owner did or thought while working on the task, one note per line"
+          },
           "created": {
             "type": "string"
           },
@@ -121,6 +130,7 @@
           "why",
           "dod",
           "why_dropped",
+          "memo",
           "created",
           "updated"
         ],
@@ -487,6 +497,15 @@
                       "pattern": "\\S"
                     },
                     "description": "why the task was decided against; a dropped task needs one line at least, and no other task has one"
+                  },
+                  "memo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 45,
+                      "pattern": "\\S"
+                    },
+                    "description": "what the owner did or thought while working on the task, one note per line"
                   }
                 },
                 "additionalProperties": false
