@@ -14,7 +14,7 @@ import {
 } from "./ui";
 
 /**
- * task の Memo：やったこと、思ったことを 1 行ずつ書き足す。足すのは下の欄から Enter で。
+ * task の Memo：やったこと、思ったことの行。足すのは MemoDialog から。
  * 行は鉛筆からその場で直し（空にして保存すると消える）、ゴミ箱で消す。onSave は memo 全体を送り、断られたら理由を返す
  */
 export function Memo({
@@ -24,7 +24,6 @@ export function Memo({
   lines: string[];
   onSave: (memo: string[]) => Promise<string | undefined>;
 }) {
-  const [draft, setDraft] = useState("");
   // 直している行は 1 つだけ
   const [editing, setEditing] = useState<{ i: number; text: string } | null>(null);
   const [error, setError] = useState<string>();
@@ -33,10 +32,6 @@ export function Memo({
     const problem = await onSave(memo);
     setError(problem);
     return !problem;
-  };
-  const add = async () => {
-    if (!draft.trim()) return;
-    if (await save([...lines, draft])) setDraft("");
   };
   const edit = async () => {
     if (!editing) return;
@@ -86,14 +81,6 @@ export function Memo({
     <Passage title="Memo">
       <Stack gap="xs">
         {lines.map(row)}
-        <Form onSubmit={() => void add()}>
-          <LineInput
-            label="New note"
-            placeholder="What you did or thought"
-            value={draft}
-            onChange={setDraft}
-          />
-        </Form>
         <ErrorText>{error}</ErrorText>
       </Stack>
     </Passage>

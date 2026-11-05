@@ -22,6 +22,8 @@ export const LineInput = ({
     placeholder={placeholder}
     autoComplete="off"
     autoFocus={autoFocus}
+    // dialog の中では、Mantine が開いたときにこの印の欄へ focus を移す
+    data-autofocus={autoFocus || undefined}
     value={value}
     onChange={(e) => onChange(e.currentTarget.value)}
     onKeyDown={(e) => {
