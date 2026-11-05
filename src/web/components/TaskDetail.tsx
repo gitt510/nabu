@@ -4,6 +4,8 @@ import type { Task } from "../../api/schema";
 import { check, type Item, patch } from "../api";
 import { dayOf, fmt, fmtDay, ticket, timeOf, todayKey } from "../time";
 import { DropDialog } from "./DropDialog";
+import { Memo } from "./Memo";
+import { MemoDialog } from "./MemoDialog";
 import { STATUS_LABEL } from "./states";
 import {
   ArrowBackUpIcon,
@@ -23,6 +25,7 @@ import {
   IconButton,
   type IconComponent,
   LinkIcon,
+  NotesIcon,
   Pane,
   PencilIcon,
   Prose,
@@ -34,7 +37,7 @@ import {
   useHotkeys,
 } from "./ui";
 
-/** 開いている task：番号を添えた題と右端の完了・やめる（閉じた task は開き直す）操作、その下に予定日の札・作った日・直した日の 1 行と、area・project・waiting・link を icon つきで並べる 1 行、端から端までの区切りの線のあとに、scroll する本文として Why と DoD（と Why dropped）を枠なしの文章で。書かれていない section は見出しだけを出す */
+/** 開いている task：番号を添えた題と右端の memo を足す・完了・やめる（閉じた task は開き直す）操作、その下に予定日の札・作った日・直した日の 1 行と、area・project・waiting・link を icon つきで並べる 1 行、端から端までの区切りの線のあとに、scroll する本文として Why と DoD（と Why dropped）を枠なしの文章で、そのあとに書き足せる Memo を。書かれていない section は見出しだけを出す */
 export function TaskDetail({
   task,
   onBack,
@@ -46,6 +49,7 @@ export function TaskDetail({
 }) {
   const [error, setError] = useState<string>();
   const [dropping, setDropping] = useState(false);
+  const [noting, setNoting] = useState(false);
 
   const settle = (problem: string | undefined) => {
     setError(problem);
@@ -53,17 +57,24 @@ export function TaskDetail({
   };
   const save = async (fields: Partial<Task>) => settle(await patch(task.id, fields));
   const close = async (done: boolean) => settle(await check(task.id, done));
-  useHotkeys([["d", () => task.status === "todo" && setDropping(true)]]);
+  useHotkeys([
+    ["d", () => task.status === "todo" && setDropping(true)],
+    ["m", () => setNoting(true)],
+  ]);
 
-  const actions =
-    task.status === "todo" ? (
-      <Group gap={4} wrap="nowrap">
-        <IconButton label="Mark done" icon={CircleCheckIcon} onClick={() => void close(true)} />
-        <IconButton label="Drop… (d)" icon={CircleXIcon} onClick={() => setDropping(true)} />
-      </Group>
-    ) : (
-      <IconButton label="Reopen" icon={ArrowBackUpIcon} onClick={() => void close(false)} />
-    );
+  const actions = (
+    <Group gap={4} wrap="nowrap">
+      <IconButton label="Add memo… (m)" icon={NotesIcon} onClick={() => setNoting(true)} />
+      {task.status === "todo" ? (
+        <>
+          <IconButton label="Mark done" icon={CircleCheckIcon} onClick={() => void close(true)} />
+          <IconButton label="Drop… (d)" icon={CircleXIcon} onClick={() => setDropping(true)} />
+        </>
+      ) : (
+        <IconButton label="Reopen" icon={ArrowBackUpIcon} onClick={() => void close(false)} />
+      )}
+    </Group>
+  );
 
   // 時刻のある予定は、時刻を残して日だけを移す
   const schedule = (day: string | null) => {
@@ -131,12 +142,28 @@ export function TaskDetail({
             {p.html ? <Prose html={p.html} /> : null}
           </Passage>
         ))}
+        <Memo
+          key={task.id}
+          lines={task.memo}
+          onSave={async (memo) => {
+            const problem = await patch(task.id, { memo });
+            if (!problem) onChanged();
+            return problem;
+          }}
+        />
       </Stack>
       <DropDialog
         id={task.id}
         opened={dropping}
         onClose={() => setDropping(false)}
         onDropped={onChanged}
+      />
+      <MemoDialog
+        id={task.id}
+        memo={task.memo}
+        opened={noting}
+        onClose={() => setNoting(false)}
+        onAdded={onChanged}
       />
     </Pane>
   );

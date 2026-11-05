@@ -52,6 +52,7 @@ describe("/api/tasks", () => {
       project: null,
       tickets: [],
       why_dropped: [],
+      memo: [],
     });
     expect(created.body.created).toBe(created.body.updated);
 
@@ -61,6 +62,13 @@ describe("/api/tasks", () => {
     });
     expect((await json(await call("GET", "/api/tasks"))).body).toEqual([created.body]);
     expect(await events()).toEqual([{ task_id: 1, action: "create" }]);
+  });
+
+  it("keeps the memo a patch writes, line for line", async () => {
+    await call("POST", "/api/tasks", task);
+    const memo = ["schema に memo を足した", "45 文字は少し短いかも"];
+    expect((await json(await call("PATCH", "/api/tasks/1", { memo }))).body.memo).toEqual(memo);
+    expect((await json(await call("GET", "/api/tasks/1"))).body.memo).toEqual(memo);
   });
 
   it("reads an old task with the current sections only, leaving its SCQA lines in the row", async () => {

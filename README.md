@@ -56,6 +56,7 @@ agent: nabu task new review-pr-68 --area work --pr https://github.com/o/r/pull/6
 - The body is `why`, why the task is worth starting, and `dod`, its definition of done, each a list of lines
 - A change to the body adds columns and leaves old tasks as they were: `situation`, `complication`, `question`, and `answer` stay in D1, unread
 - A dropped task also carries `why_dropped`, and no other task does
+- A task also carries `memo`, lines of what was done or thought, added one at a time in the viewer
 - `nabu task new` and `nabu task replace` take the body as JSON, and `nabu task read` prints it as markdown
 - The API refuses a task out of shape, so no stored task is out of shape
 - Every write keeps the task before and after it as an event
