@@ -42,18 +42,18 @@ export const deleteHabit = (id: number) => send("DELETE", `/api/habits/${id}`);
 export const checkHabit = (id: number, day: string, done: boolean) =>
   send(done ? "PUT" : "DELETE", `/api/habits/${id}/checks/${day}`);
 
-/** outline の行を全部読む。木は読んだ側で組む */
-export async function fetchItems(): Promise<Item[]> {
-  const res = await fetch("/api/items", { cache: "no-store" });
-  if (!res.ok) throw new Error(`Couldn't load items (${res.status})`);
+/** task の checklist を、並びの順に読む */
+export async function fetchItems(taskId: number): Promise<Item[]> {
+  const res = await fetch(`/api/items?task_id=${taskId}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Couldn't load the checklist (${res.status})`);
   return (await res.json()) as Item[];
 }
 
-export const addItem = (text: string, parent_id: number | null, due: string | null = null) =>
-  send("POST", "/api/items", { text, parent_id, due });
+/** checklist の最後に行を足す */
+export const addItem = (taskId: number, text: string) =>
+  send("POST", "/api/items", { task_id: taskId, text });
 export const patchItem = (id: number, fields: Partial<Item>) =>
   send("PATCH", `/api/items/${id}`, fields);
-/** 行を、その下の行ごと消す */
 export const deleteItem = (id: number) => send("DELETE", `/api/items/${id}`);
 
 /** API に書き込む。断られたら理由を返す */

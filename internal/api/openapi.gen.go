@@ -54,14 +54,13 @@ type Habit struct {
 
 // Item defines model for Item.
 type Item struct {
-	Created  string  `json:"created"`
-	Done     bool    `json:"done"`
-	Due      *string `json:"due"`
-	Id       int     `json:"id"`
-	ParentId *int    `json:"parent_id"`
+	Created string `json:"created"`
+	Done    bool   `json:"done"`
+	Id      int    `json:"id"`
 
-	// Position the order among its siblings, smallest first
+	// Position the order in the checklist, smallest first
 	Position float32 `json:"position"`
+	TaskId   int     `json:"task_id"`
 	Text     string  `json:"text"`
 	Updated  string  `json:"updated"`
 }
@@ -109,20 +108,22 @@ type PatchApiHabitsIdJSONBody struct {
 	Title string `json:"title"`
 }
 
+// GetApiItemsParams defines parameters for GetApiItems.
+type GetApiItemsParams struct {
+	TaskId *int `form:"task_id,omitempty" json:"task_id,omitempty"`
+}
+
 // PostApiItemsJSONBody defines parameters for PostApiItems.
 type PostApiItemsJSONBody struct {
-	Due      *string `json:"due,omitempty"`
-	ParentId *int    `json:"parent_id,omitempty"`
-	Text     string  `json:"text"`
+	TaskId int    `json:"task_id"`
+	Text   string `json:"text"`
 }
 
 // PatchApiItemsIdJSONBody defines parameters for PatchApiItemsId.
 type PatchApiItemsIdJSONBody struct {
-	Done     *bool   `json:"done,omitempty"`
-	Due      *string `json:"due,omitempty"`
-	ParentId *int    `json:"parent_id,omitempty"`
+	Done *bool `json:"done,omitempty"`
 
-	// Position the order among its siblings, smallest first
+	// Position the order in the checklist, smallest first
 	Position *float32 `json:"position,omitempty"`
 	Text     *string  `json:"text,omitempty"`
 }

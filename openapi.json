@@ -158,15 +158,12 @@
           "id": {
             "type": "integer"
           },
-          "parent_id": {
-            "type": [
-              "integer",
-              "null"
-            ]
+          "task_id": {
+            "type": "integer"
           },
           "position": {
             "type": "number",
-            "description": "the order among its siblings, smallest first"
+            "description": "the order in the checklist, smallest first"
           },
           "text": {
             "type": "string",
@@ -174,13 +171,6 @@
           },
           "done": {
             "type": "boolean"
-          },
-          "due": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
           },
           "created": {
             "type": "string"
@@ -191,11 +181,10 @@
         },
         "required": [
           "id",
-          "parent_id",
+          "task_id",
           "position",
           "text",
           "done",
-          "due",
           "created",
           "updated"
         ],
@@ -589,7 +578,7 @@
         ],
         "responses": {
           "204": {
-            "description": "deleted; its events stay"
+            "description": "deleted with its checklist; its events stay"
           },
           "404": {
             "description": "no such task",
@@ -964,9 +953,22 @@
     },
     "/api/items": {
       "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "task_id",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "every line, siblings in position order",
+            "description": "the checklist of the task, in position order",
             "content": {
               "application/json": {
                 "schema": {
@@ -974,6 +976,24 @@
                   "items": {
                     "$ref": "#/components/schemas/Item"
                   }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "task_id is missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
@@ -989,27 +1009,16 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "task_id": {
+                    "type": "integer"
+                  },
                   "text": {
                     "type": "string",
                     "pattern": "^[^\\n]*\\S[^\\n]*$"
-                  },
-                  "parent_id": {
-                    "type": [
-                      "integer",
-                      "null"
-                    ],
-                    "default": null
-                  },
-                  "due": {
-                    "type": [
-                      "string",
-                      "null"
-                    ],
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                    "default": null
                   }
                 },
                 "required": [
+                  "task_id",
                   "text"
                 ],
                 "additionalProperties": false
@@ -1019,7 +1028,7 @@
         },
         "responses": {
           "201": {
-            "description": "the line, not done, after its last sibling",
+            "description": "the line, not done, last in the checklist",
             "content": {
               "application/json": {
                 "schema": {
@@ -1029,7 +1038,7 @@
             }
           },
           "422": {
-            "description": "the line is out of shape, or its parent does not exist",
+            "description": "the line is out of shape, or its task does not exist",
             "content": {
               "application/json": {
                 "schema": {
@@ -1076,25 +1085,12 @@
                     "type": "string",
                     "pattern": "^[^\\n]*\\S[^\\n]*$"
                   },
-                  "parent_id": {
-                    "type": [
-                      "integer",
-                      "null"
-                    ]
-                  },
                   "position": {
                     "type": "number",
-                    "description": "the order among its siblings, smallest first"
+                    "description": "the order in the checklist, smallest first"
                   },
                   "done": {
                     "type": "boolean"
-                  },
-                  "due": {
-                    "type": [
-                      "string",
-                      "null"
-                    ],
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                   }
                 },
                 "additionalProperties": false
@@ -1132,7 +1128,7 @@
             }
           },
           "422": {
-            "description": "a field is out of shape, or the new parent does not exist or lies under the line",
+            "description": "a field is out of shape",
             "content": {
               "application/json": {
                 "schema": {
@@ -1167,7 +1163,7 @@
         ],
         "responses": {
           "204": {
-            "description": "deleted with every line under it"
+            "description": "deleted"
           },
           "404": {
             "description": "no such item",

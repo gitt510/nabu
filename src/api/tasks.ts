@@ -174,13 +174,17 @@ export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
       method: "delete",
       path: "/{id}",
       request: { params },
-      responses: { 204: { description: "deleted; its events stay" }, 404: failure("no such task") },
+      responses: {
+        204: { description: "deleted with its checklist; its events stay" },
+        404: failure("no such task"),
+      },
     }),
     async (c) => {
       const row = await find(c.env.DB, c.req.valid("param").id);
       if (!row) return c.json({ error: "no such task" }, 404);
       await c.env.DB.batch([
         event(c.env.DB, "delete", row.slug, toTask(row), null),
+        c.env.DB.prepare("DELETE FROM items WHERE task_id = ?").bind(row.id),
         c.env.DB.prepare("DELETE FROM tasks WHERE id = ?").bind(row.id),
       ]);
       return c.body(null, 204);
