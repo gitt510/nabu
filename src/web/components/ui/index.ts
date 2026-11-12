@@ -14,7 +14,6 @@ export { Stack } from "./Stack";
 export { Group } from "./Group";
 export { Columns } from "./Columns";
 export { Form } from "./Form";
-export { Indent } from "./Indent";
 
 // 文字
 export { Heading } from "./Heading";

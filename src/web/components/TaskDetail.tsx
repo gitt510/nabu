@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { Task } from "../../api/schema";
 import { check, type TaskView, patch } from "../api";
 import { dayOf, fmt, fmtDay, ticket, timeOf, todayKey } from "../time";
+import { Checklist } from "./Checklist";
 import { DropDialog } from "./DropDialog";
 import { Memo } from "./Memo";
 import { MemoDialog } from "./MemoDialog";
@@ -37,7 +38,7 @@ import {
   useHotkeys,
 } from "./ui";
 
-/** 開いている task：番号を添えた題と右端の memo を足す・完了・やめる（閉じた task は開き直す）操作、その下に予定日の札・作った日・直した日の 1 行と、area・project・waiting・link を icon つきで並べる 1 行、端から端までの区切りの線のあとに、scroll する本文として、やめた task なら Why dropped を枠なしの文章で、そのあとに書き足せる Memo を */
+/** 開いている task：番号を添えた題と右端の memo を足す・完了・やめる（閉じた task は開き直す）操作、その下に予定日の札・作った日・直した日の 1 行と、area・project・waiting・link を icon つきで並べる 1 行、端から端までの区切りの線のあとに、scroll する本文として、やめた task なら Why dropped を枠なしの文章で、そのあとに付け外しできる Checklist と、書き足せる Memo を */
 export function TaskDetail({
   task,
   onBack,
@@ -142,6 +143,7 @@ export function TaskDetail({
             <Prose html={task.whyDropped} />
           </Passage>
         ) : null}
+        <Checklist key={`checklist-${task.id}`} taskId={task.id} />
         <Memo
           key={task.id}
           lines={task.memo}

@@ -15,67 +15,65 @@ const call = async (method: string, path: string, body?: unknown) =>
     }),
   );
 
-const add = async (fields: Record<string, unknown>) =>
-  (await (await call("POST", "/api/items", fields)).json()) as Item;
-const list = async () => (await (await call("GET", "/api/items")).json()) as Item[];
-const shape = async () =>
-  (await list()).map(({ id, parent_id, text, done }) => ({ id, parent_id, text, done }));
+const add = async (task_id: number, text: string) =>
+  (await (await call("POST", "/api/items", { task_id, text })).json()) as Item;
+const list = async (task_id: number) =>
+  (await (await call("GET", `/api/items?task_id=${task_id}`)).json()) as Item[];
+const newTask = async (slug: string) =>
+  (
+    (await (await call("POST", "/api/tasks", { slug, title: slug, area: "personal" })).json()) as {
+      id: number;
+    }
+  ).id;
 
 beforeEach(async () => {
-  await env.DB.prepare("DELETE FROM items").run();
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM items"),
+    env.DB.prepare("DELETE FROM tasks"),
+    env.DB.prepare("DELETE FROM events"),
+  ]);
 });
 
 describe("/api/items", () => {
-  it("adds a root with a due day and lines under it, each after its last sibling", async () => {
-    const root = await add({ text: "TOKIUM IPO", due: "2026-11-17" });
-    expect(root).toMatchObject({ parent_id: null, position: 1, done: false, due: "2026-11-17" });
-    const a = await add({ text: "A証券", parent_id: root.id });
-    const b = await add({ text: "B証券", parent_id: root.id });
-    expect([a.position, b.position]).toEqual([1, 2]);
-    expect(await shape()).toEqual([
-      { id: root.id, parent_id: null, text: "TOKIUM IPO", done: false },
-      { id: a.id, parent_id: root.id, text: "A証券", done: false },
-      { id: b.id, parent_id: root.id, text: "B証券", done: false },
-    ]);
+  it("adds lines last in their task's checklist, not done, and lists one task's only", async () => {
+    const tokium = await newTask("tokium-ipo");
+    const other = await newTask("other");
+    const a = await add(tokium, "SBI証券");
+    const b = await add(tokium, "楽天証券");
+    await add(other, "elsewhere");
+    expect(a).toMatchObject({ task_id: tokium, position: 1, done: false });
+    expect(b.position).toBe(2);
+    expect((await list(tokium)).map((i) => i.text)).toEqual(["SBI証券", "楽天証券"]);
   });
 
-  it("refuses a line out of shape or under a parent that does not exist with 422", async () => {
-    expect((await call("POST", "/api/items", { text: " " })).status).toBe(422);
-    expect((await call("POST", "/api/items", { text: "a", due: "2026-13-01" })).status).toBe(422);
-    expect((await call("POST", "/api/items", { text: "a", parent_id: 999 })).status).toBe(422);
+  it("refuses a line out of shape or under a task that does not exist with 422", async () => {
+    const id = await newTask("t");
+    expect((await call("POST", "/api/items", { task_id: id, text: " " })).status).toBe(422);
+    expect((await call("POST", "/api/items", { task_id: 999, text: "a" })).status).toBe(422);
+    expect((await call("GET", "/api/items")).status).toBe(422);
   });
 
-  it("checks a line and renames it", async () => {
-    const { id } = await add({ text: "A証券" });
-    const res = await call("PATCH", `/api/items/${id}`, { done: true, text: "A証券で申込済" });
+  it("checks, renames, and moves a line within the checklist", async () => {
+    const id = await newTask("t");
+    const a = await add(id, "SBI証券");
+    await add(id, "楽天証券");
+    const res = await call("PATCH", `/api/items/${a.id}`, { done: true, text: "SBI", position: 3 });
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ id, done: true, text: "A証券で申込済" });
-  });
-
-  it("moves a line to the end of a new parent, and refuses a move under itself", async () => {
-    const nov = await add({ text: "TOKIUM IPO" });
-    const dec = await add({ text: "NOTA IPO" });
-    await add({ text: "B証券", parent_id: dec.id });
-    const a = await add({ text: "A証券", parent_id: nov.id });
-
-    const moved = (await (
-      await call("PATCH", `/api/items/${a.id}`, { parent_id: dec.id })
-    ).json()) as Item;
-    expect(moved).toMatchObject({ parent_id: dec.id, position: 2 });
-
-    expect((await call("PATCH", `/api/items/${dec.id}`, { parent_id: dec.id })).status).toBe(422);
-    expect((await call("PATCH", `/api/items/${dec.id}`, { parent_id: a.id })).status).toBe(422);
+    expect((await list(id)).map((i) => [i.text, i.done])).toEqual([
+      ["楽天証券", false],
+      ["SBI", true],
+    ]);
+    expect((await call("PATCH", `/api/items/${a.id}`, { task_id: 2 })).status).toBe(422);
     expect((await call("PATCH", "/api/items/999", { done: true })).status).toBe(404);
   });
 
-  it("deletes a line with every line under it", async () => {
-    const root = await add({ text: "TOKIUM IPO" });
-    const a = await add({ text: "A証券", parent_id: root.id });
-    await add({ text: "抽選結果", parent_id: a.id });
-    const other = await add({ text: "NOTA IPO" });
-
-    expect((await call("DELETE", `/api/items/${root.id}`)).status).toBe(204);
-    expect((await list()).map((i) => i.id)).toEqual([other.id]);
-    expect((await call("DELETE", `/api/items/${root.id}`)).status).toBe(404);
+  it("deletes a line, and a task with its checklist", async () => {
+    const id = await newTask("t");
+    const a = await add(id, "SBI証券");
+    await add(id, "楽天証券");
+    expect((await call("DELETE", `/api/items/${a.id}`)).status).toBe(204);
+    expect(await list(id)).toHaveLength(1);
+    expect((await call("DELETE", `/api/tasks/${id}`)).status).toBe(204);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM items").first("n")).toBe(0);
   });
 });
