@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { AREAS, STATUSES } from "../../api/schema";
-import type { Item } from "../api";
+import type { TaskView } from "../api";
 import { STATUS_LABEL } from "../components/states";
 import { TaskDetail } from "../components/TaskDetail";
 import { TaskList } from "../components/TaskList";
@@ -20,7 +20,7 @@ import { instant } from "../time";
 type Filters = { status: string; area: string };
 const START: Filters = { status: "todo", area: "all" };
 
-const hit = (t: Item, f: Filters) =>
+const hit = (t: TaskView, f: Filters) =>
   t.status === f.status && (f.area === "all" || t.area === f.area);
 
 /**
@@ -33,7 +33,7 @@ export function Tasks({
   onSelect,
   onChanged,
 }: {
-  tasks: Item[];
+  tasks: TaskView[];
   selected: string;
   onSelect: (id: string, push?: boolean) => void;
   onChanged: () => void;
@@ -43,7 +43,7 @@ export function Tasks({
   const byUpdated = filters.status !== "todo";
 
   const items = useMemo(() => {
-    const when = (t: Item) => instant(byUpdated ? t.updated : t.created).getTime();
+    const when = (t: TaskView) => instant(byUpdated ? t.updated : t.created).getTime();
     return tasks.filter((t) => hit(t, filters)).sort((a, b) => when(b) - when(a));
   }, [tasks, filters, byUpdated]);
   const task = tasks.find((t) => String(t.id) === selected);

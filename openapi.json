@@ -171,6 +171,55 @@
           "done"
         ],
         "additionalProperties": false
+      },
+      "Item": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "parent_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "position": {
+            "type": "number",
+            "description": "the order among its siblings, smallest first"
+          },
+          "text": {
+            "type": "string",
+            "pattern": "^[^\\n]*\\S[^\\n]*$"
+          },
+          "done": {
+            "type": "boolean"
+          },
+          "due": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "created": {
+            "type": "string"
+          },
+          "updated": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "parent_id",
+          "position",
+          "text",
+          "done",
+          "due",
+          "created",
+          "updated"
+        ],
+        "additionalProperties": false
       }
     },
     "parameters": {}
@@ -950,6 +999,234 @@
           },
           "422": {
             "description": "date is not a day",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/items": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "every line, siblings in position order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Item"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "description": "the new line",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "pattern": "^[^\\n]*\\S[^\\n]*$"
+                  },
+                  "parent_id": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "default": null
+                  },
+                  "due": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "default": null
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "the line, not done, after its last sibling",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "the line is out of shape, or its parent does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/items/{id}": {
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "description": "the fields to change",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "pattern": "^[^\\n]*\\S[^\\n]*$"
+                  },
+                  "parent_id": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "position": {
+                    "type": "number",
+                    "description": "the order among its siblings, smallest first"
+                  },
+                  "done": {
+                    "type": "boolean"
+                  },
+                  "due": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "the line as it is now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "no such item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "a field is out of shape, or the new parent does not exist or lies under the line",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "deleted with every line under it"
+          },
+          "404": {
+            "description": "no such item",
             "content": {
               "application/json": {
                 "schema": {
