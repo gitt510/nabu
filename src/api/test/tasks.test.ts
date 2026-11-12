@@ -20,8 +20,6 @@ const task = {
   slug: "move-runtime",
   title: "runtime を新しい version へ移行",
   area: "work",
-  why: ["旧 runtime はサポートが切れる"],
-  dod: ["本番と検証が新 runtime で動く"],
 };
 
 const events = async () =>
@@ -71,28 +69,10 @@ describe("/api/tasks", () => {
     expect((await json(await call("GET", "/api/tasks/1"))).body.memo).toEqual(memo);
   });
 
-  it("reads an old task with the current sections only, leaving its SCQA lines in the row", async () => {
-    await env.DB.prepare(
-      `INSERT INTO tasks (slug, title, status, area, situation, created, updated) VALUES ('old', 'Old', 'todo', 'work', '["前の形"]', 'now', 'now')`,
-    ).run();
-    const res = await json(await call("GET", "/api/tasks/1"));
-    expect(res.body).toMatchObject({ why: [], dod: [] });
-    expect(res.body).not.toHaveProperty("situation");
-
-    expect((await call("PATCH", "/api/tasks/1", { dod: ["閉じる条件"] })).status).toBe(200);
-    expect(
-      await env.DB.prepare("SELECT situation FROM tasks WHERE id = 1").first("situation"),
-    ).toBe('["前の形"]');
-  });
-
   it("refuses a task out of shape with 422", async () => {
     for (const bad of [
       { ...task, slug: "Bad Slug" },
       { ...task, area: "hobby" },
-      { ...task, why: ["あ".repeat(46)] },
-      { ...task, why: ["- 箇条書きの記号"] },
-      { ...task, why: ["## AI memo"] },
-      { ...task, why: [" "] },
       { ...task, scheduled: "tomorrow" },
       { ...task, tickets: ["http://example.com/1"] },
       { ...task, links: ["https://example.com/1", "https://example.com/1"] },
@@ -118,9 +98,11 @@ describe("/api/tasks", () => {
     ]);
   });
 
-  it("accepts a line of exactly the limit", async () => {
-    const res = await call("POST", "/api/tasks", { ...task, why: ["あ".repeat(45)] });
-    expect(res.status).toBe(201);
+  it("refuses a memo line out of shape with 422, and accepts one of exactly the limit", async () => {
+    await call("POST", "/api/tasks", task);
+    for (const line of ["あ".repeat(46), "- 箇条書きの記号", "## AI memo", " "])
+      expect((await call("PATCH", "/api/tasks/1", { memo: [line] })).status, line).toBe(422);
+    expect((await call("PATCH", "/api/tasks/1", { memo: ["あ".repeat(45)] })).status).toBe(200);
   });
 
   it("refuses a slug that is taken with 409", async () => {
@@ -137,7 +119,7 @@ describe("/api/tasks", () => {
         status: "done",
         project: null,
         waiting: null,
-        dod: ["検証 → 本番の順で切り替わっている"],
+        memo: ["検証 → 本番の順で切り替わっている"],
       }),
     );
     expect(res.status).toBe(200);
@@ -145,7 +127,7 @@ describe("/api/tasks", () => {
       status: "done",
       project: null,
       waiting: null,
-      dod: ["検証 → 本番の順で切り替わっている"],
+      memo: ["検証 → 本番の順で切り替わっている"],
     });
 
     const row = await env.DB.prepare(
@@ -227,8 +209,8 @@ describe("/api/schema", () => {
   it("returns the task contract as JSON Schema, the line limit and the areas in it", async () => {
     const res = await json(await call("GET", "/api/schema"));
     expect(res.status).toBe(200);
+    expect(res.body.patch.properties.memo.items.maxLength).toBe(45);
     for (const schema of [res.body.create, res.body.patch]) {
-      expect(schema.properties.why.items.maxLength).toBe(45);
       expect(schema.properties.area).toEqual({ $ref: "#/$defs/Area" });
       expect(schema.$defs.Area.enum).toEqual(["work", "personal"]);
     }

@@ -8,10 +8,9 @@ export const AREAS = ["work", "personal"] as const;
 // LINE_LIMIT is the most characters a section line may carry: one fact a reader takes in at a glance.
 export const LINE_LIMIT = 45;
 
-// SECTIONS are the body: why the task is worth starting, its definition of done, the reason a dropped task
-// was closed without meeting it, then the memo its owner adds while working on it. A section that leaves keeps
-// its column, so old rows stay as they were written.
-export const SECTIONS = ["why", "dod", "why_dropped", "memo"] as const;
+// SECTIONS are the lists of lines a task carries: the reason a dropped task was closed, then the memo its
+// owner adds while working on it.
+export const SECTIONS = ["why_dropped", "memo"] as const;
 export const LISTS = ["tickets", "prs", "links"] as const;
 
 // The ids name the schemas the OpenAPI document shares as components, so a generated client names its types.
@@ -78,12 +77,6 @@ export const Task = z
     tickets: urls,
     prs: urls,
     links: urls,
-    why: section.meta({
-      description: "why the task is worth starting: what is wrong or missing now",
-    }),
-    dod: section.meta({
-      description: "the definition of done: what has to be true to close the task",
-    }),
     why_dropped: whyDropped,
     memo: section.meta({
       description: "what the owner did or thought while working on the task, one note per line",
@@ -105,8 +98,6 @@ export const TaskCreate = z.strictObject({
   tickets: urls.default([]),
   prs: urls.default([]),
   links: urls.default([]),
-  why: section.default([]),
-  dod: section.default([]),
 });
 
 // TaskPatch is PATCH /api/tasks/:id: any field, where null drops an optional value and a list replaces

@@ -4,7 +4,7 @@ import { LINE_LIMIT } from "../../api/schema";
 import { patch } from "../api";
 import { Button, Dialog, Form, Group, LinesInput, Stack } from "./ui";
 
-/** DoD を満たさずに閉じる前に、やめる理由を聞く。1 行 1 項目 */
+/** やめる前に、その理由を聞く。1 行 1 項目 */
 export function DropDialog({
   id,
   opened,

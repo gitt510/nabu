@@ -74,9 +74,6 @@ type Task struct {
 	Area    Area   `json:"area"`
 	Created string `json:"created"`
 
-	// Dod the definition of done: what has to be true to close the task
-	Dod []string `json:"dod"`
-
 	// Id the number the task keeps for life, unlike its slug
 	Id    int      `json:"id"`
 	Links []string `json:"links"`
@@ -92,9 +89,6 @@ type Task struct {
 	Title     string   `json:"title"`
 	Updated   string   `json:"updated"`
 	Waiting   *string  `json:"waiting"`
-
-	// Why why the task is worth starting: what is wrong or missing now
-	Why []string `json:"why"`
 
 	// WhyDropped why the task was decided against; a dropped task needs one line at least, and no other task has one
 	WhyDropped []string `json:"why_dropped"`
@@ -142,7 +136,6 @@ type GetApiTasksParams struct {
 // PostApiTasksJSONBody defines parameters for PostApiTasks.
 type PostApiTasksJSONBody struct {
 	Area      Area      `json:"area"`
-	Dod       *[]string `json:"dod,omitempty"`
 	Links     *[]string `json:"links,omitempty"`
 	Project   *string   `json:"project,omitempty"`
 	Prs       *[]string `json:"prs,omitempty"`
@@ -151,15 +144,11 @@ type PostApiTasksJSONBody struct {
 	Tickets   *[]string `json:"tickets,omitempty"`
 	Title     string    `json:"title"`
 	Waiting   *string   `json:"waiting,omitempty"`
-	Why       *[]string `json:"why,omitempty"`
 }
 
 // PatchApiTasksIdJSONBody defines parameters for PatchApiTasksId.
 type PatchApiTasksIdJSONBody struct {
-	Area *Area `json:"area,omitempty"`
-
-	// Dod the definition of done: what has to be true to close the task
-	Dod   *[]string `json:"dod,omitempty"`
+	Area  *Area     `json:"area,omitempty"`
 	Links *[]string `json:"links,omitempty"`
 
 	// Memo what the owner did or thought while working on the task, one note per line
@@ -172,9 +161,6 @@ type PatchApiTasksIdJSONBody struct {
 	Tickets   *[]string `json:"tickets,omitempty"`
 	Title     *string   `json:"title,omitempty"`
 	Waiting   *string   `json:"waiting,omitempty"`
-
-	// Why why the task is worth starting: what is wrong or missing now
-	Why *[]string `json:"why,omitempty"`
 
 	// WhyDropped why the task was decided against; a dropped task needs one line at least, and no other task has one
 	WhyDropped *[]string `json:"why_dropped,omitempty"`
