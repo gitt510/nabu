@@ -7,6 +7,7 @@ import {
   ChecklistIcon,
   EmptyState,
   KeyboardIcon,
+  ListTreeIcon,
   MoonIcon,
   SeedlingIcon,
   SunIcon,
@@ -19,11 +20,13 @@ import { useTasks } from "../hooks/useTasks";
 import { Tasks } from "../pages/Tasks";
 import { Calendar } from "../pages/Calendar";
 import { Habits } from "../pages/Habits";
+import { Items } from "../pages/Items";
 
-type Page = "calendar" | "tasks" | "habits";
+type Page = "calendar" | "tasks" | "items" | "habits";
 const PAGES: RailItem<Page>[] = [
   { key: "calendar", label: "Calendar", icon: CalendarIcon },
   { key: "tasks", label: "Tasks", icon: ChecklistIcon },
+  { key: "items", label: "Items", icon: ListTreeIcon },
   { key: "habits", label: "Habits", icon: SeedlingIcon },
 ];
 
@@ -77,6 +80,8 @@ export function App() {
         <EmptyState title="Loading…" />
       ) : page === "habits" ? (
         <Habits />
+      ) : page === "items" ? (
+        <Items />
       ) : page === "tasks" ? (
         <Tasks tasks={tasks} selected={selected} onSelect={setSelected} onChanged={reload} />
       ) : (

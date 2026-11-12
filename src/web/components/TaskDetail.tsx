@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import type { Task } from "../../api/schema";
-import { check, type Item, patch } from "../api";
+import { check, type TaskView, patch } from "../api";
 import { dayOf, fmt, fmtDay, ticket, timeOf, todayKey } from "../time";
 import { DropDialog } from "./DropDialog";
 import { Memo } from "./Memo";
@@ -43,7 +43,7 @@ export function TaskDetail({
   onBack,
   onChanged,
 }: {
-  task: Item;
+  task: TaskView;
   onBack?: () => void;
   onChanged: () => void;
 }) {

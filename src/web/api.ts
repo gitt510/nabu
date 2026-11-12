@@ -1,6 +1,6 @@
 import { marked } from "marked";
 
-import { type Habit, SECTIONS, type Task } from "../api/schema";
+import { type Habit, type Item, SECTIONS, type Task } from "../api/schema";
 
 /** 読むだけの section。memo は page で書き足すので、ここには入れない */
 type Read = Exclude<(typeof SECTIONS)[number], "memo">;
@@ -9,7 +9,7 @@ type Read = Exclude<(typeof SECTIONS)[number], "memo">;
 export type Part = { key: Read; title: string; html: string };
 
 /** page が見せる形の task：本文は Why と DoD をいつも、Why dropped は行があるときだけ */
-export type Item = Task & { parts: Part[] };
+export type TaskView = Task & { parts: Part[] };
 
 const HEADINGS: Record<Read, string> = {
   why: "Why",
@@ -17,7 +17,7 @@ const HEADINGS: Record<Read, string> = {
   why_dropped: "Why dropped",
 };
 
-const toItem = (t: Task): Item => {
+const toTaskView = (t: Task): TaskView => {
   const read = SECTIONS.filter((k): k is Read => k !== "memo");
   const lists = read
     .filter((k) => k !== "why_dropped" || t[k].length)
@@ -35,10 +35,10 @@ const toItem = (t: Task): Item => {
 };
 
 /** 全部の task を 1 回で読む。no-store なので、reload すると最新の書き込みが見える */
-export async function fetchTasks(): Promise<Item[]> {
+export async function fetchTasks(): Promise<TaskView[]> {
   const res = await fetch("/api/tasks", { cache: "no-store" });
   if (!res.ok) throw new Error(`Couldn't load tasks (${res.status})`);
-  return ((await res.json()) as Task[]).map(toItem);
+  return ((await res.json()) as Task[]).map(toTaskView);
 }
 
 /** task を書き換える。断られたら理由を返す */
@@ -63,6 +63,20 @@ export const deleteHabit = (id: number) => send("DELETE", `/api/habits/${id}`);
 /** day にやった印を付ける、または外す */
 export const checkHabit = (id: number, day: string, done: boolean) =>
   send(done ? "PUT" : "DELETE", `/api/habits/${id}/checks/${day}`);
+
+/** outline の行を全部読む。木は読んだ側で組む */
+export async function fetchItems(): Promise<Item[]> {
+  const res = await fetch("/api/items", { cache: "no-store" });
+  if (!res.ok) throw new Error(`Couldn't load items (${res.status})`);
+  return (await res.json()) as Item[];
+}
+
+export const addItem = (text: string, parent_id: number | null, due: string | null = null) =>
+  send("POST", "/api/items", { text, parent_id, due });
+export const patchItem = (id: number, fields: Partial<Item>) =>
+  send("PATCH", `/api/items/${id}`, fields);
+/** 行を、その下の行ごと消す */
+export const deleteItem = (id: number) => send("DELETE", `/api/items/${id}`);
 
 /** API に書き込む。断られたら理由を返す */
 async function send(method: string, path: string, body?: unknown): Promise<string | undefined> {

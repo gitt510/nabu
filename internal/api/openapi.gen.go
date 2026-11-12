@@ -52,6 +52,20 @@ type Habit struct {
 	Title string `json:"title"`
 }
 
+// Item defines model for Item.
+type Item struct {
+	Created  string  `json:"created"`
+	Done     bool    `json:"done"`
+	Due      *string `json:"due"`
+	Id       int     `json:"id"`
+	ParentId *int    `json:"parent_id"`
+
+	// Position the order among its siblings, smallest first
+	Position float32 `json:"position"`
+	Text     string  `json:"text"`
+	Updated  string  `json:"updated"`
+}
+
 // Status defines model for Status.
 type Status string
 
@@ -99,6 +113,24 @@ type PostApiHabitsJSONBody struct {
 // PatchApiHabitsIdJSONBody defines parameters for PatchApiHabitsId.
 type PatchApiHabitsIdJSONBody struct {
 	Title string `json:"title"`
+}
+
+// PostApiItemsJSONBody defines parameters for PostApiItems.
+type PostApiItemsJSONBody struct {
+	Due      *string `json:"due,omitempty"`
+	ParentId *int    `json:"parent_id,omitempty"`
+	Text     string  `json:"text"`
+}
+
+// PatchApiItemsIdJSONBody defines parameters for PatchApiItemsId.
+type PatchApiItemsIdJSONBody struct {
+	Done     *bool   `json:"done,omitempty"`
+	Due      *string `json:"due,omitempty"`
+	ParentId *int    `json:"parent_id,omitempty"`
+
+	// Position the order among its siblings, smallest first
+	Position *float32 `json:"position,omitempty"`
+	Text     *string  `json:"text,omitempty"`
 }
 
 // GetApiTasksParams defines parameters for GetApiTasks.
@@ -153,6 +185,12 @@ type PostApiHabitsJSONRequestBody PostApiHabitsJSONBody
 
 // PatchApiHabitsIdJSONRequestBody defines body for PatchApiHabitsId for application/json ContentType.
 type PatchApiHabitsIdJSONRequestBody PatchApiHabitsIdJSONBody
+
+// PostApiItemsJSONRequestBody defines body for PostApiItems for application/json ContentType.
+type PostApiItemsJSONRequestBody PostApiItemsJSONBody
+
+// PatchApiItemsIdJSONRequestBody defines body for PatchApiItemsId for application/json ContentType.
+type PatchApiItemsIdJSONRequestBody PatchApiItemsIdJSONBody
 
 // PostApiTasksJSONRequestBody defines body for PostApiTasks for application/json ContentType.
 type PostApiTasksJSONRequestBody PostApiTasksJSONBody

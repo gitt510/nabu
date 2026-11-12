@@ -131,6 +131,38 @@ export const day = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, "must be a date (2026-10-26)")
   .refine((s) => !Number.isNaN(Date.parse(s)), "must be a date that exists");
 
+// Item is one line of an outline as /api/items returns it. A line under no parent is a root; due is the day
+// a root is for. done is the line's own check: a line with children shows done when every child does.
+export const Item = z
+  .strictObject({
+    id: z.number().int(),
+    parent_id: z.number().int().nullable(),
+    position: z.number().meta({ description: "the order among its siblings, smallest first" }),
+    text: nonBlank,
+    done: z.boolean(),
+    due: day.nullable(),
+    created: z.string(),
+    updated: z.string(),
+  })
+  .meta({ id: "Item" });
+export type Item = z.output<typeof Item>;
+
+// ItemCreate is POST /api/items: a new line, not done, after its last sibling.
+export const ItemCreate = z.strictObject({
+  text: nonBlank,
+  parent_id: z.number().int().nullable().default(null),
+  due: day.nullable().default(null),
+});
+
+// ItemPatch is PATCH /api/items/:id: any field; a new parent_id without a position puts it last there.
+export const ItemPatch = Item.pick({
+  text: true,
+  parent_id: true,
+  position: true,
+  done: true,
+  due: true,
+}).partial();
+
 // whole checks what no single field can: a dropped task says why, and only a dropped task does. It has no
 // JSON Schema form, so whyDropped says it in words.
 export function whole(t: Pick<Task, "status" | "why_dropped">): string | undefined {

@@ -4,6 +4,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "zod";
 import { access } from "./access";
 import { habits } from "./habits";
+import { items } from "./items";
 import { TaskCreate, TaskPatch } from "./schema";
 import { tasks } from "./tasks";
 
@@ -18,6 +19,7 @@ app.use(access);
 app.get("/api/schema", (c) => c.json(contract));
 app.route("/api/tasks", tasks);
 app.route("/api/habits", habits);
+app.route("/api/items", items);
 // /api/openapi.json is every route of the API as OpenAPI, built from the routes and their zod schemas.
 app.doc31("/api/openapi.json", { openapi: "3.1.0", info: { title: "nabu", version: "1" } });
 app.notFound((c) => c.text("not found\n", 404));

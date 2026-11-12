@@ -1,4 +1,4 @@
-import type { Item } from "../api";
+import type { TaskView } from "../api";
 import { fmtDay } from "../time";
 import { Caption, EmptyState, Group, ListRow, Stack } from "./ui";
 
@@ -12,7 +12,7 @@ export function TaskList({
   onSelect,
   updated,
 }: {
-  items: Item[];
+  items: TaskView[];
   selected: string;
   onSelect: (id: string) => void;
   updated: boolean;

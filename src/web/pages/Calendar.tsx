@@ -1,7 +1,8 @@
 import { type ReactNode, useState } from "react";
 
-import { checkHabit, type Item } from "../api";
+import { checkHabit, patchItem, type TaskView } from "../api";
 import { STATUS_LABEL } from "../components/states";
+import { ItemTree } from "../components/ItemTree";
 import { TaskDetail } from "../components/TaskDetail";
 import {
   Caption,
@@ -19,9 +20,11 @@ import {
   useMediaQuery,
 } from "../components/ui";
 import { useHabits } from "../hooks/useHabits";
+import { useItems } from "../hooks/useItems";
+import { childrenOf, isDone, leavesUnder } from "../outline";
 import { addDays, dayLabel, dayOf, fmtDay, instant, isLate, timeOf, todayKey } from "../time";
 
-const bySchedule = (a: Item, b: Item) =>
+const bySchedule = (a: TaskView, b: TaskView) =>
   instant(a.scheduled!).getTime() - instant(b.scheduled!).getTime();
 
 /**
@@ -29,6 +32,7 @@ const bySchedule = (a: Item, b: Item) =>
  * 終わった予定も、その日の記録として残す。今日か先の日を見ているときは、今日の時点で予定日を過ぎてまだ開いている
  * task を下に足す（今日の予定はまだ遅れていないので入れない）。過去の日には出さない。
  * 予定の下には毎日やる habit を並べ、その日にやった印をここで付け外しする。
+ * その下には、見ている日の月が期日の item を木のまま並べ、印をここで付け外しする。
  * 広い画面では選んだ task を右の列に開き、狭い画面では Tasks page に移って開く
  */
 export function Calendar({
@@ -38,7 +42,7 @@ export function Calendar({
   onOpen,
   onChanged,
 }: {
-  tasks: Item[];
+  tasks: TaskView[];
   selected: string;
   onSelect: (id: string) => void;
   onOpen: (id: string) => void;
@@ -49,6 +53,13 @@ export function Calendar({
   const task = tasks.find((t) => String(t.id) === selected);
   const isToday = day === todayKey();
   const { habits, error, write } = useHabits(day);
+  const outline = useItems();
+  const month = day.slice(0, 7);
+  const monthly = outline.items
+    ? childrenOf(outline.items, null)
+        .filter((i) => i.due?.startsWith(month))
+        .sort((a, b) => a.due!.localeCompare(b.due!))
+    : [];
   const planned = tasks.filter((t) => t.scheduled && dayOf(t.scheduled) === day).sort(bySchedule);
   const late =
     day >= todayKey()
@@ -64,7 +75,7 @@ export function Calendar({
     ["ArrowRight", next],
   ]);
 
-  const row = (t: Item, aside: ReactNode) => (
+  const row = (t: TaskView, aside: ReactNode) => (
     <ListRow
       key={t.id}
       id={`day-${t.id}`}
@@ -118,6 +129,38 @@ export function Calendar({
               />
             ))}
             <ErrorText>{error}</ErrorText>
+          </Stack>
+        </Section>
+      ) : null}
+      {monthly.length && outline.items ? (
+        <Section
+          title="This month"
+          aside={
+            <Caption mono>
+              {monthly.filter((i) => isDone(outline.items!, i)).length} / {monthly.length}
+            </Caption>
+          }
+        >
+          <Stack gap="xs">
+            <ItemTree
+              items={outline.items}
+              roots={monthly}
+              row={(i) => (
+                <Group justify="space-between" wrap="nowrap">
+                  <Checkbox
+                    label={i.text}
+                    checked={isDone(outline.items!, i)}
+                    onChange={(v) =>
+                      void outline.write(
+                        ...leavesUnder(outline.items!, i).map((l) => patchItem(l.id, { done: v })),
+                      )
+                    }
+                  />
+                  {i.due ? <Caption mono>{fmtDay(i.due)}</Caption> : null}
+                </Group>
+              )}
+            />
+            <ErrorText>{outline.error}</ErrorText>
           </Stack>
         </Section>
       ) : null}
