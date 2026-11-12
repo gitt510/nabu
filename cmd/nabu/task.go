@@ -54,7 +54,7 @@ type result struct {
 	Frontmatter *meta      `json:"frontmatter,omitempty"`
 }
 
-// readTaskBody reads a body: a JSON object of a task's title and sections, sent to the API as it is.
+// readTaskBody reads a body: a JSON object of a task's title, sent to the API as it is.
 func readTaskBody(content string, e *env) (map[string]any, error) {
 	body, err := readBody(content, e.stdin)
 	if err != nil {
@@ -62,13 +62,13 @@ func readTaskBody(content string, e *env) (map[string]any, error) {
 	}
 	var fields map[string]any
 	if err := json.Unmarshal(body, &fields); err != nil || fields == nil {
-		return nil, errors.New("the body must be a JSON object of the task's title and sections (see task schema)")
+		return nil, errors.New("the body must be a JSON object of the task's title (see task schema)")
 	}
 	return fields, nil
 }
 
 // bodyHelp is the body as the help states it; every command that takes one points here.
-const bodyHelp = "the body is a JSON object of the task's title and sections, one string per line, as task schema gives them; the API refuses one that breaks the task contract, and says why."
+const bodyHelp = "the body is a JSON object of the task's title, as task schema gives it; the API refuses one that breaks the task contract, and says why."
 
 func taskNewCmd(e *env) *cobra.Command {
 	var content string
@@ -119,7 +119,7 @@ func taskReplaceCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "replace <slug|id>",
 		Short:   "replace a task's body, keeping its frontmatter",
-		Long:    "replaces the title and the sections the body gives, in a task of any status; its frontmatter is kept as is (see task set).\nthe body is read from stdin unless --content is given.\n" + bodyHelp,
+		Long:    "replaces the title the body gives, in a task of any status; its frontmatter is kept as is (see task set).\nthe body is read from stdin unless --content is given.\n" + bodyHelp,
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
@@ -203,7 +203,7 @@ func move(e *env, action, slug string, status api.Status, why []string) int {
 func taskDoneCmd(e *env) *cobra.Command {
 	return &cobra.Command{
 		Use:     "done <slug|id>",
-		Short:   "mark a task done: its DoD is met",
+		Short:   "mark a task done",
 		Long:    "marks a task done; a dropped task becomes done and loses its why_dropped",
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
@@ -216,7 +216,7 @@ func taskDoneCmd(e *env) *cobra.Command {
 func taskDropCmd(e *env) *cobra.Command {
 	return &cobra.Command{
 		Use:     "drop <slug|id> <why>...",
-		Short:   "drop a task without meeting its DoD, saying why",
+		Short:   "drop a task, saying why",
 		Long:    "marks a task dropped: work decided against. each <why> is one line of why_dropped, the reason the task keeps; a dropped task given new lines keeps those instead",
 		GroupID: "update",
 		Args:    cobra.MinimumNArgs(2),
@@ -309,7 +309,7 @@ func taskSchemaCmd(e *env) *cobra.Command {
 	return cmd
 }
 
-// document is a task as task read prints it: its frontmatter, then its title and sections.
+// document is a task as task read prints it: its frontmatter, then its title and why it was dropped.
 func document(t api.Task) string {
 	m := metaOf(t)
 	return m.render() + renderBody(t)
@@ -319,7 +319,7 @@ func taskReadCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "read <slug|id>",
 		Short:   "print a task, whatever its status",
-		Long:    "prints a task as markdown to read: its frontmatter block, then its title and sections",
+		Long:    "prints a task as markdown to read: its frontmatter block, then its title and why it was dropped",
 		GroupID: "read",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {

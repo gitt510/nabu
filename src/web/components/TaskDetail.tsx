@@ -37,7 +37,7 @@ import {
   useHotkeys,
 } from "./ui";
 
-/** 開いている task：番号を添えた題と右端の memo を足す・完了・やめる（閉じた task は開き直す）操作、その下に予定日の札・作った日・直した日の 1 行と、area・project・waiting・link を icon つきで並べる 1 行、端から端までの区切りの線のあとに、scroll する本文として Why と DoD（と Why dropped）を枠なしの文章で、そのあとに書き足せる Memo を。書かれていない section は見出しだけを出す */
+/** 開いている task：番号を添えた題と右端の memo を足す・完了・やめる（閉じた task は開き直す）操作、その下に予定日の札・作った日・直した日の 1 行と、area・project・waiting・link を icon つきで並べる 1 行、端から端までの区切りの線のあとに、scroll する本文として、やめた task なら Why dropped を枠なしの文章で、そのあとに書き足せる Memo を */
 export function TaskDetail({
   task,
   onBack,
@@ -137,11 +137,11 @@ export function TaskDetail({
   return (
     <Pane head={head}>
       <Stack gap="md">
-        {task.parts.map((p) => (
-          <Passage key={p.key} title={p.title}>
-            {p.html ? <Prose html={p.html} /> : null}
+        {task.whyDropped ? (
+          <Passage title="Why dropped">
+            <Prose html={task.whyDropped} />
           </Passage>
-        ))}
+        ) : null}
         <Memo
           key={task.id}
           lines={task.memo}

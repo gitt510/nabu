@@ -72,24 +72,6 @@
             },
             "uniqueItems": true
           },
-          "why": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "maxLength": 45,
-              "pattern": "\\S"
-            },
-            "description": "why the task is worth starting: what is wrong or missing now"
-          },
-          "dod": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "maxLength": 45,
-              "pattern": "\\S"
-            },
-            "description": "the definition of done: what has to be true to close the task"
-          },
           "why_dropped": {
             "type": "array",
             "items": {
@@ -127,8 +109,6 @@
           "tickets",
           "prs",
           "links",
-          "why",
-          "dod",
           "why_dropped",
           "memo",
           "created",
@@ -313,24 +293,6 @@
                     },
                     "default": [],
                     "uniqueItems": true
-                  },
-                  "why": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 45,
-                      "pattern": "\\S"
-                    },
-                    "default": []
-                  },
-                  "dod": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 45,
-                      "pattern": "\\S"
-                    },
-                    "default": []
                   }
                 },
                 "required": [
@@ -519,24 +481,6 @@
                       "pattern": "^https:\\/\\/[^\\s/?#]+"
                     },
                     "uniqueItems": true
-                  },
-                  "why": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 45,
-                      "pattern": "\\S"
-                    },
-                    "description": "why the task is worth starting: what is wrong or missing now"
-                  },
-                  "dod": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 45,
-                      "pattern": "\\S"
-                    },
-                    "description": "the definition of done: what has to be true to close the task"
                   },
                   "why_dropped": {
                     "type": "array",

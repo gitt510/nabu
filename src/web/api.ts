@@ -1,38 +1,16 @@
 import { marked } from "marked";
 
-import { type Habit, type Item, SECTIONS, type Task } from "../api/schema";
+import type { Habit, Item, Task } from "../api/schema";
 
-/** 読むだけの section。memo は page で書き足すので、ここには入れない */
-type Read = Exclude<(typeof SECTIONS)[number], "memo">;
+/** page が見せる形の task：やめた理由があれば、箇条書きにした HTML を添える */
+export type TaskView = Task & { whyDropped: string | null };
 
-/** 本文の 1 section：見出しと、行を箇条書きにした HTML（行がなければ空） */
-export type Part = { key: Read; title: string; html: string };
-
-/** page が見せる形の task：本文は Why と DoD をいつも、Why dropped は行があるときだけ */
-export type TaskView = Task & { parts: Part[] };
-
-const HEADINGS: Record<Read, string> = {
-  why: "Why",
-  dod: "DoD",
-  why_dropped: "Why dropped",
-};
-
-const toTaskView = (t: Task): TaskView => {
-  const read = SECTIONS.filter((k): k is Read => k !== "memo");
-  const lists = read
-    .filter((k) => k !== "why_dropped" || t[k].length)
-    .map((k) => ({
-      key: k,
-      title: HEADINGS[k],
-      md: t[k].map((l) => `- ${l}`).join("\n"),
-    }));
-  const parts = lists.map(({ key, title, md }) => ({
-    key,
-    title,
-    html: md && marked.parse(md, { async: false }),
-  }));
-  return { ...t, parts };
-};
+const toTaskView = (t: Task): TaskView => ({
+  ...t,
+  whyDropped: t.why_dropped.length
+    ? marked.parse(t.why_dropped.map((l) => `- ${l}`).join("\n"), { async: false })
+    : null,
+});
 
 /** 全部の task を 1 回で読む。no-store なので、reload すると最新の書き込みが見える */
 export async function fetchTasks(): Promise<TaskView[]> {

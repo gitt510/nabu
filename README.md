@@ -53,11 +53,10 @@ agent: nabu task new review-pr-68 --area work --pr https://github.com/o/r/pull/6
 
 - A task lives in Cloudflare D1, and the Worker's `/api/tasks` is the only way in
 - A task's status is one of `todo`, `done`, `dropped`, set by `nabu task done`, `nabu task drop`, and `nabu task reopen`
-- The body is `why`, why the task is worth starting, and `dod`, its definition of done, each a list of lines
-- A change to the body adds columns and leaves old tasks as they were: `situation`, `complication`, `question`, and `answer` stay in D1, unread
+- A task is its title and its frontmatter: `area`, `project`, `scheduled`, `waiting`, `tickets`, `prs`, and `links`
 - A dropped task also carries `why_dropped`, and no other task does
 - A task also carries `memo`, lines of what was done or thought, added one at a time in the viewer
-- `nabu task new` and `nabu task replace` take the body as JSON, and `nabu task read` prints it as markdown
+- `nabu task new` and `nabu task replace` take the title as JSON, and `nabu task read` prints the task as markdown
 - The API refuses a task out of shape, so no stored task is out of shape
 - Every write keeps the task before and after it as an event
 - [`cmd/nabu/frontmatter.go`](cmd/nabu/frontmatter.go) maps every frontmatter key to its flag, and passes each value to the API unchecked
