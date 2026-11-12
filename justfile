@@ -35,10 +35,29 @@ deploy:
     pnpm install --frozen-lockfile --silent
     pnpm --silent build && pnpm exec wrangler deploy
 
-# Serve the viewer from the working tree at http://localhost:8787 with hot reload; writes reach the production D1
+# Serve the viewer and the Worker from the working tree at http://localhost:8787 on the local D1
 dev:
+    #!/usr/bin/env bash
+    set -euo pipefail
     pnpm install --frozen-lockfile --silent
+    pnpm exec wrangler d1 migrations apply nabu --local
+    # The Worker serves dist/ as its assets; vite serves the page in dev, so an empty one is enough
+    mkdir -p dist
+    trap 'kill 0' EXIT
+    pnpm exec wrangler dev --local --port 8788 &
     pnpm --silent dev
+
+# Copy the production D1 into the local D1 that just dev reads (stop just dev first)
+db-pull:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # The dump holds every task, so it lives only until the copy is done
+    dir=$(mktemp -d)
+    trap 'rm -rf "$dir"' EXIT
+    dump="$dir/nabu.sql"
+    pnpm exec wrangler d1 export nabu --remote --output "$dump"
+    rm -rf .wrangler/state/v3/d1
+    pnpm exec wrangler d1 execute nabu --local --file "$dump"
 
 # Upload the working tree as a preview at https://preview-nabu.gitt510.workers.dev; production keeps serving, but writes reach the production D1
 preview:
