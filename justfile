@@ -52,8 +52,9 @@ db-pull:
     #!/usr/bin/env bash
     set -euo pipefail
     # The dump holds every task, so it lives only until the copy is done
-    dump=$(mktemp -t nabu-d1).sql
-    trap 'rm -f "$dump"' EXIT
+    dir=$(mktemp -d)
+    trap 'rm -rf "$dir"' EXIT
+    dump="$dir/nabu.sql"
     pnpm exec wrangler d1 export nabu --remote --output "$dump"
     rm -rf .wrangler/state/v3/d1
     pnpm exec wrangler d1 execute nabu --local --file "$dump"
