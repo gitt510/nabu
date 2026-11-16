@@ -26,6 +26,7 @@ nabu task drop <slug> "<why>"...             # decided against; one line of why_
 nabu task reopen <slug>                      # back to todo; a dropped task loses its why_dropped
 nabu task rename <slug> <new-slug>           # new slug, same status and content
 nabu task rm <slug>                          # delete a task, whatever its status
+nabu task item add <slug> "<line>"...        # add lines last in a task's checklist, one per argument
 nabu task ls [status] [--json]               # status, title, created; --json adds slug, the frontmatter, and the body
 nabu task read <slug>                        # a task's content as markdown, any status
 nabu task schema                             # the rules a write must meet, as JSON Schema
@@ -63,18 +64,21 @@ or quote `'#6'`, since a shell reads an unquoted `#` as a comment.
 4. **Revise with `task replace` and `task set`.** `task replace` takes a
    new title on stdin and keeps the frontmatter; `task set` changes the
    frontmatter and keeps the title.
-5. **Mark a wait with `task set --waiting`.** When the user has done their
+5. **Break the work down with `task item add`.** When the user gives the
+   steps of a task, add them to its checklist, one argument per step, in
+   order. Checking a line off and editing it happen in the viewer.
+6. **Mark a wait with `task set --waiting`.** When the user has done their
    part and waits on someone else (a reply, a review), keep the task todo
    and run `nabu task set <slug> --waiting "<who or what>"`;
    `--clear-waiting` when the ball is back. Do not write the wait into the
    body as well.
-6. **Report the slug and the frontmatter.** After a write, tell the user
+7. **Report the slug and the frontmatter.** After a write, tell the user
    the slug and status nabu printed (`task rename` also prints `from` and
    `to`). After `task new` and `task set`, also show the
    `frontmatter` nabu printed, as a YAML block in the order nabu prints
    it, so the user can correct an `area` or `project` you chose on the
    spot.
-7. **Fix what the API refuses.** nabu exits 2 with the API's reason when a
+8. **Fix what the API refuses.** nabu exits 2 with the API's reason when a
    body or a value breaks the rules (a reason line too long, a dropped task
    without a reason); rewrite and run the command again.
 

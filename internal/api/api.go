@@ -115,6 +115,12 @@ func (c *Client) Delete(ref string) error {
 	return c.do(http.MethodDelete, path, nil, nil)
 }
 
+// AddItem adds a line, not done, last in the checklist of the task with id taskID.
+func (c *Client) AddItem(taskID int, text string) (Item, error) {
+	var out Item
+	return out, c.do(http.MethodPost, "/api/items", PostApiItemsJSONBody{TaskId: taskID, Text: text}, &out)
+}
+
 // Schema returns the task contract as JSON Schema, the rules every write must meet.
 func (c *Client) Schema() (json.RawMessage, error) {
 	var out json.RawMessage

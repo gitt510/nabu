@@ -28,6 +28,8 @@ type fakeAPI struct {
 	next int
 	// last is the JSON body of the last write, as the CLI sent it.
 	last map[string]any
+	// items are the checklist lines added, in order.
+	items []api.Item
 }
 
 func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -67,6 +69,18 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return cmp.Or(slices.Index(order, a.Status)-slices.Index(order, b.Status), strings.Compare(a.Slug, b.Slug))
 		})
 		_ = json.NewEncoder(w).Encode(out)
+		return
+	case r.Method == http.MethodPost && r.URL.Path == "/api/items":
+		var it api.Item
+		b, _ := json.Marshal(f.last)
+		_ = json.Unmarshal(b, &it)
+		if strings.TrimSpace(it.Text) == "" {
+			refuse(422, "text: must not be blank")
+			return
+		}
+		f.items = append(f.items, it)
+		w.WriteHeader(201)
+		_ = json.NewEncoder(w).Encode(it)
 		return
 	case r.Method == http.MethodPost && r.URL.Path == "/api/tasks":
 		t := api.Task{Status: api.Todo, Created: "2026-10-06T09:00:00+09:00", Updated: "2026-10-06T09:00:00+09:00"}
@@ -409,6 +423,21 @@ func TestTaskDoneDropReopenRenameRmViaCLI(t *testing.T) {
 	if _, ok := f.tasks["renamed"]; ok {
 		t.Fatal("rm left the task")
 	}
+}
+
+func TestTaskItemAddViaCLI(t *testing.T) {
+	f, nabu := newAPI(t)
+	nabu(exitOK, content("Ok"), "task", "new", "ok", "--area", "work")
+	nabu(exitUsage, "", "task", "item", "add", "ok")
+	if got := nabu(exitOK, "", "task", "item", "add", "1", "first", "second"); !strings.Contains(got, `"slug": "ok"`) {
+		t.Fatalf("item add: %s", got)
+	}
+	id := f.tasks["ok"].Id
+	if len(f.items) != 2 || f.items[0] != (api.Item{TaskId: id, Text: "first"}) || f.items[1] != (api.Item{TaskId: id, Text: "second"}) {
+		t.Fatalf("items: %+v", f.items)
+	}
+	nabu(exitUsage, "", "task", "item", "add", "ok", " ")
+	nabu(exitFail, "", "task", "item", "add", "missing", "x")
 }
 
 func TestTaskLsAndGrepViaCLI(t *testing.T) {
