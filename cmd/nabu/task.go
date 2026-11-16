@@ -31,6 +31,7 @@ func taskCmd(e *env) *cobra.Command {
 		taskLsCmd(e), taskGrepCmd(e),
 		taskReadCmd(e), taskSchemaCmd(e),
 		taskNewCmd(e), taskReplaceCmd(e), taskSetCmd(e), taskDoneCmd(e), taskDropCmd(e), taskReopenCmd(e), taskRenameCmd(e), taskRmCmd(e),
+		taskItemCmd(e),
 	)
 	return cmd
 }
@@ -52,6 +53,7 @@ type result struct {
 	From        string     `json:"from,omitempty"`
 	To          string     `json:"to,omitempty"`
 	Frontmatter *meta      `json:"frontmatter,omitempty"`
+	Items       []string   `json:"items,omitempty"`
 }
 
 // readTaskBody reads a body: a JSON object of a task's title, sent to the API as it is.
@@ -284,6 +286,39 @@ func taskRmCmd(e *env) *cobra.Command {
 			return emit(e.stdout, result{Action: "task rm", Slug: slug})
 		}),
 	}
+	return cmd
+}
+
+// taskItemCmd is the group of commands on a task's checklist.
+func taskItemCmd(e *env) *cobra.Command {
+	cmd := parentCmd(e, &cobra.Command{
+		Use:     "item",
+		Short:   "change a task's checklist",
+		GroupID: "update",
+	})
+	cmd.AddCommand(&cobra.Command{
+		Use:   "add <slug|id> <line>...",
+		Short: "add lines to a task's checklist",
+		Long:  "adds each <line>, not done, last in the checklist of a task in any status, in the order given",
+		Args:  cobra.MinimumNArgs(2),
+		RunE: do(func(args []string) int {
+			slug := arg(args, 0)
+			c, err := client()
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			t, err := c.Get(slug)
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			for _, line := range args[1:] {
+				if _, err := c.AddItem(t.Id, line); err != nil {
+					return fail(e.stderr, err, exitFail)
+				}
+			}
+			return emit(e.stdout, result{Action: "task item add", Slug: t.Slug, Status: t.Status, Items: args[1:]})
+		}),
+	})
 	return cmd
 }
 
