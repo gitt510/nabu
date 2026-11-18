@@ -71,8 +71,7 @@ agent: nabu task new --area work --pr https://github.com/o/r/pull/68
 - `just` lists the recipes, such as `just test` and `just check`
 - `pnpm test -u` writes `openapi.json` again after a route or a schema changes, and `pnpm test` fails while it is stale
 - `go generate ./...` writes the CLI's types in `internal/api/openapi.gen.go` again from `openapi.json`, and `just check` fails while they are stale
-- `just dev` serves the viewer and the Worker from the working tree on the local D1, and sends the token `cloudflared` holds with every `/api/*` request, so the Worker checks it as in production
-- `just db-pull` copies the production D1 into the local D1
+- `just dev` serves the viewer and the Worker from the working tree on a local D1 made anew from [`src/api/dev/seed.sql`](src/api/dev/seed.sql) each time, with no Access check on localhost
 - `src/api/migrations/` holds the D1 schema, applied with `wrangler d1 migrations apply nabu --remote`
 - [`docs/config.md`](docs/config.md) lists every config by consumer and sensitivity
 - [`docs/architecture.md`](docs/architecture.md) draws the routes that cross containers and how the task contract reaches each consumer

@@ -5,6 +5,10 @@ import { createMiddleware } from "hono/factory";
 import { verifyWithJwks } from "hono/jwt";
 
 export const access = createMiddleware<{ Bindings: Env }>(async (c, next) => {
+  // just dev runs the Worker on localhost with no Access in front, and says so with DEV_SKIP_ACCESS. Only a
+  // request to localhost skips the check, so the flag set anywhere else changes nothing.
+  const dev = (c.env as { DEV_SKIP_ACCESS?: string }).DEV_SKIP_ACCESS === "1";
+  if (dev && new URL(c.req.url).hostname === "localhost") return next();
   // Access signs every request it lets through, whether the user came from a browser or from cloudflared.
   const token = c.req.header("cf-access-jwt-assertion");
   if (!token) return c.json({ error: "not signed in through Access" }, 401);
