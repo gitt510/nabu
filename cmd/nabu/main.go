@@ -25,8 +25,7 @@ text; task ls and task grep print a table on a terminal, plain text when piped,
 and JSON with --json.
 
 Every request is signed in through Cloudflare Access with the token
-cloudflared holds: run cloudflared access login <base_url> once, and again when
-the session expires.
+cloudflared holds: run nabu login once, and again when the session expires.
 
 The Worker comes from base_url in %s`
 
@@ -52,7 +51,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	})
-	root.AddCommand(taskCmd(e))
+	root.AddCommand(taskCmd(e), loginCmd(e))
 	root.SetArgs(args)
 	root.SetIn(stdin)
 	root.SetOut(stdout)
@@ -119,7 +118,7 @@ func arg(args []string, i int) string {
 var errNoURL = errors.New("no base_url declared")
 
 func setupMessage() string {
-	return fmt.Sprintf("no base_url declared.\n\ncreate %s like:\n\n%s\nthen sign in with cloudflared access login <base_url>\n", config.Path(), config.Example)
+	return fmt.Sprintf("no base_url declared.\n\ncreate %s like:\n\n%s\nthen sign in with nabu login\n", config.Path(), config.Example)
 }
 
 // client is the API client for the Worker the config file declares.

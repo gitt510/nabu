@@ -9,7 +9,7 @@ go install github.com/gitt510/nabu/cmd/nabu@latest
 brew install cloudflared
 mkdir -p ~/.config/nabu
 echo '{"base_url": "https://nabu.<you>.workers.dev"}' > ~/.config/nabu/config.json
-cloudflared access login https://nabu.<you>.workers.dev
+nabu login
 ```
 
 - nabu needs Go 1.26+ to build
@@ -28,7 +28,8 @@ cloudflared access login https://nabu.<you>.workers.dev
 
 - Cloudflare Access guards the Worker, both the viewer and the API
 - nabu sends the Access token that `cloudflared` holds with every request
-- nabu fails with `not signed in: run cloudflared access login <base_url>` when `cloudflared` holds no token or an expired one
+- `nabu login` signs in through `cloudflared access login -q`, which opens the browser and keeps the token without printing it
+- nabu fails with `not signed in: run nabu login` when `cloudflared` holds no token or an expired one
 
 ## Agent skill
 
