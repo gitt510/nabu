@@ -5,15 +5,17 @@ import type { ComponentType } from "react";
 export type IconComponent = ComponentType<{ size?: number; stroke?: number }>;
 
 export {
-  IconArrowLeft as ArrowLeftIcon,
   IconArrowBackUp as ArrowBackUpIcon,
   IconCalendar as CalendarIcon,
+  IconCheck as CheckIcon,
   IconChecklist as ChecklistIcon,
+  IconChevronDown as ChevronDownIcon,
   IconChevronLeft as ChevronLeftIcon,
   IconChevronRight as ChevronRightIcon,
+  IconChevronUp as ChevronUpIcon,
   IconCircleCheck as CircleCheckIcon,
-  IconCirclePlus as CirclePlusIcon,
   IconCircleX as CircleXIcon,
+  IconDots as DotsIcon,
   IconFolder as FolderIcon,
   IconGitPullRequest as GitPullRequestIcon,
   IconHome as HomeIcon,

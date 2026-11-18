@@ -1,58 +1,40 @@
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 
 import { checkHabit, type TaskView } from "../api";
-import { STATUS_LABEL } from "../components/states";
 import { TaskDetail } from "../components/TaskDetail";
+import { TaskTitle, TaskWhen } from "../components/TaskTitle";
 import {
   Caption,
   Checkbox,
-  Columns,
   EmptyState,
   ErrorText,
-  Group,
-  ListRow,
+  FoldRow,
   Page,
   Pager,
   Section,
   Stack,
   useHotkeys,
-  useMediaQuery,
 } from "../components/ui";
 import { useHabits } from "../hooks/useHabits";
-import { addDays, dayLabel, dayOf, fmtDay, instant, isLate, timeOf, todayKey } from "../time";
+import { addDays, dayLabel, instant, todayKey } from "../time";
 
-const bySchedule = (a: TaskView, b: TaskView) =>
-  instant(a.scheduled!).getTime() - instant(b.scheduled!).getTime();
+/** Home に出す task の数 */
+const LATEST = 5;
 
 /**
- * 時間で見る page。1 日分の予定を、時刻のあるものから順に並べる（日付だけの予定は終日）。
- * 終わった予定も、その日の記録として残す。今日か先の日を見ているときは、今日の時点で予定日を過ぎてまだ開いている
- * task を下に足す（今日の予定はまだ遅れていないので入れない）。過去の日には出さない。
- * 予定の下には毎日やる habit を並べ、その日にやった印をここで付け外しする。
- * 広い画面では選んだ task を右の列に開き（URL には残さない）、狭い画面では Tasks page に移って開く
+ * 最初に開く page。Tasks の枠に、開いている task を作った日の新しい順に LATEST 件まで並べる（見ている日によらない）。
+ * Tasks の下には毎日やる habit を（まだ無くても枠ごと）並べ、その日にやった印をここで付け外しする。
+ * 行を押すと task をその場で開く（開くのは 1 つだけで、URL には残さない）
  */
-export function Home({
-  tasks,
-  onOpen,
-  onChanged,
-}: {
-  tasks: TaskView[];
-  onOpen: (id: string) => void;
-  onChanged: () => void;
-}) {
+export function Home({ tasks, onChanged }: { tasks: TaskView[]; onChanged: () => void }) {
   const [day, setDay] = useState(todayKey);
   const [selected, setSelected] = useState("");
-  const narrow = useMediaQuery("(max-width: 48em)") ?? false;
-  const task = tasks.find((t) => String(t.id) === selected);
   const isToday = day === todayKey();
   const { habits, error, write } = useHabits(day);
-  const planned = tasks.filter((t) => t.scheduled && dayOf(t.scheduled) === day).sort(bySchedule);
-  const late =
-    day >= todayKey()
-      ? tasks
-          .filter((t) => t.status === "todo" && t.scheduled && isLate(t.scheduled))
-          .sort(bySchedule)
-      : [];
+  const latest = tasks
+    .filter((t) => t.status === "todo")
+    .sort((a, b) => instant(b.created).getTime() - instant(a.created).getTime())
+    .slice(0, LATEST);
 
   const prev = () => setDay((d) => addDays(d, -1));
   const next = () => setDay((d) => addDays(d, 1));
@@ -61,52 +43,50 @@ export function Home({
     ["ArrowRight", next],
   ]);
 
-  const row = (t: TaskView, aside: ReactNode) => (
-    <ListRow
-      key={t.id}
-      id={`day-${t.id}`}
-      label={t.title}
-      active={!narrow && String(t.id) === selected}
-      onClick={() => (narrow ? onOpen : setSelected)(String(t.id))}
-      aside={
-        <Group gap={6} wrap="nowrap">
-          {t.status === "todo" ? null : <Caption>{STATUS_LABEL[t.status]}</Caption>}
-          {aside}
-        </Group>
-      }
-    />
-  );
-
-  const day_ = (
-    <Stack gap="lg">
-      <Pager
-        label={dayLabel(day)}
-        prev={{ label: "Previous day (←)", onClick: prev }}
-        next={{ label: "Next day (→)", onClick: next }}
-        reset={isToday ? undefined : { label: "Today", onClick: () => setDay(todayKey()) }}
-      />
-      <Section title="Scheduled">
-        {planned.length ? (
-          <Stack gap={2}>
-            {planned.map((t) =>
-              row(t, <Caption mono>{timeOf(t.scheduled!) ?? "All day"}</Caption>),
-            )}
-          </Stack>
-        ) : (
-          <EmptyState title="Nothing scheduled" />
-        )}
-      </Section>
-      {habits?.length ? (
+  return (
+    <Page>
+      <Stack gap="lg">
+        <Pager
+          label={dayLabel(day)}
+          prev={{ label: "Previous day (←)", onClick: prev }}
+          next={{ label: "Next day (→)", onClick: next }}
+          reset={isToday ? undefined : { label: "Today", onClick: () => setDay(todayKey()) }}
+        />
+        <Section title="Tasks">
+          {latest.length ? (
+            <Stack gap={2}>
+              {latest.map((t) => (
+                <FoldRow
+                  key={t.id}
+                  id={`day-${t.id}`}
+                  label={<TaskTitle task={t} />}
+                  open={String(t.id) === selected}
+                  onToggle={() => setSelected(String(t.id) === selected ? "" : String(t.id))}
+                  aside={<TaskWhen task={t} />}
+                >
+                  <TaskDetail task={t} onChanged={onChanged} />
+                </FoldRow>
+              ))}
+            </Stack>
+          ) : (
+            <EmptyState title="Nothing to do" />
+          )}
+        </Section>
         <Section
           title="Habits"
           aside={
-            <Caption mono>
-              {habits.filter((h) => h.done).length} / {habits.length}
-            </Caption>
+            habits?.length ? (
+              <Caption mono>
+                {habits.filter((h) => h.done).length} / {habits.length}
+              </Caption>
+            ) : null
           }
         >
           <Stack gap="xs">
-            {habits.map((h) => (
+            {habits && !habits.length ? (
+              <EmptyState title="No habits" description="Add one on the Habits page." />
+            ) : null}
+            {habits?.map((h) => (
               <Checkbox
                 key={h.id}
                 label={h.title}
@@ -117,29 +97,7 @@ export function Home({
             <ErrorText>{error}</ErrorText>
           </Stack>
         </Section>
-      ) : null}
-      {late.length ? (
-        <Section title="Overdue">
-          <Stack gap={2}>
-            {late.map((t) => row(t, <Caption mono>{fmtDay(t.scheduled!)}</Caption>))}
-          </Stack>
-        </Section>
-      ) : null}
-    </Stack>
-  );
-  if (narrow) return <Page>{day_}</Page>;
-  return (
-    <Page width="wide">
-      <Columns>
-        {day_}
-        {task ? (
-          <TaskDetail key={task.id} task={task} onChanged={onChanged} />
-        ) : (
-          <Section>
-            <EmptyState title="No task selected" description="Pick one from the day." />
-          </Section>
-        )}
-      </Columns>
+      </Stack>
     </Page>
   );
 }

@@ -27,7 +27,7 @@ export function DatePickerButton({
         <Button
           size="compact-sm"
           radius="xl"
-          variant="light"
+          variant="default"
           leftSection={<CalendarIcon size={14} />}
           onClick={() => setOpened((o) => !o)}
         >

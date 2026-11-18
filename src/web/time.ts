@@ -22,8 +22,6 @@ const KEY = new Intl.DateTimeFormat("en-CA", {
 });
 export const todayKey = () => KEY.format(new Date());
 export const dayOf = (iso: string) => KEY.format(instant(iso));
-/** 予定日が今日より前 */
-export const isLate = (iso: string) => dayOf(iso) < todayKey();
 export const addDays = (key: string, n: number) => {
   const [y, m, d] = key.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
