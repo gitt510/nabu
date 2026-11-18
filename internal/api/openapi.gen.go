@@ -73,7 +73,7 @@ type Task struct {
 	Area    Area   `json:"area"`
 	Created string `json:"created"`
 
-	// Id the number the task keeps for life, unlike its slug
+	// Id the number the task keeps for life
 	Id    int      `json:"id"`
 	Links []string `json:"links"`
 
@@ -82,7 +82,6 @@ type Task struct {
 	Project   *string  `json:"project"`
 	Prs       []string `json:"prs"`
 	Scheduled *string  `json:"scheduled"`
-	Slug      string   `json:"slug"`
 	Status    Status   `json:"status"`
 	Tickets   []string `json:"tickets"`
 	Title     string   `json:"title"`
@@ -128,12 +127,6 @@ type PatchApiItemsIdJSONBody struct {
 	Text     *string  `json:"text,omitempty"`
 }
 
-// GetApiTasksParams defines parameters for GetApiTasks.
-type GetApiTasksParams struct {
-	// Slug only the task with this slug, if any
-	Slug *string `form:"slug,omitempty" json:"slug,omitempty"`
-}
-
 // PostApiTasksJSONBody defines parameters for PostApiTasks.
 type PostApiTasksJSONBody struct {
 	Area      Area      `json:"area"`
@@ -141,7 +134,6 @@ type PostApiTasksJSONBody struct {
 	Project   *string   `json:"project,omitempty"`
 	Prs       *[]string `json:"prs,omitempty"`
 	Scheduled *string   `json:"scheduled,omitempty"`
-	Slug      string    `json:"slug"`
 	Tickets   *[]string `json:"tickets,omitempty"`
 	Title     string    `json:"title"`
 	Waiting   *string   `json:"waiting,omitempty"`
@@ -157,7 +149,6 @@ type PatchApiTasksIdJSONBody struct {
 	Project   *string   `json:"project,omitempty"`
 	Prs       *[]string `json:"prs,omitempty"`
 	Scheduled *string   `json:"scheduled,omitempty"`
-	Slug      *string   `json:"slug,omitempty"`
 	Status    *Status   `json:"status,omitempty"`
 	Tickets   *[]string `json:"tickets,omitempty"`
 	Title     *string   `json:"title,omitempty"`

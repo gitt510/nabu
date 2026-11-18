@@ -24,7 +24,7 @@ import (
 // what the real API refuses that nabu passes through, so the tests cover the
 // CLI, not the API's rules.
 type fakeAPI struct {
-	tasks map[string]api.Task
+	tasks map[int]api.Task
 	// next is the id the last task created took.
 	next int
 	// last is the JSON body of the last write, as the CLI sent it.
@@ -42,13 +42,8 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 	}
-	// The API addresses a task by its id; find the slug it holds now.
-	slug := ""
-	for k, t := range f.tasks {
-		if r.URL.Path == fmt.Sprintf("/api/tasks/%d", t.Id) {
-			slug = k
-		}
-	}
+	id := 0
+	_, _ = fmt.Sscanf(r.URL.Path, "/api/tasks/%d", &id)
 	if r.Method == http.MethodPost || r.Method == http.MethodPatch {
 		f.last = map[string]any{}
 		_ = json.NewDecoder(r.Body).Decode(&f.last)
@@ -60,14 +55,12 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodGet && r.URL.Path == "/api/tasks":
 		out := []api.Task{}
 		for _, t := range f.tasks {
-			if q := r.URL.Query().Get("slug"); q == "" || q == t.Slug {
-				out = append(out, t)
-			}
+			out = append(out, t)
 		}
-		// The API lists tasks in status order, then by slug.
+		// The API lists tasks in status order, then by id.
 		order := []api.Status{api.Todo, api.Done, api.Canceled}
 		slices.SortFunc(out, func(a, b api.Task) int {
-			return cmp.Or(slices.Index(order, a.Status)-slices.Index(order, b.Status), strings.Compare(a.Slug, b.Slug))
+			return cmp.Or(slices.Index(order, a.Status)-slices.Index(order, b.Status), a.Id-b.Id)
 		})
 		_ = json.NewEncoder(w).Encode(out)
 		return
@@ -89,18 +82,14 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			refuse(422, err.Error())
 			return
 		}
-		if _, ok := f.tasks[t.Slug]; ok {
-			refuse(409, t.Slug+" already exists")
-			return
-		}
 		f.next++
 		t.Id = f.next
-		f.tasks[t.Slug] = t
+		f.tasks[t.Id] = t
 		w.WriteHeader(201)
 		_ = json.NewEncoder(w).Encode(t)
 		return
 	}
-	t, ok := f.tasks[slug]
+	t, ok := f.tasks[id]
 	if !ok {
 		refuse(404, "no such task")
 		return
@@ -113,15 +102,10 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			refuse(422, err.Error())
 			return
 		}
-		if _, taken := f.tasks[t.Slug]; taken && t.Slug != slug {
-			refuse(409, t.Slug+" already exists")
-			return
-		}
-		delete(f.tasks, slug)
-		f.tasks[t.Slug] = t
+		f.tasks[id] = t
 		_ = json.NewEncoder(w).Encode(t)
 	case http.MethodDelete:
-		delete(f.tasks, slug)
+		delete(f.tasks, id)
 		w.WriteHeader(204)
 	}
 }
@@ -155,7 +139,7 @@ func overlay(t *api.Task, fields map[string]any) error {
 // exit code. The runner returns stdout.
 func newAPI(t *testing.T) (*fakeAPI, func(want int, stdin string, args ...string) string) {
 	t.Helper()
-	f := &fakeAPI{tasks: map[string]api.Task{}}
+	f := &fakeAPI{tasks: map[int]api.Task{}}
 	srv := httptest.NewServer(f)
 	t.Cleanup(srv.Close)
 	useClient(t, srv.URL, func(string) (string, error) { return "token", nil })
@@ -235,7 +219,7 @@ func TestHelpGoesToStdout(t *testing.T) {
 	if code := run([]string{"task", "new", "-h"}, strings.NewReader(""), &out, &errb); code != exitOK {
 		t.Fatalf("exit %d", code)
 	}
-	if !strings.Contains(out.String(), "nabu task new <slug> [flags]") || errb.Len() != 0 {
+	if !strings.Contains(out.String(), "nabu task new [flags]") || errb.Len() != 0 {
 		t.Fatalf("stdout=%q stderr=%q", out.String(), errb.String())
 	}
 }
@@ -264,7 +248,7 @@ func TestConfigURLReachesTheClient(t *testing.T) {
 }
 
 func TestSignedOutExits2(t *testing.T) {
-	f := &fakeAPI{tasks: map[string]api.Task{}}
+	f := &fakeAPI{tasks: map[int]api.Task{}}
 	srv := httptest.NewServer(f)
 	defer srv.Close()
 
@@ -277,7 +261,7 @@ func TestSignedOutExits2(t *testing.T) {
 
 	// cloudflared holds no token
 	useClient(t, srv.URL, func(string) (string, error) { return "", &api.SignedOutError{} })
-	if code, stderr := stderrOf([]string{"task", "read", "x"}, ""); code != exitUsage || !strings.Contains(stderr, "nabu login") {
+	if code, stderr := stderrOf([]string{"task", "read", "1"}, ""); code != exitUsage || !strings.Contains(stderr, "nabu login") {
 		t.Fatalf("no token: exit %d stderr=%q", code, stderr)
 	}
 }
@@ -287,9 +271,9 @@ func TestTaskNewViaCLI(t *testing.T) {
 	ok := content("Ok")
 	// the CLI refuses a body that is not a JSON object; every value it passes to the API, whose 422 it relays
 	for _, args := range [][]string{
-		{"task", "new", "ok", "--area", "work", "--content", body("Ok")},
-		{"task", "new", "ok", "--area", "work", "--content", "[]"},
-		{"task", "new", "ok", "--area", "work", "--content", `{"title": "Ok", "memo": ["` + strings.Repeat("あ", 46) + `"]}`},
+		{"task", "new", "--area", "work", "--content", body("Ok")},
+		{"task", "new", "--area", "work", "--content", "[]"},
+		{"task", "new", "--area", "work", "--content", `{"title": "Ok", "memo": ["` + strings.Repeat("あ", 46) + `"]}`},
 	} {
 		nabu(exitUsage, "", args...)
 	}
@@ -297,10 +281,10 @@ func TestTaskNewViaCLI(t *testing.T) {
 		t.Fatalf("a refused task was filed: %v", f.tasks)
 	}
 
-	got := nabu(exitOK, ok, "task", "new", "ok", "--area", "work", "--ticket", "https://example.com/1", "--ticket", "https://example.com/1")
+	got := nabu(exitOK, ok, "task", "new", "--area", "work", "--ticket", "https://example.com/1", "--ticket", "https://example.com/1")
 	want := `{
   "action": "task new",
-  "slug": "ok",
+  "id": 1,
   "status": "todo",
   "frontmatter": {
     "created": "2026-10-06T09:00:00+09:00",
@@ -323,7 +307,7 @@ func TestTaskNewViaCLI(t *testing.T) {
 			t.Fatalf("new sent %s: %v", k, f.last)
 		}
 	}
-	nabu(exitFail, ok, "task", "new", "ok", "--area", "work")
+	nabu(exitUsage, ok, "task", "new", "ok", "--area", "work")
 }
 
 func toStrings(v any) []string {
@@ -336,13 +320,10 @@ func toStrings(v any) []string {
 
 func TestTaskReadPrintsMarkdown(t *testing.T) {
 	_, nabu := newAPI(t)
-	nabu(exitOK, content("Ok"), "task", "new", "ok", "--area", "work", "--project", "nabu")
+	nabu(exitOK, content("Ok"), "task", "new", "--area", "work", "--project", "nabu")
 	want := "---\ncreated: \"2026-10-06T09:00:00+09:00\"\narea: \"work\"\nproject: \"nabu\"\n---\n" + body("Ok")
-	if got := nabu(exitOK, "", "task", "read", "ok"); got != want {
-		t.Fatalf("read:\n%s", got)
-	}
-	nabu(exitFail, "", "task", "read", "missing")
-	// a task is named by its id as well, with or without #
+	// a task is named by its id, with or without #
+	nabu(exitUsage, "", "task", "read", "ok")
 	for _, ref := range []string{"1", "#1"} {
 		if got := nabu(exitOK, "", "task", "read", ref); got != want {
 			t.Fatalf("read %s:\n%s", ref, got)
@@ -353,12 +334,12 @@ func TestTaskReadPrintsMarkdown(t *testing.T) {
 
 func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 	f, nabu := newAPI(t)
-	nabu(exitOK, content("Ok"), "task", "new", "ok", "--area", "work", "--project", "nabu", "--link", "https://example.com/a")
+	nabu(exitOK, content("Ok"), "task", "new", "--area", "work", "--project", "nabu", "--link", "https://example.com/a")
 
-	if got := nabu(exitOK, `{"title": "Renamed"}`, "task", "replace", "ok"); strings.Contains(got, "frontmatter") {
+	if got := nabu(exitOK, `{"title": "Renamed"}`, "task", "replace", "1"); strings.Contains(got, "frontmatter") {
 		t.Fatalf("replace prints frontmatter: %s", got)
 	}
-	if tk := f.tasks["ok"]; tk.Title != "Renamed" || orEmpty(tk.Project) != "nabu" {
+	if tk := f.tasks[1]; tk.Title != "Renamed" || orEmpty(tk.Project) != "nabu" {
 		t.Fatalf("after replace: %+v", tk)
 	}
 	for _, k := range []string{"area", "project", "status"} {
@@ -367,88 +348,85 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 		}
 	}
 
-	nabu(exitUsage, "", "task", "set", "ok")
-	nabu(exitUsage, "", "task", "set", "ok", "--project", "x", "--clear-project")
-	got := nabu(exitOK, "", "task", "set", "ok", "--clear-project", "--waiting", "review", "--link", "https://example.com/a", "--link", "https://example.com/b")
+	nabu(exitUsage, "", "task", "set", "1")
+	nabu(exitUsage, "", "task", "set", "1", "--project", "x", "--clear-project")
+	got := nabu(exitOK, "", "task", "set", "1", "--clear-project", "--waiting", "review", "--link", "https://example.com/a", "--link", "https://example.com/b")
 	if !strings.Contains(got, `"waiting": "review"`) || strings.Contains(got, `"project"`) {
 		t.Fatalf("set: %s", got)
 	}
 	if v, ok := f.last["project"]; !ok || v != nil {
 		t.Fatalf("set did not drop project: %v", f.last)
 	}
-	if tk := f.tasks["ok"]; !slices.Equal(tk.Links, []string{"https://example.com/a", "https://example.com/b"}) || tk.Title != "Renamed" {
+	if tk := f.tasks[1]; !slices.Equal(tk.Links, []string{"https://example.com/a", "https://example.com/b"}) || tk.Title != "Renamed" {
 		t.Fatalf("after set: %+v", tk)
 	}
-	nabu(exitFail, "", "task", "set", "missing", "--waiting", "x")
+	nabu(exitFail, "", "task", "set", "9", "--waiting", "x")
 }
 
-func TestTaskDoneCancelReopenRenameRmViaCLI(t *testing.T) {
+func TestTaskDoneCancelReopenRmViaCLI(t *testing.T) {
 	f, nabu := newAPI(t)
-	nabu(exitOK, content("Ok"), "task", "new", "ok", "--area", "work")
+	nabu(exitOK, content("Ok"), "task", "new", "--area", "work")
 
-	nabu(exitFail, "", "task", "reopen", "ok")
-	if got := nabu(exitOK, "", "task", "done", "ok"); !strings.Contains(got, `"status": "done"`) {
+	nabu(exitFail, "", "task", "reopen", "1")
+	if got := nabu(exitOK, "", "task", "done", "1"); !strings.Contains(got, `"status": "done"`) {
 		t.Fatalf("done: %s", got)
 	}
-	nabu(exitFail, "", "task", "done", "ok")
+	nabu(exitFail, "", "task", "done", "1")
 
 	// cancel needs a reason, and keeps it as why_canceled
-	nabu(exitUsage, "", "task", "cancel", "ok")
-	if got := nabu(exitOK, "", "task", "cancel", "ok", "今は使い道がない"); !strings.Contains(got, `"status": "canceled"`) {
+	nabu(exitUsage, "", "task", "cancel", "1")
+	if got := nabu(exitOK, "", "task", "cancel", "1", "今は使い道がない"); !strings.Contains(got, `"status": "canceled"`) {
 		t.Fatalf("cancel: %s", got)
 	}
-	if tk := f.tasks["ok"]; tk.Status != api.Canceled || !slices.Equal(tk.WhyCanceled, []string{"今は使い道がない"}) {
+	if tk := f.tasks[1]; tk.Status != api.Canceled || !slices.Equal(tk.WhyCanceled, []string{"今は使い道がない"}) {
 		t.Fatalf("not canceled: %+v", tk)
 	}
-	nabu(exitFail, "", "task", "cancel", "ok", "今は使い道がない")
+	nabu(exitFail, "", "task", "cancel", "1", "今は使い道がない")
 
 	// reopening forgets the reason
-	if got := nabu(exitOK, "", "task", "reopen", "ok"); !strings.Contains(got, `"status": "todo"`) {
+	if got := nabu(exitOK, "", "task", "reopen", "1"); !strings.Contains(got, `"status": "todo"`) {
 		t.Fatalf("reopen: %s", got)
 	}
-	if tk := f.tasks["ok"]; tk.Status != api.Todo || len(tk.WhyCanceled) != 0 {
+	if tk := f.tasks[1]; tk.Status != api.Todo || len(tk.WhyCanceled) != 0 {
 		t.Fatalf("not reopened: %+v", tk)
 	}
 
-	nabu(exitUsage, "", "task", "rename", "ok", "ok")
-	nabu(exitOK, content("Other"), "task", "new", "other", "--area", "work")
-	nabu(exitFail, "", "task", "rename", "ok", "other")
-	if got := nabu(exitOK, "", "task", "rename", "ok", "renamed"); !strings.Contains(got, `"to": "renamed"`) {
-		t.Fatalf("rename: %s", got)
+	if got := nabu(exitOK, "", "task", "rm", "1"); !strings.Contains(got, `"id": 1`) {
+		t.Fatalf("rm: %s", got)
 	}
-	nabu(exitOK, "", "task", "rm", "renamed")
-	nabu(exitFail, "", "task", "rm", "renamed")
+	nabu(exitFail, "", "task", "rm", "1")
 	if got := nabu(exitOK, "", "task", "schema"); !strings.Contains(got, `"create"`) {
 		t.Fatalf("schema: %s", got)
 	}
-	if _, ok := f.tasks["renamed"]; ok {
+	if _, ok := f.tasks[1]; ok {
 		t.Fatal("rm left the task")
 	}
 }
 
 func TestTaskItemAddViaCLI(t *testing.T) {
 	f, nabu := newAPI(t)
-	nabu(exitOK, content("Ok"), "task", "new", "ok", "--area", "work")
-	nabu(exitUsage, "", "task", "item", "add", "ok")
-	if got := nabu(exitOK, "", "task", "item", "add", "1", "first", "second"); !strings.Contains(got, `"slug": "ok"`) {
+	nabu(exitOK, content("Ok"), "task", "new", "--area", "work")
+	nabu(exitUsage, "", "task", "item", "add", "1")
+	nabu(exitUsage, "", "task", "item", "add", "ok", "x")
+	if got := nabu(exitOK, "", "task", "item", "add", "1", "first", "second"); !strings.Contains(got, `"id": 1`) {
 		t.Fatalf("item add: %s", got)
 	}
-	id := f.tasks["ok"].Id
+	id := f.tasks[1].Id
 	if len(f.items) != 2 || f.items[0] != (api.Item{TaskId: id, Text: "first"}) || f.items[1] != (api.Item{TaskId: id, Text: "second"}) {
 		t.Fatalf("items: %+v", f.items)
 	}
-	nabu(exitUsage, "", "task", "item", "add", "ok", " ")
-	nabu(exitFail, "", "task", "item", "add", "missing", "x")
+	nabu(exitUsage, "", "task", "item", "add", "1", " ")
+	nabu(exitFail, "", "task", "item", "add", "9", "x")
 }
 
 func TestTaskLsAndGrepViaCLI(t *testing.T) {
 	_, nabu := newAPI(t)
-	nabu(exitOK, content("B done"), "task", "new", "b", "--area", "work")
-	nabu(exitOK, content("A todo"), "task", "new", "a", "--area", "personal")
-	nabu(exitOK, "", "task", "set", "a", "--waiting", "their reply")
-	nabu(exitOK, content("C canceled"), "task", "new", "c", "--area", "work")
-	nabu(exitOK, "", "task", "done", "b")
-	nabu(exitOK, "", "task", "cancel", "c", "no use")
+	nabu(exitOK, content("B done"), "task", "new", "--area", "work")
+	nabu(exitOK, content("A todo"), "task", "new", "--area", "personal")
+	nabu(exitOK, "", "task", "set", "2", "--waiting", "their reply")
+	nabu(exitOK, content("C canceled"), "task", "new", "--area", "work")
+	nabu(exitOK, "", "task", "done", "1")
+	nabu(exitOK, "", "task", "cancel", "3", "no use")
 
 	if got := nabu(exitOK, "", "task", "ls"); got != "todo\tA todo\t2026-10-06\ndone\tB done\t2026-10-06\ncanceled\tC canceled\t2026-10-06\n" {
 		t.Fatalf("ls: %q", got)
@@ -462,15 +440,15 @@ func TestTaskLsAndGrepViaCLI(t *testing.T) {
 	if err := json.Unmarshal([]byte(nabu(exitOK, "", "task", "ls", "--json")), &rows); err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 3 || rows[0].Slug != "a" || rows[0].Frontmatter.Waiting != "their reply" || rows[0].Body != body("A todo") {
+	if len(rows) != 3 || rows[0].ID != 2 || rows[0].Frontmatter.Waiting != "their reply" || rows[0].Body != body("A todo") {
 		t.Fatalf("ls --json: %+v", rows)
 	}
 
 	// grep searches the task as read prints it, frontmatter included
-	if got := nabu(exitOK, "", "task", "grep", "a TODO"); got != "a:6: # A todo\n" {
+	if got := nabu(exitOK, "", "task", "grep", "a TODO"); got != "2:6: # A todo\n" {
 		t.Fatalf("grep: %q", got)
 	}
-	if got := nabu(exitOK, "", "task", "grep", "their reply"); got != "a:4: waiting: \"their reply\"\n" {
+	if got := nabu(exitOK, "", "task", "grep", "their reply"); got != "2:4: waiting: \"their reply\"\n" {
 		t.Fatalf("grep frontmatter: %q", got)
 	}
 	if got := nabu(exitOK, "", "task", "grep", "nothing-here", "--json"); strings.TrimSpace(got) != "[]" {

@@ -93,7 +93,7 @@ sequenceDiagram
     Worker-->>CLI: Task [JSON]
     CLI-->>Agent: Result [JSON]
   end
-  Agent-->>User: Slug and status [chat]
+  Agent-->>User: Id and status [chat]
 ```
 
 - `src/api/schema.ts` defines every rule a task must meet

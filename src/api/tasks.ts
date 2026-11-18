@@ -11,7 +11,6 @@ type Row = Omit<Task, (typeof LISTS)[number] | (typeof SECTIONS)[number]> & { id
 
 const JSON_COLUMNS = [...LISTS, ...SECTIONS];
 const COLUMNS = [
-  "slug",
   "title",
   "status",
   "area",
@@ -44,46 +43,34 @@ const SELECT = `SELECT id, ${COLUMNS.join(", ")} FROM tasks`;
 
 const find = (db: D1Database, id: number) =>
   db.prepare(`${SELECT} WHERE id = ?`).bind(id).first<Row>();
-const taken = async (db: D1Database, slug: string) =>
-  !!(await db.prepare("SELECT 1 FROM tasks WHERE slug = ?").bind(slug).first());
-
-// event records a write against the task that holds slug when the statement runs, so a batch places it
-// after an insert or rename and before a delete.
+// event records a write against the task with id. A create has no id until its insert runs, so its event
+// passes null and takes the newest id, which AUTOINCREMENT gives the row just inserted in the same batch.
 const event = (
   db: D1Database,
   action: string,
-  slug: string,
+  id: number | null,
   before: Omit<Task, "id"> | null,
   after: Omit<Task, "id"> | null,
 ) =>
   db
     .prepare(
-      "INSERT INTO events (task_id, at, action, before, after) VALUES ((SELECT id FROM tasks WHERE slug = ?), ?, ?, ?, ?)",
+      "INSERT INTO events (task_id, at, action, before, after) VALUES (coalesce(?, (SELECT max(id) FROM tasks)), ?, ?, ?, ?)",
     )
-    .bind(slug, now(), action, before && JSON.stringify(before), after && JSON.stringify(after));
+    .bind(id, now(), action, before && JSON.stringify(before), after && JSON.stringify(after));
 
-// A task is addressed by its id, which a rename leaves alone; a slug only narrows the list.
+// A task is addressed by its id, the number it keeps for life.
 const params = z.strictObject({ id: z.coerce.number().int() });
-const query = z.strictObject({
-  slug: z.string().optional().meta({ description: "only the task with this slug, if any" }),
-});
 
 export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
-  // Every task in workflow order, then by slug: callers narrow them themselves while the list stays small.
-  // slug narrows it to the one task a person knows by name.
+  // Every task in workflow order, then by id: callers narrow them themselves while the list stays small.
   .openapi(
     createRoute({
       method: "get",
       path: "/",
-      request: { query },
-      responses: { 200: json(z.array(Task), "every task in workflow order, then by slug") },
+      responses: { 200: json(z.array(Task), "every task in workflow order, then by id") },
     }),
     async (c) => {
-      const { slug } = c.req.valid("query");
-      const where = slug === undefined ? "" : "WHERE slug = ?";
-      const { results } = await c.env.DB.prepare(`${SELECT} ${where} ORDER BY ${WORKFLOW}, slug`)
-        .bind(...(slug === undefined ? [] : [slug]))
-        .all<Row>();
+      const { results } = await c.env.DB.prepare(`${SELECT} ORDER BY ${WORKFLOW}, id`).all<Row>();
       return c.json(results.map(toTask), 200);
     },
   )
@@ -108,7 +95,6 @@ export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
       request: { body: body(TaskCreate, "the new task, filed as todo") },
       responses: {
         201: json(Task, "the task as stored"),
-        409: failure("the slug is taken"),
         422: failure("the task breaks the contract"),
       },
     }),
@@ -126,14 +112,12 @@ export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
         created: at,
         updated: at,
       };
-      if (await taken(c.env.DB, task.slug))
-        return c.json({ error: `${task.slug} already exists` }, 409);
       const insert = c.env.DB.prepare(
         `INSERT INTO tasks (${COLUMNS.join(", ")}) VALUES (${COLUMNS.map(() => "?").join(", ")}) RETURNING id`,
       ).bind(...fromTask(task));
       const [{ results }] = await c.env.DB.batch<{ id: number }>([
         insert,
-        event(c.env.DB, "create", task.slug, null, task),
+        event(c.env.DB, "create", null, null, task),
       ]);
       return c.json({ id: results[0].id, ...task }, 201);
     },
@@ -147,7 +131,6 @@ export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
       responses: {
         200: json(Task, "the task as stored"),
         404: failure("no such task"),
-        409: failure("the new slug is taken"),
         422: failure("the task breaks the contract"),
       },
     }),
@@ -158,13 +141,10 @@ export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
       const after: Task = { ...before, ...c.req.valid("json"), updated: now() };
       const problem = whole(after);
       if (problem) return invalid(c, problem);
-      if (after.slug !== before.slug && (await taken(c.env.DB, after.slug))) {
-        return c.json({ error: `${after.slug} already exists` }, 409);
-      }
       const update = c.env.DB.prepare(
         `UPDATE tasks SET ${COLUMNS.map((k) => `${k} = ?`).join(", ")} WHERE id = ?`,
       ).bind(...fromTask(after), row.id);
-      await c.env.DB.batch([update, event(c.env.DB, "update", after.slug, before, after)]);
+      await c.env.DB.batch([update, event(c.env.DB, "update", row.id, before, after)]);
       return c.json(after, 200);
     },
   )
@@ -183,7 +163,7 @@ export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
       const row = await find(c.env.DB, c.req.valid("param").id);
       if (!row) return c.json({ error: "no such task" }, 404);
       await c.env.DB.batch([
-        event(c.env.DB, "delete", row.slug, toTask(row), null),
+        event(c.env.DB, "delete", row.id, toTask(row), null),
         c.env.DB.prepare("DELETE FROM items WHERE task_id = ?").bind(row.id),
         c.env.DB.prepare("DELETE FROM tasks WHERE id = ?").bind(row.id),
       ]);

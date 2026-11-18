@@ -63,11 +63,7 @@ const nonBlank = z.string().regex(/^[^\n]*\S[^\n]*$/, "must be one non-blank lin
 // Task is a task as the API returns it.
 export const Task = z
   .strictObject({
-    id: z
-      .number()
-      .int()
-      .meta({ description: "the number the task keeps for life, unlike its slug" }),
-    slug: kebab,
+    id: z.number().int().meta({ description: "the number the task keeps for life" }),
     title: nonBlank,
     status: Status,
     area: Area,
@@ -89,7 +85,6 @@ export type Task = z.output<typeof Task>;
 
 // TaskCreate is POST /api/tasks: a new task always starts as todo.
 export const TaskCreate = z.strictObject({
-  slug: kebab,
   title: nonBlank,
   area: Area,
   project: kebab.optional(),
