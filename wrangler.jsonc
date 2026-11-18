@@ -6,7 +6,13 @@
   // Access signs against the team and the application below. Neither value is a secret.
   "name": "nabu",
   "main": "src/api/index.ts",
-  "assets": { "directory": "dist" },
+  // Paths with no file (/tasks, /tasks/6, /habits) get index.html, and the page picks the screen from the path.
+  // /api/* always reaches the Worker, even when a browser opens it directly.
+  "assets": {
+    "directory": "dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
   // Pinned on purpose: a moving date would change the Worker's behavior silently.
   "compatibility_date": "2026-10-11",
   // Schema changes are files in src/api/migrations/, applied with `wrangler d1 migrations apply nabu`.
