@@ -28,9 +28,9 @@ func terminal(w io.Writer) (int, bool) {
 // statusColors are ANSI palette colors, so each status follows the
 // terminal's own theme, light or dark.
 var statusColors = map[api.Status]string{
-	api.Todo:    "6", // cyan
-	api.Done:    "2", // green
-	api.Dropped: "8", // gray
+	api.Todo:     "6", // cyan
+	api.Done:     "2", // green
+	api.Canceled: "8", // gray
 }
 
 var cellStyle = lipgloss.NewStyle().Padding(0, 1)

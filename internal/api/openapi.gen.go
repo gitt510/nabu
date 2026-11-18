@@ -23,17 +23,17 @@ func (e Area) Valid() bool {
 
 // Defines values for Status.
 const (
-	Done    Status = "done"
-	Dropped Status = "dropped"
-	Todo    Status = "todo"
+	Canceled Status = "canceled"
+	Done     Status = "done"
+	Todo     Status = "todo"
 )
 
 // Valid indicates whether the value is a known member of the Status enum.
 func (e Status) Valid() bool {
 	switch e {
-	case Done:
+	case Canceled:
 		return true
-	case Dropped:
+	case Done:
 		return true
 	case Todo:
 		return true
@@ -89,8 +89,8 @@ type Task struct {
 	Updated   string   `json:"updated"`
 	Waiting   *string  `json:"waiting"`
 
-	// WhyDropped why the task was decided against; a dropped task needs one line at least, and no other task has one
-	WhyDropped []string `json:"why_dropped"`
+	// WhyCanceled why the task was decided against; a canceled task needs one line at least, and no other task has one
+	WhyCanceled []string `json:"why_canceled"`
 }
 
 // GetApiHabitsParams defines parameters for GetApiHabits.
@@ -163,8 +163,8 @@ type PatchApiTasksIdJSONBody struct {
 	Title     *string   `json:"title,omitempty"`
 	Waiting   *string   `json:"waiting,omitempty"`
 
-	// WhyDropped why the task was decided against; a dropped task needs one line at least, and no other task has one
-	WhyDropped *[]string `json:"why_dropped,omitempty"`
+	// WhyCanceled why the task was decided against; a canceled task needs one line at least, and no other task has one
+	WhyCanceled *[]string `json:"why_canceled,omitempty"`
 }
 
 // PostApiHabitsJSONRequestBody defines body for PostApiHabits for application/json ContentType.

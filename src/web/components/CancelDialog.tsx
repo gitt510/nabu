@@ -5,16 +5,16 @@ import { patch } from "../api";
 import { Button, Dialog, Form, Group, LinesInput, Stack } from "./ui";
 
 /** やめる前に、その理由を聞く。1 行 1 項目 */
-export function DropDialog({
+export function CancelDialog({
   id,
   opened,
   onClose,
-  onDropped,
+  onCanceled,
 }: {
   id: number;
   opened: boolean;
   onClose: () => void;
-  onDropped: () => void;
+  onCanceled: () => void;
 }) {
   const [why, setWhy] = useState("");
   const [error, setError] = useState<string>();
@@ -24,26 +24,26 @@ export function DropDialog({
       .map((l) => l.trim())
       .filter(Boolean);
     if (!lines.length) return setError("Write at least one reason.");
-    const problem = await patch(id, { status: "dropped", why_dropped: lines });
+    const problem = await patch(id, { status: "canceled", why_canceled: lines });
     setError(problem);
     if (problem) return;
     setWhy("");
     onClose();
-    onDropped();
+    onCanceled();
   };
   return (
-    <Dialog title="Drop" opened={opened} onClose={onClose}>
+    <Dialog title="Cancel task" opened={opened} onClose={onClose}>
       <Form onSubmit={() => void submit()}>
         <Stack gap="md">
           <LinesInput
-            label="Why drop it?"
+            label="Why cancel it?"
             description={`One reason per line, up to ${LINE_LIMIT} characters each`}
             value={why}
             onChange={setWhy}
             error={error}
           />
           <Group justify="flex-end">
-            <Button type="submit">Drop task</Button>
+            <Button type="submit">Cancel task</Button>
           </Group>
         </Stack>
       </Form>

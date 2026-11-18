@@ -118,7 +118,7 @@ export const tasks = new OpenAPIHono<{ Bindings: Env }>({ defaultHook: hook })
       const task: Omit<Task, "id"> = {
         ...fields,
         status: "todo",
-        why_dropped: [],
+        why_canceled: [],
         memo: [],
         project: fields.project ?? null,
         scheduled: fields.scheduled ?? null,

@@ -53,9 +53,9 @@ agent: nabu task new review-pr-68 --area work --pr https://github.com/o/r/pull/6
 ### Overview
 
 - A task lives in Cloudflare D1, and the Worker's `/api/tasks` is the only way in
-- A task's status is one of `todo`, `done`, `dropped`, set by `nabu task done`, `nabu task drop`, and `nabu task reopen`
+- A task's status is one of `todo`, `done`, `canceled`, set by `nabu task done`, `nabu task cancel`, and `nabu task reopen`
 - A task is its title and its frontmatter: `area`, `project`, `scheduled`, `waiting`, `tickets`, `prs`, and `links`
-- A dropped task also carries `why_dropped`, and no other task does
+- A canceled task also carries `why_canceled`, and no other task does
 - A task also carries `memo`, lines of what was done or thought, added one at a time in the viewer
 - `nabu task new` and `nabu task replace` take the title as JSON, and `nabu task read` prints the task as markdown
 - The API refuses a task out of shape, so no stored task is out of shape
