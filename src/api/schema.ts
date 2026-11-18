@@ -2,15 +2,15 @@
 // out of shape cannot reach the database, and the page reads its fields from here as the Worker does.
 import { z } from "zod";
 
-export const STATUSES = ["todo", "done", "dropped"] as const;
+export const STATUSES = ["todo", "done", "canceled"] as const;
 export const AREAS = ["work", "personal"] as const;
 
 // LINE_LIMIT is the most characters a section line may carry: one fact a reader takes in at a glance.
 export const LINE_LIMIT = 45;
 
-// SECTIONS are the lists of lines a task carries: the reason a dropped task was closed, then the memo its
+// SECTIONS are the lists of lines a task carries: the reason a canceled task was closed, then the memo its
 // owner adds while working on it.
-export const SECTIONS = ["why_dropped", "memo"] as const;
+export const SECTIONS = ["why_canceled", "memo"] as const;
 export const LISTS = ["tickets", "prs", "links"] as const;
 
 // The ids name the schemas the OpenAPI document shares as components, so a generated client names its types.
@@ -53,9 +53,9 @@ const line = z
   .refine((s) => [...s].length <= LINE_LIMIT, `must be at most ${LINE_LIMIT} characters`)
   .meta({ maxLength: LINE_LIMIT });
 const section = z.array(line);
-const whyDropped = section.meta({
+const whyCanceled = section.meta({
   description:
-    "why the task was decided against; a dropped task needs one line at least, and no other task has one",
+    "why the task was decided against; a canceled task needs one line at least, and no other task has one",
 });
 
 const nonBlank = z.string().regex(/^[^\n]*\S[^\n]*$/, "must be one non-blank line");
@@ -77,7 +77,7 @@ export const Task = z
     tickets: urls,
     prs: urls,
     links: urls,
-    why_dropped: whyDropped,
+    why_canceled: whyCanceled,
     memo: section.meta({
       description: "what the owner did or thought while working on the task, one note per line",
     }),
@@ -142,11 +142,11 @@ export const ItemCreate = Item.pick({ task_id: true, text: true });
 // ItemPatch is PATCH /api/items/:id: any field but the task it belongs to.
 export const ItemPatch = Item.pick({ text: true, position: true, done: true }).partial();
 
-// whole checks what no single field can: a dropped task says why, and only a dropped task does. It has no
-// JSON Schema form, so whyDropped says it in words.
-export function whole(t: Pick<Task, "status" | "why_dropped">): string | undefined {
-  if (t.status === "dropped" && t.why_dropped.length === 0)
-    return "a dropped task needs why_dropped";
-  if (t.status !== "dropped" && t.why_dropped.length > 0)
-    return `a ${t.status} task has no why_dropped`;
+// whole checks what no single field can: a canceled task says why, and only a canceled task does. It has no
+// JSON Schema form, so whyCanceled says it in words.
+export function whole(t: Pick<Task, "status" | "why_canceled">): string | undefined {
+  if (t.status === "canceled" && t.why_canceled.length === 0)
+    return "a canceled task needs why_canceled";
+  if (t.status !== "canceled" && t.why_canceled.length > 0)
+    return `a ${t.status} task has no why_canceled`;
 }

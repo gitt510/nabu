@@ -30,7 +30,7 @@ func taskCmd(e *env) *cobra.Command {
 	cmd.AddCommand(
 		taskLsCmd(e), taskGrepCmd(e),
 		taskReadCmd(e), taskSchemaCmd(e),
-		taskNewCmd(e), taskReplaceCmd(e), taskSetCmd(e), taskDoneCmd(e), taskDropCmd(e), taskReopenCmd(e), taskRenameCmd(e), taskRmCmd(e),
+		taskNewCmd(e), taskReplaceCmd(e), taskSetCmd(e), taskDoneCmd(e), taskCancelCmd(e), taskReopenCmd(e), taskRenameCmd(e), taskRmCmd(e),
 		taskItemCmd(e),
 	)
 	return cmd
@@ -182,7 +182,7 @@ func taskSetCmd(e *env) *cobra.Command {
 	return cmd
 }
 
-// move sets a task's status and why_dropped, refusing a task that has them
+// move sets a task's status and why_canceled, refusing a task that has them
 // already.
 func move(e *env, action, slug string, status api.Status, why []string) int {
 	c, err := client()
@@ -193,10 +193,10 @@ func move(e *env, action, slug string, status api.Status, why []string) int {
 	if err != nil {
 		return fail(e.stderr, err, exitFail)
 	}
-	if t.Status == status && slices.Equal(t.WhyDropped, why) {
+	if t.Status == status && slices.Equal(t.WhyCanceled, why) {
 		return fail(e.stderr, fmt.Errorf("%s is already %s", slug, status), exitFail)
 	}
-	if t, err = c.Patch(slug, map[string]any{"status": status, "why_dropped": why}); err != nil {
+	if t, err = c.Patch(slug, map[string]any{"status": status, "why_canceled": why}); err != nil {
 		return fail(e.stderr, err, exitFail)
 	}
 	return emit(e.stdout, result{Action: action, Slug: t.Slug, Status: t.Status})
@@ -206,7 +206,7 @@ func taskDoneCmd(e *env) *cobra.Command {
 	return &cobra.Command{
 		Use:     "done <slug|id>",
 		Short:   "mark a task done",
-		Long:    "marks a task done; a dropped task becomes done and loses its why_dropped",
+		Long:    "marks a task done; a canceled task becomes done and loses its why_canceled",
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
@@ -215,15 +215,15 @@ func taskDoneCmd(e *env) *cobra.Command {
 	}
 }
 
-func taskDropCmd(e *env) *cobra.Command {
+func taskCancelCmd(e *env) *cobra.Command {
 	return &cobra.Command{
-		Use:     "drop <slug|id> <why>...",
-		Short:   "drop a task, saying why",
-		Long:    "marks a task dropped: work decided against. each <why> is one line of why_dropped, the reason the task keeps; a dropped task given new lines keeps those instead",
+		Use:     "cancel <slug|id> <why>...",
+		Short:   "cancel a task, saying why",
+		Long:    "marks a task canceled: work decided against. each <why> is one line of why_canceled, the reason the task keeps; a canceled task given new lines keeps those instead",
 		GroupID: "update",
 		Args:    cobra.MinimumNArgs(2),
 		RunE: do(func(args []string) int {
-			return move(e, "task drop", arg(args, 0), api.Dropped, args[1:])
+			return move(e, "task cancel", arg(args, 0), api.Canceled, args[1:])
 		}),
 	}
 }
@@ -231,8 +231,8 @@ func taskDropCmd(e *env) *cobra.Command {
 func taskReopenCmd(e *env) *cobra.Command {
 	return &cobra.Command{
 		Use:     "reopen <slug|id>",
-		Short:   "make a done or dropped task todo again",
-		Long:    "makes a done or dropped task todo again; a dropped task loses its why_dropped",
+		Short:   "make a done or canceled task todo again",
+		Long:    "makes a done or canceled task todo again; a canceled task loses its why_canceled",
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
@@ -271,7 +271,7 @@ func taskRmCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "rm <slug|id>",
 		Short:   "delete a task, whatever its status",
-		Long:    "deletes a task; the API keeps its history.\nfor a task that should not have been filed (a duplicate, a mistake); work decided against is dropped (see task drop)",
+		Long:    "deletes a task; the API keeps its history.\nfor a task that should not have been filed (a duplicate, a mistake); work decided against is canceled (see task cancel)",
 		GroupID: "update",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
@@ -344,7 +344,7 @@ func taskSchemaCmd(e *env) *cobra.Command {
 	return cmd
 }
 
-// document is a task as task read prints it: its frontmatter, then its title and why it was dropped.
+// document is a task as task read prints it: its frontmatter, then its title and why it was canceled.
 func document(t api.Task) string {
 	m := metaOf(t)
 	return m.render() + renderBody(t)
@@ -354,7 +354,7 @@ func taskReadCmd(e *env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "read <slug|id>",
 		Short:   "print a task, whatever its status",
-		Long:    "prints a task as markdown to read: its frontmatter block, then its title and why it was dropped",
+		Long:    "prints a task as markdown to read: its frontmatter block, then its title and why it was canceled",
 		GroupID: "read",
 		Args:    cobra.ExactArgs(1),
 		RunE: do(func(args []string) int {
@@ -389,8 +389,8 @@ func taskLsCmd(e *env) *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{
 		Use:     "ls [status]",
-		Short:   "list tasks: todo, then done, then dropped",
-		Long:    "lists every task in status order (todo, done, dropped), or those in one status.\non a terminal prints a table of status, title, and created (its date), colored by status;\npiped, prints the same columns tab-separated without a header or color; --json adds slug, the frontmatter, updated, and the body",
+		Short:   "list tasks: todo, then done, then canceled",
+		Long:    "lists every task in status order (todo, done, canceled), or those in one status.\non a terminal prints a table of status, title, and created (its date), colored by status;\npiped, prints the same columns tab-separated without a header or color; --json adds slug, the frontmatter, updated, and the body",
 		GroupID: "browse",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: do(func(args []string) int {

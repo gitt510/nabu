@@ -72,14 +72,14 @@
             },
             "uniqueItems": true
           },
-          "why_dropped": {
+          "why_canceled": {
             "type": "array",
             "items": {
               "type": "string",
               "maxLength": 45,
               "pattern": "\\S"
             },
-            "description": "why the task was decided against; a dropped task needs one line at least, and no other task has one"
+            "description": "why the task was decided against; a canceled task needs one line at least, and no other task has one"
           },
           "memo": {
             "type": "array",
@@ -109,7 +109,7 @@
           "tickets",
           "prs",
           "links",
-          "why_dropped",
+          "why_canceled",
           "memo",
           "created",
           "updated"
@@ -121,7 +121,7 @@
         "enum": [
           "todo",
           "done",
-          "dropped"
+          "canceled"
         ]
       },
       "Area": {
@@ -471,14 +471,14 @@
                     },
                     "uniqueItems": true
                   },
-                  "why_dropped": {
+                  "why_canceled": {
                     "type": "array",
                     "items": {
                       "type": "string",
                       "maxLength": 45,
                       "pattern": "\\S"
                     },
-                    "description": "why the task was decided against; a dropped task needs one line at least, and no other task has one"
+                    "description": "why the task was decided against; a canceled task needs one line at least, and no other task has one"
                   },
                   "memo": {
                     "type": "array",

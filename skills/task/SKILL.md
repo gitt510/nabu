@@ -1,13 +1,13 @@
 ---
 name: task
-description: File, finish, and drop the user's tasks through the `nabu` CLI, which keeps them behind the nabu API. Use when the user wants a task recorded, done, or dropped — "add a task", "file this as a task", "X is done", "drop X", "reopen X", "what is left to do" — including Japanese phrasings such as 「タスクにして」「タスク登録」「完了にして」「やらないことにした」「戻して」「残りのタスク」. Every read and write goes through nabu.
+description: File, finish, and cancel the user's tasks through the `nabu` CLI, which keeps them behind the nabu API. Use when the user wants a task recorded, done, or canceled — "add a task", "file this as a task", "X is done", "cancel X", "drop X", "reopen X", "what is left to do" — including Japanese phrasings such as 「タスクにして」「タスク登録」「完了にして」「やらないことにした」「戻して」「残りのタスク」. Every read and write goes through nabu.
 ---
 
 # nabu task
 
 A task lives behind the nabu API, and nabu is the only way to it. Its
-status is one of `todo`, `done` (the work is finished), and `dropped` (decided
-against, with `why_dropped` saying why). `--scheduled` says when the work
+status is one of `todo`, `done` (the work is finished), and `canceled` (decided
+against, with `why_canceled` saying why). `--scheduled` says when the work
 happens; there is no "started" status. `nabu task -h` is the source of truth for the
 commands and their flags, and `nabu task schema` for every rule a write
 must meet: the keys, the values they accept, and the line limit. This file
@@ -22,8 +22,8 @@ nabu task set <slug> --waiting "<who/what>"  # the ball is with someone else
 nabu task set <slug> --clear-waiting         # the ball is back
 nabu task set <slug> <frontmatter flags>    # other metadata; --clear-* drops
 nabu task done <slug>                        # the work is finished
-nabu task drop <slug> "<why>"...             # decided against; one line of why_dropped per argument
-nabu task reopen <slug>                      # back to todo; a dropped task loses its why_dropped
+nabu task cancel <slug> "<why>"...           # decided against; one line of why_canceled per argument
+nabu task reopen <slug>                      # back to todo; a canceled task loses its why_canceled
 nabu task rename <slug> <new-slug>           # new slug, same status and content
 nabu task rm <slug>                          # delete a task, whatever its status
 nabu task item add <slug> "<line>"...        # add lines last in a task's checklist, one per argument
@@ -50,17 +50,17 @@ or quote `'#6'`, since a shell reads an unquoted `#` as a comment.
    exist yet, and reuse a project already in `task ls --json` rather
    than coining a near-duplicate. Put a ticket, PR, or page the user
    mentions in `--ticket`, `--pr`, or `--link`.
-3. **Finish with `task done`, or give up with `task drop`.** Run `nabu task done <slug>`
+3. **Finish with `task done`, or give up with `task cancel`.** Run `nabu task done <slug>`
    when the work is finished. Never write a status into the body or the
    frontmatter.
    A task the user decides not to do ("やらない", "見送り", "won't do")
-   is dropped, not done: `nabu task drop <slug> "<reason>"`, with the
+   is canceled, not done: `nabu task cancel <slug> "<reason>"`, with the
    reason in the user's words. Ask for it when they gave none; never
-   invent one. `nabu task reopen <slug>` makes a done or dropped task todo again.
+   invent one. `nabu task reopen <slug>` makes a done or canceled task todo again.
    A task that should not have been filed at all (a duplicate, a mistake,
    「消して」「削除して」) is deleted with `nabu task rm <slug>`, whatever
    its status. Delete only when the user asks; a decision not to do the work
-   is a drop.
+   is a cancel.
 4. **Revise with `task replace` and `task set`.** `task replace` takes a
    new title on stdin and keeps the frontmatter; `task set` changes the
    frontmatter and keeps the title.
@@ -79,7 +79,7 @@ or quote `'#6'`, since a shell reads an unquoted `#` as a comment.
    it, so the user can correct an `area` or `project` you chose on the
    spot.
 8. **Fix what the API refuses.** nabu exits 2 with the API's reason when a
-   body or a value breaks the rules (a reason line too long, a dropped task
+   body or a value breaks the rules (a reason line too long, a canceled task
    without a reason); rewrite and run the command again.
 
 ## Do not

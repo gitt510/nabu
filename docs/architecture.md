@@ -19,7 +19,7 @@ sequenceDiagram
   Access->>Access: Verifies the token
   Access->>Worker: Forwards the request [JWT]
   Worker->>Worker: Verifies the JWT (signature, iss, aud, exp)
-  Worker->>Worker: Validates the task (shape, line limit, reason to drop)
+  Worker->>Worker: Validates the task (shape, line limit, reason to cancel)
   Worker->>D1: Writes the task and its event in one batch [binding/SQL]
   D1-->>Worker: Rows
   Worker-->>CLI: Task [JSON]

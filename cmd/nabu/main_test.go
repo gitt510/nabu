@@ -65,7 +65,7 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		// The API lists tasks in status order, then by slug.
-		order := []api.Status{api.Todo, api.Done, api.Dropped}
+		order := []api.Status{api.Todo, api.Done, api.Canceled}
 		slices.SortFunc(out, func(a, b api.Task) int {
 			return cmp.Or(slices.Index(order, a.Status)-slices.Index(order, b.Status), strings.Compare(a.Slug, b.Slug))
 		})
@@ -128,7 +128,7 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // overlay writes fields onto t the way the API does, null dropping a value,
 // and applies the two rules a CLI test can reach: the line limit and the
-// reason only a dropped task carries.
+// reason only a canceled task carries.
 func overlay(t *api.Task, fields map[string]any) error {
 	b, _ := json.Marshal(t)
 	var m map[string]any
@@ -139,13 +139,13 @@ func overlay(t *api.Task, fields map[string]any) error {
 	b, _ = json.Marshal(m)
 	*t = api.Task{}
 	_ = json.Unmarshal(b, t)
-	for _, l := range slices.Concat(t.WhyDropped, t.Memo) {
+	for _, l := range slices.Concat(t.WhyCanceled, t.Memo) {
 		if utf8.RuneCountInString(l) > 45 {
 			return errors.New("memo.0: must be at most 45 characters")
 		}
 	}
-	if (t.Status == api.Dropped) != (len(t.WhyDropped) > 0) {
-		return errors.New("a dropped task needs why_dropped, and no other task has one")
+	if (t.Status == api.Canceled) != (len(t.WhyCanceled) > 0) {
+		return errors.New("a canceled task needs why_canceled, and no other task has one")
 	}
 	return nil
 }
@@ -318,7 +318,7 @@ func TestTaskNewViaCLI(t *testing.T) {
 	if f.last["title"] != "Ok" {
 		t.Fatalf("sent %v", f.last)
 	}
-	for _, k := range []string{"project", "scheduled", "waiting", "prs", "status", "created", "why_dropped"} {
+	for _, k := range []string{"project", "scheduled", "waiting", "prs", "status", "created", "why_canceled"} {
 		if _, ok := f.last[k]; ok {
 			t.Fatalf("new sent %s: %v", k, f.last)
 		}
@@ -382,7 +382,7 @@ func TestTaskReplaceAndSetViaCLI(t *testing.T) {
 	nabu(exitFail, "", "task", "set", "missing", "--waiting", "x")
 }
 
-func TestTaskDoneDropReopenRenameRmViaCLI(t *testing.T) {
+func TestTaskDoneCancelReopenRenameRmViaCLI(t *testing.T) {
 	f, nabu := newAPI(t)
 	nabu(exitOK, content("Ok"), "task", "new", "ok", "--area", "work")
 
@@ -392,21 +392,21 @@ func TestTaskDoneDropReopenRenameRmViaCLI(t *testing.T) {
 	}
 	nabu(exitFail, "", "task", "done", "ok")
 
-	// drop needs a reason, and keeps it as why_dropped
-	nabu(exitUsage, "", "task", "drop", "ok")
-	if got := nabu(exitOK, "", "task", "drop", "ok", "今は使い道がない"); !strings.Contains(got, `"status": "dropped"`) {
-		t.Fatalf("drop: %s", got)
+	// cancel needs a reason, and keeps it as why_canceled
+	nabu(exitUsage, "", "task", "cancel", "ok")
+	if got := nabu(exitOK, "", "task", "cancel", "ok", "今は使い道がない"); !strings.Contains(got, `"status": "canceled"`) {
+		t.Fatalf("cancel: %s", got)
 	}
-	if tk := f.tasks["ok"]; tk.Status != api.Dropped || !slices.Equal(tk.WhyDropped, []string{"今は使い道がない"}) {
-		t.Fatalf("not dropped: %+v", tk)
+	if tk := f.tasks["ok"]; tk.Status != api.Canceled || !slices.Equal(tk.WhyCanceled, []string{"今は使い道がない"}) {
+		t.Fatalf("not canceled: %+v", tk)
 	}
-	nabu(exitFail, "", "task", "drop", "ok", "今は使い道がない")
+	nabu(exitFail, "", "task", "cancel", "ok", "今は使い道がない")
 
 	// reopening forgets the reason
 	if got := nabu(exitOK, "", "task", "reopen", "ok"); !strings.Contains(got, `"status": "todo"`) {
 		t.Fatalf("reopen: %s", got)
 	}
-	if tk := f.tasks["ok"]; tk.Status != api.Todo || len(tk.WhyDropped) != 0 {
+	if tk := f.tasks["ok"]; tk.Status != api.Todo || len(tk.WhyCanceled) != 0 {
 		t.Fatalf("not reopened: %+v", tk)
 	}
 
@@ -446,15 +446,15 @@ func TestTaskLsAndGrepViaCLI(t *testing.T) {
 	nabu(exitOK, content("B done"), "task", "new", "b", "--area", "work")
 	nabu(exitOK, content("A todo"), "task", "new", "a", "--area", "personal")
 	nabu(exitOK, "", "task", "set", "a", "--waiting", "their reply")
-	nabu(exitOK, content("C dropped"), "task", "new", "c", "--area", "work")
+	nabu(exitOK, content("C canceled"), "task", "new", "c", "--area", "work")
 	nabu(exitOK, "", "task", "done", "b")
-	nabu(exitOK, "", "task", "drop", "c", "no use")
+	nabu(exitOK, "", "task", "cancel", "c", "no use")
 
-	if got := nabu(exitOK, "", "task", "ls"); got != "todo\tA todo\t2026-10-06\ndone\tB done\t2026-10-06\ndropped\tC dropped\t2026-10-06\n" {
+	if got := nabu(exitOK, "", "task", "ls"); got != "todo\tA todo\t2026-10-06\ndone\tB done\t2026-10-06\ncanceled\tC canceled\t2026-10-06\n" {
 		t.Fatalf("ls: %q", got)
 	}
-	if got := nabu(exitOK, "", "task", "ls", "dropped"); got != "dropped\tC dropped\t2026-10-06\n" {
-		t.Fatalf("ls dropped: %q", got)
+	if got := nabu(exitOK, "", "task", "ls", "canceled"); got != "canceled\tC canceled\t2026-10-06\n" {
+		t.Fatalf("ls canceled: %q", got)
 	}
 	nabu(exitUsage, "", "task", "ls", "doing")
 
@@ -494,10 +494,10 @@ func TestCreatedDateIsLocal(t *testing.T) {
 }
 
 func TestRenderBodyLeavesOutAnEmptyReason(t *testing.T) {
-	if got := renderBody(api.Task{Title: "T", WhyDropped: []string{"w"}}); got != "# T\n\n## Why dropped\n\n- w\n" {
+	if got := renderBody(api.Task{Title: "T", WhyCanceled: []string{"w"}}); got != "# T\n\n## Why canceled\n\n- w\n" {
 		t.Fatalf("%q", got)
 	}
-	if strings.Contains(renderBody(api.Task{Title: "T"}), "Why dropped") {
+	if strings.Contains(renderBody(api.Task{Title: "T"}), "Why canceled") {
 		t.Fatal("an empty reason is rendered")
 	}
 }

@@ -49,7 +49,7 @@ describe("/api/tasks", () => {
       status: "todo",
       project: null,
       tickets: [],
-      why_dropped: [],
+      why_canceled: [],
       memo: [],
     });
     expect(created.body.created).toBe(created.body.updated);
@@ -77,7 +77,7 @@ describe("/api/tasks", () => {
       { ...task, tickets: ["http://example.com/1"] },
       { ...task, links: ["https://example.com/1", "https://example.com/1"] },
       { ...task, status: "done" },
-      { ...task, why_dropped: ["今は使い道がない"] },
+      { ...task, why_canceled: ["今は使い道がない"] },
       { ...task, memo: "free notes" },
     ]) {
       const res = await json(await call("POST", "/api/tasks", bad));
@@ -147,35 +147,35 @@ describe("/api/tasks", () => {
     ]);
   });
 
-  it("refuses to drop a task that does not say why", async () => {
+  it("refuses to cancel a task that does not say why", async () => {
     await call("POST", "/api/tasks", task);
-    const res = await json(await call("PATCH", "/api/tasks/1", { status: "dropped" }));
-    expect(res).toEqual({ status: 422, body: { error: "a dropped task needs why_dropped" } });
+    const res = await json(await call("PATCH", "/api/tasks/1", { status: "canceled" }));
+    expect(res).toEqual({ status: 422, body: { error: "a canceled task needs why_canceled" } });
 
     const ok = await call("PATCH", "/api/tasks/1", {
-      status: "dropped",
-      why_dropped: ["今は使い道がない"],
+      status: "canceled",
+      why_canceled: ["今は使い道がない"],
     });
     expect(ok.status).toBe(200);
 
-    // leaving dropped takes the reason with it
+    // leaving canceled takes the reason with it
     const kept = await json(await call("PATCH", "/api/tasks/1", { status: "todo" }));
-    expect(kept).toEqual({ status: 422, body: { error: "a todo task has no why_dropped" } });
-    expect((await call("PATCH", "/api/tasks/1", { status: "todo", why_dropped: [] })).status).toBe(
+    expect(kept).toEqual({ status: 422, body: { error: "a todo task has no why_canceled" } });
+    expect((await call("PATCH", "/api/tasks/1", { status: "todo", why_canceled: [] })).status).toBe(
       200,
     );
   });
 
   it("lists every task in workflow order, then by slug", async () => {
     for (const slug of ["d", "c", "b", "a"]) await call("POST", "/api/tasks", { ...task, slug });
-    await call("PATCH", "/api/tasks/4", { status: "dropped", why_dropped: ["不要"] });
+    await call("PATCH", "/api/tasks/4", { status: "canceled", why_canceled: ["不要"] });
     await call("PATCH", "/api/tasks/3", { status: "done" });
     const { body } = await json(await call("GET", "/api/tasks"));
     expect(body.map((t: any) => [t.slug, t.status])).toEqual([
       ["c", "todo"],
       ["d", "todo"],
       ["b", "done"],
-      ["a", "dropped"],
+      ["a", "canceled"],
     ]);
   });
 

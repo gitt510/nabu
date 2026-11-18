@@ -3,12 +3,12 @@ import { marked } from "marked";
 import type { Habit, Item, Task } from "../api/schema";
 
 /** page が見せる形の task：やめた理由があれば、箇条書きにした HTML を添える */
-export type TaskView = Task & { whyDropped: string | null };
+export type TaskView = Task & { whyCanceled: string | null };
 
 const toTaskView = (t: Task): TaskView => ({
   ...t,
-  whyDropped: t.why_dropped.length
-    ? marked.parse(t.why_dropped.map((l) => `- ${l}`).join("\n"), { async: false })
+  whyCanceled: t.why_canceled.length
+    ? marked.parse(t.why_canceled.map((l) => `- ${l}`).join("\n"), { async: false })
     : null,
 });
 
@@ -23,9 +23,9 @@ export async function fetchTasks(): Promise<TaskView[]> {
 export const patch = (id: number, fields: Partial<Task>) =>
   send("PATCH", `/api/tasks/${id}`, fields);
 
-/** task を done にする、または todo に戻す。どちらも dropped の理由は消す */
+/** task を done にする、または todo に戻す。どちらも canceled の理由は消す */
 export const check = (id: number, done: boolean) =>
-  patch(id, { status: done ? "done" : "todo", why_dropped: [] });
+  patch(id, { status: done ? "done" : "todo", why_canceled: [] });
 
 /** 全部の habit を、day（YYYY-MM-DD）にやったかどうか付きで読む */
 export async function fetchHabits(day: string): Promise<Habit[]> {

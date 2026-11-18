@@ -4,5 +4,5 @@ import type { Status } from "../../api/schema";
 export const STATUS_LABEL: Record<Status, string> = {
   todo: "Todo",
   done: "Done",
-  dropped: "Dropped",
+  canceled: "Canceled",
 };

@@ -4,7 +4,7 @@ import type { Task } from "../../api/schema";
 import { check, type TaskView, patch } from "../api";
 import { dayOf, fmt, fmtDay, ticket, timeOf, todayKey } from "../time";
 import { Checklist } from "./Checklist";
-import { DropDialog } from "./DropDialog";
+import { CancelDialog } from "./CancelDialog";
 import { Memo } from "./Memo";
 import { MemoDialog } from "./MemoDialog";
 import { STATUS_LABEL } from "./states";
@@ -38,7 +38,7 @@ import {
   useHotkeys,
 } from "./ui";
 
-/** 開いている task：番号を添えた題と右端の memo を足す・完了・やめる（閉じた task は開き直す）操作、その下に予定日の札・作った日・直した日の 1 行と、area・project・waiting・link を icon つきで並べる 1 行、端から端までの区切りの線のあとに、scroll する本文として、やめた task なら Why dropped を枠なしの文章で、そのあとに付け外しできる Checklist と、書き足せる Memo を */
+/** 開いている task：番号を添えた題と右端の memo を足す・完了・やめる（閉じた task は開き直す）操作、その下に予定日の札・作った日・直した日の 1 行と、area・project・waiting・link を icon つきで並べる 1 行、端から端までの区切りの線のあとに、scroll する本文として、やめた task なら Why canceled を枠なしの文章で、そのあとに付け外しできる Checklist と、書き足せる Memo を */
 export function TaskDetail({
   task,
   onBack,
@@ -49,7 +49,7 @@ export function TaskDetail({
   onChanged: () => void;
 }) {
   const [error, setError] = useState<string>();
-  const [dropping, setDropping] = useState(false);
+  const [canceling, setCanceling] = useState(false);
   const [noting, setNoting] = useState(false);
 
   const settle = (problem: string | undefined) => {
@@ -59,7 +59,7 @@ export function TaskDetail({
   const save = async (fields: Partial<Task>) => settle(await patch(task.id, fields));
   const close = async (done: boolean) => settle(await check(task.id, done));
   useHotkeys([
-    ["d", () => task.status === "todo" && setDropping(true)],
+    ["c", () => task.status === "todo" && setCanceling(true)],
     ["m", () => setNoting(true)],
   ]);
 
@@ -69,7 +69,7 @@ export function TaskDetail({
       {task.status === "todo" ? (
         <>
           <IconButton label="Mark done" icon={CircleCheckIcon} onClick={() => void close(true)} />
-          <IconButton label="Drop… (d)" icon={CircleXIcon} onClick={() => setDropping(true)} />
+          <IconButton label="Cancel… (c)" icon={CircleXIcon} onClick={() => setCanceling(true)} />
         </>
       ) : (
         <IconButton label="Reopen" icon={ArrowBackUpIcon} onClick={() => void close(false)} />
@@ -138,9 +138,9 @@ export function TaskDetail({
   return (
     <Pane head={head}>
       <Stack gap="md">
-        {task.whyDropped ? (
-          <Passage title="Why dropped">
-            <Prose html={task.whyDropped} />
+        {task.whyCanceled ? (
+          <Passage title="Why canceled">
+            <Prose html={task.whyCanceled} />
           </Passage>
         ) : null}
         <Checklist key={`checklist-${task.id}`} taskId={task.id} />
@@ -154,11 +154,11 @@ export function TaskDetail({
           }}
         />
       </Stack>
-      <DropDialog
+      <CancelDialog
         id={task.id}
-        opened={dropping}
-        onClose={() => setDropping(false)}
-        onDropped={onChanged}
+        opened={canceling}
+        onClose={() => setCanceling(false)}
+        onCanceled={onChanged}
       />
       <MemoDialog
         id={task.id}

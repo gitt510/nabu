@@ -52,12 +52,12 @@ describe("the tasks table", () => {
   it("enforces its CHECK constraints on a write that skips the API", async () => {
     await expect(insert({ status: "wip" })).rejects.toThrow(/CHECK constraint failed/);
     await expect(insert({ area: "hobby" })).rejects.toThrow(/CHECK constraint failed/);
-    await expect(insert({ status: "dropped" })).rejects.toThrow(/CHECK constraint failed/);
-    await expect(insert({ status: "done", why_dropped: '["no use for it now"]' })).rejects.toThrow(
+    await expect(insert({ status: "canceled" })).rejects.toThrow(/CHECK constraint failed/);
+    await expect(insert({ status: "done", why_canceled: '["no use for it now"]' })).rejects.toThrow(
       /CHECK constraint failed/,
     );
     await expect(
-      insert({ status: "dropped", why_dropped: '["no use for it now"]' }),
+      insert({ status: "canceled", why_canceled: '["no use for it now"]' }),
     ).resolves.toBeDefined();
   });
 });
