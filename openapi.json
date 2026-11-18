@@ -11,11 +11,7 @@
         "properties": {
           "id": {
             "type": "integer",
-            "description": "the number the task keeps for life, unlike its slug"
-          },
-          "slug": {
-            "type": "string",
-            "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+            "description": "the number the task keeps for life"
           },
           "title": {
             "type": "string",
@@ -99,7 +95,6 @@
         },
         "required": [
           "id",
-          "slug",
           "title",
           "status",
           "area",
@@ -196,21 +191,9 @@
   "paths": {
     "/api/tasks": {
       "get": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "only the task with this slug, if any"
-            },
-            "required": false,
-            "description": "only the task with this slug, if any",
-            "name": "slug",
-            "in": "query"
-          }
-        ],
         "responses": {
           "200": {
-            "description": "every task in workflow order, then by slug",
+            "description": "every task in workflow order, then by id",
             "content": {
               "application/json": {
                 "schema": {
@@ -233,10 +216,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "slug": {
-                    "type": "string",
-                    "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
-                  },
                   "title": {
                     "type": "string",
                     "pattern": "^[^\\n]*\\S[^\\n]*$"
@@ -285,7 +264,6 @@
                   }
                 },
                 "required": [
-                  "slug",
                   "title",
                   "area"
                 ],
@@ -301,24 +279,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Task"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "the slug is taken",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
                 }
               }
             }
@@ -412,10 +372,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "slug": {
-                    "type": "string",
-                    "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
-                  },
                   "title": {
                     "type": "string",
                     "pattern": "^[^\\n]*\\S[^\\n]*$"
@@ -508,24 +464,6 @@
           },
           "404": {
             "description": "no such task",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "the new slug is taken",
             "content": {
               "application/json": {
                 "schema": {

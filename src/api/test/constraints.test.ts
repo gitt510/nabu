@@ -19,7 +19,6 @@ const allowed = (sql: string, column: string) => {
 
 const insert = (fields: Record<string, string>) => {
   const row = {
-    slug: "a",
     title: "A",
     status: "todo",
     area: "work",

@@ -19,9 +19,9 @@ const add = async (task_id: number, text: string) =>
   (await (await call("POST", "/api/items", { task_id, text })).json()) as Item;
 const list = async (task_id: number) =>
   (await (await call("GET", `/api/items?task_id=${task_id}`)).json()) as Item[];
-const newTask = async (slug: string) =>
+const newTask = async (title: string) =>
   (
-    (await (await call("POST", "/api/tasks", { slug, title: slug, area: "personal" })).json()) as {
+    (await (await call("POST", "/api/tasks", { title, area: "personal" })).json()) as {
       id: number;
     }
   ).id;

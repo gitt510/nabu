@@ -17,7 +17,6 @@ const call = async (method: string, path: string, body?: unknown) =>
 const json = async (res: Response) => ({ status: res.status, body: (await res.json()) as any });
 
 const task = {
-  slug: "move-runtime",
   title: "runtime を新しい version へ移行",
   area: "work",
 };
@@ -71,7 +70,7 @@ describe("/api/tasks", () => {
 
   it("refuses a task out of shape with 422", async () => {
     for (const bad of [
-      { ...task, slug: "Bad Slug" },
+      { ...task, project: "Bad Project" },
       { ...task, area: "hobby" },
       { ...task, scheduled: "tomorrow" },
       { ...task, tickets: ["http://example.com/1"] },
@@ -89,12 +88,12 @@ describe("/api/tasks", () => {
 
   it("names every problem of a task, one per line", async () => {
     const res = await json(
-      await call("POST", "/api/tasks", { ...task, slug: "Bad Slug", area: "hobby" }),
+      await call("POST", "/api/tasks", { ...task, project: "Bad Project", area: "hobby" }),
     );
     expect(res.status).toBe(422);
     expect(res.body.error.split("\n")).toEqual([
-      expect.stringMatching(/^slug: /),
       expect.stringMatching(/^area: /),
+      expect.stringMatching(/^project: /),
     ]);
   });
 
@@ -105,11 +104,13 @@ describe("/api/tasks", () => {
     expect((await call("PATCH", "/api/tasks/1", { memo: ["あ".repeat(45)] })).status).toBe(200);
   });
 
-  it("refuses a slug that is taken with 409", async () => {
+  it("files two tasks of the same title as two tasks", async () => {
     await call("POST", "/api/tasks", task);
-    expect((await call("POST", "/api/tasks", task)).status).toBe(409);
-    await call("POST", "/api/tasks", { ...task, slug: "other" });
-    expect((await call("PATCH", "/api/tasks/2", { slug: "move-runtime" })).status).toBe(409);
+    expect((await json(await call("POST", "/api/tasks", task))).body.id).toBe(2);
+    expect(await events()).toEqual([
+      { task_id: 1, action: "create" },
+      { task_id: 2, action: "create" },
+    ]);
   });
 
   it("changes fields, drops optional ones with null, and records the row before and after", async () => {
@@ -137,16 +138,6 @@ describe("/api/tasks", () => {
     expect(JSON.parse(row!.after)).toMatchObject({ status: "done", project: null });
   });
 
-  it("renames a task and keeps its id and its history", async () => {
-    await call("POST", "/api/tasks", task);
-    expect((await call("PATCH", "/api/tasks/1", { slug: "upgrade-runtime" })).status).toBe(200);
-    expect((await json(await call("GET", "/api/tasks/1"))).body.slug).toBe("upgrade-runtime");
-    expect(await events()).toEqual([
-      { task_id: 1, action: "create" },
-      { task_id: 1, action: "update" },
-    ]);
-  });
-
   it("refuses to cancel a task that does not say why", async () => {
     await call("POST", "/api/tasks", task);
     const res = await json(await call("PATCH", "/api/tasks/1", { status: "canceled" }));
@@ -166,25 +157,17 @@ describe("/api/tasks", () => {
     );
   });
 
-  it("lists every task in workflow order, then by slug", async () => {
-    for (const slug of ["d", "c", "b", "a"]) await call("POST", "/api/tasks", { ...task, slug });
-    await call("PATCH", "/api/tasks/4", { status: "canceled", why_canceled: ["不要"] });
-    await call("PATCH", "/api/tasks/3", { status: "done" });
+  it("lists every task in workflow order, then by id", async () => {
+    for (const title of ["a", "b", "c", "d"]) await call("POST", "/api/tasks", { ...task, title });
+    await call("PATCH", "/api/tasks/1", { status: "canceled", why_canceled: ["不要"] });
+    await call("PATCH", "/api/tasks/2", { status: "done" });
     const { body } = await json(await call("GET", "/api/tasks"));
-    expect(body.map((t: any) => [t.slug, t.status])).toEqual([
-      ["c", "todo"],
-      ["d", "todo"],
-      ["b", "done"],
-      ["a", "canceled"],
+    expect(body.map((t: any) => [t.id, t.status])).toEqual([
+      [3, "todo"],
+      [4, "todo"],
+      [2, "done"],
+      [1, "canceled"],
     ]);
-  });
-
-  it("narrows the list to the task with a slug", async () => {
-    for (const slug of ["a", "b"]) await call("POST", "/api/tasks", { ...task, slug });
-    expect(
-      (await json(await call("GET", "/api/tasks?slug=b"))).body.map((t: any) => [t.id, t.slug]),
-    ).toEqual([[2, "b"]]);
-    expect((await json(await call("GET", "/api/tasks?slug=z"))).body).toEqual([]);
   });
 
   it("deletes a task and keeps its events", async () => {

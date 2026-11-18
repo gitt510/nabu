@@ -46,13 +46,14 @@ nabu login
 
 ```
 user:  この PR のレビュー待ち、task にしといて
-agent: nabu task new review-pr-68 --area work --pr https://github.com/o/r/pull/68
-→ {"action": "task new", "slug": "review-pr-68", "status": "todo", ...}
+agent: nabu task new --area work --pr https://github.com/o/r/pull/68
+→ {"action": "task new", "id": 68, "status": "todo", ...}
 ```
 
 ### Overview
 
 - A task lives in Cloudflare D1, and the Worker's `/api/tasks` is the only way in
+- A task is named by its id, the number the viewer shows as `#6`
 - A task's status is one of `todo`, `done`, `canceled`, set by `nabu task done`, `nabu task cancel`, and `nabu task reopen`
 - A task is its title and its frontmatter: `area`, `project`, `scheduled`, `waiting`, `tickets`, `prs`, and `links`
 - A canceled task also carries `why_canceled`, and no other task does
