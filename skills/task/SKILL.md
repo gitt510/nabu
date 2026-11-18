@@ -87,4 +87,4 @@ or quote `'#6'`, since a shell reads an unquoted `#` as a comment.
 - Reach the API, D1, or the viewer any other way than nabu.
 - Guess the setup. If nabu exits 2 with "no base_url declared" or "not signed
   in", show the user the message as is; it says what to run. Suggest they
-  type `! cloudflared access login <base_url>` to sign in from the prompt.
+  type `! nabu login` to sign in from the prompt.

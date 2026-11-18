@@ -31,11 +31,9 @@ func (e *Error) Error() string { return e.Message }
 
 // SignedOutError is returned when Access does not let the request through:
 // cloudflared holds no token for the Worker, or the one it holds expired.
-type SignedOutError struct{ URL string }
+type SignedOutError struct{}
 
-func (e *SignedOutError) Error() string {
-	return "not signed in: run cloudflared access login " + e.URL
-}
+func (e *SignedOutError) Error() string { return "not signed in: run nabu login" }
 
 // Client talks to one Worker.
 type Client struct {
@@ -59,15 +57,29 @@ func New(url string) *Client {
 	}
 }
 
+var errNoCloudflared = errors.New("cloudflared not found: install it (brew install cloudflared), then run nabu login")
+
+// Login signs in to the Worker at url through cloudflared, which opens the
+// browser and keeps the token. -q keeps the token off the terminal, where an
+// agent session would record it; what cloudflared prints goes to out.
+func Login(url string, out io.Writer) error {
+	if _, err := exec.LookPath("cloudflared"); err != nil {
+		return errNoCloudflared
+	}
+	cmd := exec.Command("cloudflared", "access", "login", "-q", url)
+	cmd.Stdout, cmd.Stderr = out, out
+	return cmd.Run()
+}
+
 // cloudflared prints the token it holds for app; it fails when it holds none.
 func cloudflared(app string) (string, error) {
 	if _, err := exec.LookPath("cloudflared"); err != nil {
-		return "", errors.New("cloudflared not found: install it (brew install cloudflared), then run cloudflared access login " + app)
+		return "", errNoCloudflared
 	}
 	out, err := exec.Command("cloudflared", "access", "token", "-app="+app).Output()
 	token := strings.TrimSpace(string(out))
 	if err != nil || token == "" || strings.ContainsAny(token, " \n") {
-		return "", &SignedOutError{URL: app}
+		return "", &SignedOutError{}
 	}
 	return token, nil
 }
@@ -171,7 +183,7 @@ func (c *Client) do(method, path string, in, out any) error {
 	defer func() { _ = res.Body.Close() }()
 	switch {
 	case res.StatusCode >= 300 && res.StatusCode < 400, res.StatusCode == http.StatusUnauthorized, res.StatusCode == http.StatusForbidden:
-		return &SignedOutError{URL: c.URL}
+		return &SignedOutError{}
 	case res.StatusCode >= 400:
 		var e struct {
 			Error string `json:"error"`

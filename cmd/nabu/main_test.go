@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -242,7 +243,7 @@ func TestHelpGoesToStdout(t *testing.T) {
 func TestNoURLExits2(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	code, stderr := stderrOf([]string{"task", "ls"}, "")
-	if code != exitUsage || !strings.Contains(stderr, "no base_url declared") || !strings.Contains(stderr, "cloudflared access login") {
+	if code != exitUsage || !strings.Contains(stderr, "no base_url declared") || !strings.Contains(stderr, "nabu login") {
 		t.Fatalf("exit %d stderr=%q", code, stderr)
 	}
 }
@@ -270,13 +271,13 @@ func TestSignedOutExits2(t *testing.T) {
 	// Access redirects a request whose token it does not accept
 	useClient(t, srv.URL, func(string) (string, error) { return "expired", nil })
 	code, stderr := stderrOf([]string{"task", "ls"}, "")
-	if code != exitUsage || stderr != "not signed in: run cloudflared access login "+srv.URL+"\n" {
+	if code != exitUsage || stderr != "not signed in: run nabu login\n" {
 		t.Fatalf("redirect: exit %d stderr=%q", code, stderr)
 	}
 
 	// cloudflared holds no token
-	useClient(t, srv.URL, func(u string) (string, error) { return "", &api.SignedOutError{URL: u} })
-	if code, stderr := stderrOf([]string{"task", "read", "x"}, ""); code != exitUsage || !strings.Contains(stderr, "cloudflared access login") {
+	useClient(t, srv.URL, func(string) (string, error) { return "", &api.SignedOutError{} })
+	if code, stderr := stderrOf([]string{"task", "read", "x"}, ""); code != exitUsage || !strings.Contains(stderr, "nabu login") {
 		t.Fatalf("no token: exit %d stderr=%q", code, stderr)
 	}
 }
@@ -498,5 +499,32 @@ func TestRenderBodyLeavesOutAnEmptyReason(t *testing.T) {
 	}
 	if strings.Contains(renderBody(api.Task{Title: "T"}), "Why dropped") {
 		t.Fatal("an empty reason is rendered")
+	}
+}
+
+func TestLogin(t *testing.T) {
+	useClient(t, "https://nabu.example.dev", func(string) (string, error) { return "", nil })
+	orig := signIn
+	t.Cleanup(func() { signIn = orig })
+
+	var got string
+	signIn = func(url string, out io.Writer) error {
+		got = url
+		fmt.Fprintln(out, "browser opened")
+		return nil
+	}
+	var out, errb bytes.Buffer
+	if code := run([]string{"login"}, strings.NewReader(""), &out, &errb); code != exitOK {
+		t.Fatalf("exit %d stderr=%q", code, errb.String())
+	}
+	// cloudflared's own output goes to stderr, so stdout holds only the result
+	if got != "https://nabu.example.dev" || errb.String() != "browser opened\n" ||
+		out.String() != "{\n  \"action\": \"login\",\n  \"url\": \"https://nabu.example.dev\"\n}\n" {
+		t.Fatalf("url=%q stdout=%q stderr=%q", got, out.String(), errb.String())
+	}
+
+	signIn = func(string, io.Writer) error { return errors.New("login failed") }
+	if code, stderr := stderrOf([]string{"login"}, ""); code != exitFail || stderr != "login failed\n" {
+		t.Fatalf("exit %d stderr=%q", code, stderr)
 	}
 }
