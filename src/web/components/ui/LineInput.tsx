@@ -1,12 +1,13 @@
 import { TextInput } from "@mantine/core";
 
-/** 1 行の入力。横に並んだときは、空いている幅いっぱいに伸びる。onEscape があれば Esc で呼び、その場の編集をやめられる */
+/** 1 行の入力。横に並んだときは、空いている幅いっぱいに伸びる。onEscape があれば Esc で呼び、その場の編集をやめられる。onBlur は欄の外へ focus が移ったときに呼ぶ */
 export const LineInput = ({
   label,
   placeholder,
   value,
   onChange,
   onEscape,
+  onBlur,
   autoFocus = false,
 }: {
   label: string;
@@ -14,6 +15,7 @@ export const LineInput = ({
   value: string;
   onChange: (v: string) => void;
   onEscape?: () => void;
+  onBlur?: () => void;
   autoFocus?: boolean;
 }) => (
   <TextInput
@@ -26,6 +28,7 @@ export const LineInput = ({
     data-autofocus={autoFocus || undefined}
     value={value}
     onChange={(e) => onChange(e.currentTarget.value)}
+    onBlur={onBlur}
     onKeyDown={(e) => {
       if (e.key === "Escape" && onEscape) onEscape();
     }}

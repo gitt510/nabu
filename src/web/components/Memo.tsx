@@ -1,21 +1,20 @@
 import { useState } from "react";
 
 import {
-  Button,
   ErrorText,
   Form,
   Group,
   IconButton,
   LineInput,
   Passage,
-  PencilIcon,
   Stack,
+  TextButton,
   TrashIcon,
 } from "./ui";
 
 /**
- * task の Memo：やったこと、思ったことの行。足すのは MemoDialog から。
- * 行は鉛筆からその場で直し（空にして保存すると消える）、ゴミ箱で消す。onSave は memo 全体を送り、断られたら理由を返す
+ * task の Memo：やったこと、思ったことの行。足すのは MemoDialog から。行が無ければ何も出さない。
+ * 行は文字を押してその場で直し（Enter か欄の外で保存、Esc でやめる。空にして保存すると消える）、ゴミ箱で消す。onSave は memo 全体を送り、断られたら理由を返す
  */
 export function Memo({
   lines,
@@ -36,47 +35,39 @@ export function Memo({
   const edit = async () => {
     if (!editing) return;
     const { i, text } = editing;
+    if (text === lines[i]) return setEditing(null);
     const memo = text.trim() ? lines.with(i, text) : lines.toSpliced(i, 1);
     if (await save(memo)) setEditing(null);
   };
 
-  const row = (line: string, i: number) =>
-    editing?.i === i ? (
-      <Form key={i} onSubmit={() => void edit()}>
-        <Group gap="xs" wrap="nowrap">
+  const row = (line: string, i: number) => (
+    <Group key={i} gap="xs" wrap="nowrap">
+      {editing?.i === i ? (
+        <Form onSubmit={() => void edit()}>
           <LineInput
             label="Edit note"
             value={editing.text}
             onChange={(text) => setEditing({ i, text })}
             onEscape={() => setEditing(null)}
+            onBlur={() => void edit()}
             autoFocus
           />
-          <Button small onClick={() => setEditing(null)}>
-            Cancel
-          </Button>
-          <Button small type="submit">
-            Save
-          </Button>
-        </Group>
-      </Form>
-    ) : (
-      <Group key={i} justify="space-between" wrap="nowrap">
-        {line}
-        <Group gap={4} wrap="nowrap">
-          <IconButton
-            label="Edit"
-            icon={PencilIcon}
-            onClick={() => setEditing({ i, text: line })}
-          />
-          <IconButton
-            label="Delete"
-            icon={TrashIcon}
-            onClick={() => void save(lines.toSpliced(i, 1))}
-          />
-        </Group>
-      </Group>
-    );
+        </Form>
+      ) : (
+        <TextButton label={`Edit ${line}`} onClick={() => setEditing({ i, text: line })}>
+          {line}
+        </TextButton>
+      )}
+      <IconButton
+        label="Delete"
+        icon={TrashIcon}
+        onClick={() => void save(lines.toSpliced(i, 1))}
+      />
+    </Group>
+  );
 
+  // 空なら段ごと出さない。足すのは TaskDetail の menu の Add memo から
+  if (!lines.length) return null;
   return (
     <Passage title="Memo">
       <Stack gap="xs">

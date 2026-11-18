@@ -10,10 +10,8 @@ import { MemoDialog } from "./MemoDialog";
 import { STATUS_LABEL } from "./states";
 import {
   ArrowBackUpIcon,
-  ArrowLeftIcon,
   Caption,
   CircleCheckIcon,
-  CirclePlusIcon,
   CircleXIcon,
   DatePickerButton,
   ErrorText,
@@ -21,14 +19,11 @@ import {
   FolderIcon,
   GitPullRequestIcon,
   Group,
-  Heading,
   HourglassIcon,
-  IconButton,
+  MoreMenu,
   type IconComponent,
   LinkIcon,
   NotesIcon,
-  Pane,
-  PencilIcon,
   Prose,
   Passage,
   Stack,
@@ -38,16 +33,13 @@ import {
   useHotkeys,
 } from "./ui";
 
-/** 開いている task：番号を添えた題と右端の memo を足す・完了・やめる（閉じた task は開き直す）操作、その下に予定日の札・作った日・直した日の 1 行と、area・project・waiting・link を icon つきで並べる 1 行、端から端までの区切りの線のあとに、scroll する本文として、やめた task なら Why canceled を枠なしの文章で、そのあとに付け外しできる Checklist と、書き足せる Memo を */
-export function TaskDetail({
-  task,
-  onBack,
-  onChanged,
-}: {
-  task: TaskView;
-  onBack?: () => void;
-  onChanged: () => void;
-}) {
+/**
+ * 一覧の行の下に開いた task。題は行が見せるので、ここは Checklist や Memo と同じ形の Details の段から始める。
+ * 題の右端の三点の menu に memo を足す・完了・やめる（閉じた task は開き直す）操作、中に予定日の札・作った日・直した日の 1 行と、
+ * area・project・waiting・link を icon つきで並べる 1 行、
+ * やめた task なら Why canceled を枠なしの文章で、そのあとに付け外しできる Checklist と、書き足せる Memo を
+ */
+export function TaskDetail({ task, onChanged }: { task: TaskView; onChanged: () => void }) {
   const [error, setError] = useState<string>();
   const [canceling, setCanceling] = useState(false);
   const [noting, setNoting] = useState(false);
@@ -64,17 +56,23 @@ export function TaskDetail({
   ]);
 
   const actions = (
-    <Group gap={4} wrap="nowrap">
-      <IconButton label="Add memo… (m)" icon={NotesIcon} onClick={() => setNoting(true)} />
-      {task.status === "todo" ? (
-        <>
-          <IconButton label="Mark done" icon={CircleCheckIcon} onClick={() => void close(true)} />
-          <IconButton label="Cancel… (c)" icon={CircleXIcon} onClick={() => setCanceling(true)} />
-        </>
-      ) : (
-        <IconButton label="Reopen" icon={ArrowBackUpIcon} onClick={() => void close(false)} />
-      )}
-    </Group>
+    <MoreMenu
+      label="Task actions"
+      items={[
+        { label: "Add memo…", icon: NotesIcon, hotkey: "m", onClick: () => setNoting(true) },
+        ...(task.status === "todo"
+          ? [
+              { label: "Mark done", icon: CircleCheckIcon, onClick: () => void close(true) },
+              {
+                label: "Cancel…",
+                icon: CircleXIcon,
+                hotkey: "c",
+                onClick: () => setCanceling(true),
+              },
+            ]
+          : [{ label: "Reopen", icon: ArrowBackUpIcon, onClick: () => void close(false) }]),
+      ]}
+    />
   );
 
   // 時刻のある予定は、時刻を残して日だけを移す
@@ -90,17 +88,9 @@ export function TaskDetail({
       </ExternalLink>
     ));
 
-  const head = (
-    <Stack gap="xs">
-      {onBack ? (
-        <Group>
-          <IconButton label="Back to list" icon={ArrowLeftIcon} onClick={onBack} />
-        </Group>
-      ) : null}
+  const details = (
+    <Passage title="Details" aside={actions}>
       <Stack gap="xs">
-        <Heading number={`#${task.id}`} aside={actions}>
-          {task.title}
-        </Heading>
         <Group gap="xs">
           {task.status === "todo" ? null : <Caption>{STATUS_LABEL[task.status]}</Caption>}
           <DatePickerButton
@@ -109,18 +99,8 @@ export function TaskDetail({
             today={todayKey()}
             onSelect={schedule}
           />
-          <Timestamp
-            icon={CirclePlusIcon}
-            label="created"
-            value={fmtDay(task.created)}
-            detail={fmt(task.created)}
-          />
-          <Timestamp
-            icon={PencilIcon}
-            label="updated"
-            value={fmtDay(task.updated)}
-            detail={fmt(task.updated)}
-          />
+          <Timestamp label="created" value={fmtDay(task.created)} detail={fmt(task.created)} />
+          <Timestamp label="updated" value={fmtDay(task.updated)} detail={fmt(task.updated)} />
         </Group>
         <Group gap="md">
           <Caption icon={TagIcon}>{task.area}</Caption>
@@ -130,30 +110,29 @@ export function TaskDetail({
           {links(task.prs, GitPullRequestIcon)}
           {links(task.links, LinkIcon)}
         </Group>
+        <ErrorText>{error}</ErrorText>
       </Stack>
-      <ErrorText>{error}</ErrorText>
-    </Stack>
+    </Passage>
   );
 
   return (
-    <Pane head={head}>
-      <Stack gap="md">
-        {task.whyCanceled ? (
-          <Passage title="Why canceled">
-            <Prose html={task.whyCanceled} />
-          </Passage>
-        ) : null}
-        <Checklist key={`checklist-${task.id}`} taskId={task.id} />
-        <Memo
-          key={task.id}
-          lines={task.memo}
-          onSave={async (memo) => {
-            const problem = await patch(task.id, { memo });
-            if (!problem) onChanged();
-            return problem;
-          }}
-        />
-      </Stack>
+    <Stack gap="md">
+      {details}
+      {task.whyCanceled ? (
+        <Passage title="Why canceled">
+          <Prose html={task.whyCanceled} />
+        </Passage>
+      ) : null}
+      <Checklist key={`checklist-${task.id}`} taskId={task.id} />
+      <Memo
+        key={task.id}
+        lines={task.memo}
+        onSave={async (memo) => {
+          const problem = await patch(task.id, { memo });
+          if (!problem) onChanged();
+          return problem;
+        }}
+      />
       <CancelDialog
         id={task.id}
         opened={canceling}
@@ -167,6 +146,6 @@ export function TaskDetail({
         onClose={() => setNoting(false)}
         onAdded={onChanged}
       />
-    </Pane>
+    </Stack>
   );
 }

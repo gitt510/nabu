@@ -4,19 +4,15 @@
  * この file は ui の file から出し直すだけで、ライブラリを直に参照しない（素通しにしない）
  */
 
-// 枠
-export { ListDetailLayout } from "./ListDetailLayout";
-export { Pane } from "./Pane";
-
 // 並べる（間隔と揃え方の props だけを持つ）
 export { Page } from "./Page";
 export { Stack } from "./Stack";
+export { SideColumn } from "./SideColumn";
+export { Indent } from "./Indent";
 export { Group } from "./Group";
-export { Columns } from "./Columns";
 export { Form } from "./Form";
 
 // 文字
-export { Heading } from "./Heading";
 export { Caption } from "./Caption";
 export { ErrorText } from "./ErrorText";
 export { Timestamp } from "./Timestamp";
@@ -25,12 +21,16 @@ export { ExternalLink } from "./ExternalLink";
 // 入力と操作
 export { Button } from "./Button";
 export { IconButton } from "./IconButton";
-export { SegmentedControl } from "./SegmentedControl";
+export { MoreMenu } from "./MoreMenu";
 export { Checkbox } from "./Checkbox";
+export { CheckMark } from "./CheckMark";
+export { TextButton } from "./TextButton";
 export { LineInput } from "./LineInput";
 export { LinesInput } from "./LinesInput";
 export { DatePickerButton } from "./DatePickerButton";
-export { ListRow } from "./ListRow";
+export { CheckFacet, Facet } from "./Facet";
+export { FoldRow } from "./FoldRow";
+export { FoldTable } from "./FoldTable";
 export { Pager } from "./Pager";
 
 // 組み立て

@@ -13,13 +13,14 @@ export const Caption = ({
   mono?: boolean;
   icon?: IconComponent;
 }) => {
+  // icon と並べるときは行の高さを文字の高さに詰め、icon と上下の中央を揃える
   const text = (
-    <Text span size="xs" c="dimmed" ff={mono ? "monospace" : undefined}>
+    <Text span size="xs" c="dimmed" ff={mono ? "monospace" : undefined} lh={Icon ? 1 : undefined}>
       {children}
     </Text>
   );
   return Icon ? (
-    <Group component="span" gap={4} wrap="nowrap" c="dimmed">
+    <Group component="span" gap={4} wrap="nowrap" align="center" c="dimmed">
       <Icon size={14} />
       {text}
     </Group>

@@ -30,7 +30,8 @@ export function App() {
   const { tasks, error, reload } = useTasks();
   const [{ page, id: selected }, go] = useRoute();
   const setPage = (p: Page) => go({ page: p, id: "" });
-  const selectTask = (id: string, push = false) => go({ page: "tasks", id }, push);
+  // task を開く・閉じるは履歴に残さない
+  const selectTask = (id: string) => go({ page: "tasks", id }, false);
   const [help, setHelp] = useState(false);
   // logo で origin に戻るたびに数を進め、Home を作り直して今日から見せる
   const [home, setHome] = useState(0);
@@ -43,8 +44,6 @@ export function App() {
   const flipTheme = () => setColorScheme(scheme === "dark" ? "light" : "dark");
 
   useHotkeys([["shift+?", () => setHelp((h) => !h)]]);
-
-  const openTask = (id: string) => selectTask(id, true);
 
   return (
     <Shell
@@ -75,7 +74,7 @@ export function App() {
       ) : page === "tasks" ? (
         <Tasks tasks={tasks} selected={selected} onSelect={selectTask} onChanged={reload} />
       ) : (
-        <Home key={home} tasks={tasks} onOpen={openTask} onChanged={reload} />
+        <Home key={home} tasks={tasks} onChanged={reload} />
       )}
       <HelpDialog opened={help} onClose={() => setHelp(false)} />
     </Shell>
