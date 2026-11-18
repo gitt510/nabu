@@ -3,7 +3,7 @@ import { useState } from "react";
 import { type RailItem, Shell } from "./Shell";
 import { HelpDialog } from "../components/HelpDialog";
 import {
-  CalendarIcon,
+  HomeIcon,
   ChecklistIcon,
   EmptyState,
   KeyboardIcon,
@@ -14,30 +14,28 @@ import {
   useHotkeys,
   useMantineColorScheme,
 } from "../components/ui";
-import { useHash } from "../hooks/useHash";
+import { type Page, useRoute } from "../hooks/useRoute";
 import { useTasks } from "../hooks/useTasks";
 import { Tasks } from "../pages/Tasks";
-import { Calendar } from "../pages/Calendar";
+import { Home } from "../pages/Home";
 import { Habits } from "../pages/Habits";
 
-type Page = "calendar" | "tasks" | "habits";
 const PAGES: RailItem<Page>[] = [
-  { key: "calendar", label: "Calendar", icon: CalendarIcon },
+  { key: "home", label: "Home", icon: HomeIcon },
   { key: "tasks", label: "Tasks", icon: ChecklistIcon },
   { key: "habits", label: "Habits", icon: SeedlingIcon },
 ];
 
 export function App() {
   const { tasks, error, reload } = useTasks();
-  const [selected, setSelected] = useHash();
-  // #番号で開いたときは Tasks、それ以外は今日から始める
-  const [page, setPage] = useState<Page>(selected ? "tasks" : "calendar");
+  const [{ page, id: selected }, go] = useRoute();
+  const setPage = (p: Page) => go({ page: p, id: "" });
+  const selectTask = (id: string, push = false) => go({ page: "tasks", id }, push);
   const [help, setHelp] = useState(false);
-  // logo で origin に戻るたびに数を進め、Calendar を作り直して今日から見せる
+  // logo で origin に戻るたびに数を進め、Home を作り直して今日から見せる
   const [home, setHome] = useState(0);
   const goHome = () => {
-    setPage("calendar");
-    setSelected("");
+    setPage("home");
     setHome((h) => h + 1);
   };
   const { setColorScheme } = useMantineColorScheme();
@@ -46,10 +44,7 @@ export function App() {
 
   useHotkeys([["shift+?", () => setHelp((h) => !h)]]);
 
-  const openTask = (id: string) => {
-    setPage("tasks");
-    setSelected(id);
-  };
+  const openTask = (id: string) => selectTask(id, true);
 
   return (
     <Shell
@@ -78,16 +73,9 @@ export function App() {
       ) : page === "habits" ? (
         <Habits />
       ) : page === "tasks" ? (
-        <Tasks tasks={tasks} selected={selected} onSelect={setSelected} onChanged={reload} />
+        <Tasks tasks={tasks} selected={selected} onSelect={selectTask} onChanged={reload} />
       ) : (
-        <Calendar
-          key={home}
-          tasks={tasks}
-          selected={selected}
-          onSelect={setSelected}
-          onOpen={openTask}
-          onChanged={reload}
-        />
+        <Home key={home} tasks={tasks} onOpen={openTask} onChanged={reload} />
       )}
       <HelpDialog opened={help} onClose={() => setHelp(false)} />
     </Shell>

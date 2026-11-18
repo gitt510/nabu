@@ -29,22 +29,19 @@ const bySchedule = (a: TaskView, b: TaskView) =>
  * 終わった予定も、その日の記録として残す。今日か先の日を見ているときは、今日の時点で予定日を過ぎてまだ開いている
  * task を下に足す（今日の予定はまだ遅れていないので入れない）。過去の日には出さない。
  * 予定の下には毎日やる habit を並べ、その日にやった印をここで付け外しする。
- * 広い画面では選んだ task を右の列に開き、狭い画面では Tasks page に移って開く
+ * 広い画面では選んだ task を右の列に開き（URL には残さない）、狭い画面では Tasks page に移って開く
  */
-export function Calendar({
+export function Home({
   tasks,
-  selected,
-  onSelect,
   onOpen,
   onChanged,
 }: {
   tasks: TaskView[];
-  selected: string;
-  onSelect: (id: string) => void;
   onOpen: (id: string) => void;
   onChanged: () => void;
 }) {
   const [day, setDay] = useState(todayKey);
+  const [selected, setSelected] = useState("");
   const narrow = useMediaQuery("(max-width: 48em)") ?? false;
   const task = tasks.find((t) => String(t.id) === selected);
   const isToday = day === todayKey();
@@ -70,7 +67,7 @@ export function Calendar({
       id={`day-${t.id}`}
       label={t.title}
       active={!narrow && String(t.id) === selected}
-      onClick={() => (narrow ? onOpen : onSelect)(String(t.id))}
+      onClick={() => (narrow ? onOpen : setSelected)(String(t.id))}
       aside={
         <Group gap={6} wrap="nowrap">
           {t.status === "todo" ? null : <Caption>{STATUS_LABEL[t.status]}</Caption>}

@@ -16,6 +16,7 @@ export {
   IconCircleX as CircleXIcon,
   IconFolder as FolderIcon,
   IconGitPullRequest as GitPullRequestIcon,
+  IconHome as HomeIcon,
   IconHourglass as HourglassIcon,
   IconKeyboard as KeyboardIcon,
   IconLink as LinkIcon,

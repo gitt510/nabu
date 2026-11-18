@@ -23,7 +23,7 @@ import { todayKey } from "../time";
 /**
  * 毎日やることを決める page。足すのは上の欄から。題は行の鉛筆からその場で直し、checks はそのまま残る。
  * 消すのは行のゴミ箱からで、checks も一緒に消えて戻せないので、その行で Delete をもう 1 度押して確かめる。
- * やった印は Calendar で付ける
+ * やった印は Home で付ける
  */
 export function Habits() {
   const { habits, error, write } = useHabits(todayKey());
