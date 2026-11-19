@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { checkHabit, type TaskView } from "../api";
 import { TaskDetail } from "../components/TaskDetail";
+import { TaskMenu } from "../components/TaskMenu";
 import { TaskTitle, TaskWhen } from "../components/TaskTitle";
 import {
   Caption,
@@ -9,8 +10,10 @@ import {
   EmptyState,
   ErrorText,
   FoldRow,
+  IconButton,
   Page,
   Pager,
+  PlusIcon,
   Section,
   Stack,
   useHotkeys,
@@ -26,7 +29,15 @@ const LATEST = 5;
  * Tasks の下には毎日やる habit を（まだ無くても枠ごと）並べ、その日にやった印をここで付け外しする。
  * 行を押すと task をその場で開く（開くのは 1 つだけで、URL には残さない）
  */
-export function Home({ tasks, onChanged }: { tasks: TaskView[]; onChanged: () => void }) {
+export function Home({
+  tasks,
+  onChanged,
+  onNew,
+}: {
+  tasks: TaskView[];
+  onChanged: () => void;
+  onNew: () => void;
+}) {
   const [day, setDay] = useState(todayKey);
   const [selected, setSelected] = useState("");
   const isToday = day === todayKey();
@@ -52,7 +63,10 @@ export function Home({ tasks, onChanged }: { tasks: TaskView[]; onChanged: () =>
           next={{ label: "Next day (→)", onClick: next }}
           reset={isToday ? undefined : { label: "Today", onClick: () => setDay(todayKey()) }}
         />
-        <Section title="Tasks">
+        <Section
+          title="Tasks"
+          aside={<IconButton label="New task (n)" icon={PlusIcon} onClick={onNew} />}
+        >
           {latest.length ? (
             <Stack gap={2}>
               {latest.map((t) => (
@@ -63,6 +77,7 @@ export function Home({ tasks, onChanged }: { tasks: TaskView[]; onChanged: () =>
                   open={String(t.id) === selected}
                   onToggle={() => setSelected(String(t.id) === selected ? "" : String(t.id))}
                   aside={<TaskWhen task={t} />}
+                  actions={<TaskMenu task={t} onChanged={onChanged} />}
                 >
                   <TaskDetail task={t} onChanged={onChanged} />
                 </FoldRow>

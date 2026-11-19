@@ -22,14 +22,19 @@ import { AREAS } from "../../api/schema";
 import type { TaskView } from "../api";
 import { STATUS_LABEL } from "../components/states";
 import { TaskDetail } from "../components/TaskDetail";
+import { TaskMenu } from "../components/TaskMenu";
 import {
+  Button,
   Caption,
   CheckFacet,
   EmptyState,
   Facet,
   FoldTable,
   Page,
+  PageTitle,
+  PlusIcon,
   SideColumn,
+  Stack,
   useHotkeys,
 } from "../components/ui";
 import { fmtDay, instant } from "../time";
@@ -92,11 +97,13 @@ export function Tasks({
   selected,
   onSelect,
   onChanged,
+  onNew,
 }: {
   tasks: TaskView[];
   selected: string;
   onSelect: (id: string) => void;
   onChanged: () => void;
+  onNew: () => void;
 }) {
   // URL が閉じた task を指していれば、閉じた側から見せる
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() => {
@@ -216,46 +223,58 @@ export function Tasks({
   return (
     <SideColumn side={facets} summary={summary}>
       <Page>
-        {rows.length ? (
-          <FoldTable
-            columns={[
-              sortable("title", "Title", { keep: true }),
-              sortable("scheduled", "Scheduled"),
-              sortable("area", "Area"),
-              sortable("project", "Project"),
-              sortable("when", closed ? "Updated" : "Created", { end: true, keep: true }),
-            ]}
-            rows={rows.map((r) => {
-              const t = r.original;
-              return {
-                id: r.id,
-                anchor: `task-${r.id}`,
-                open: r.getIsExpanded(),
-                onToggle: () => r.toggleExpanded(),
-                cells: {
-                  title: (
-                    <>
-                      {t.title} <Caption mono>#{t.id}</Caption>
-                    </>
-                  ),
-                  project: t.project ? <Caption>{t.project}</Caption> : null,
-                  area: <Caption>{t.area}</Caption>,
-                  scheduled: t.scheduled ? <Caption mono>{fmtDay(t.scheduled)}</Caption> : null,
-                  when: closed ? (
-                    <Caption>
-                      {STATUS_LABEL[t.status]} <Caption mono>{fmtDay(t.updated)}</Caption>
-                    </Caption>
-                  ) : (
-                    <Caption mono>{fmtDay(t.created)}</Caption>
-                  ),
-                },
-                detail: <TaskDetail task={t} onChanged={onChanged} />,
-              };
-            })}
-          />
-        ) : (
-          <EmptyState title="No tasks" description="Try other filters." />
-        )}
+        <Stack gap="md">
+          <PageTitle
+            aside={
+              <Button icon={PlusIcon} onClick={onNew}>
+                New task
+              </Button>
+            }
+          >
+            Tasks
+          </PageTitle>
+          {rows.length ? (
+            <FoldTable
+              columns={[
+                sortable("title", "Title", { keep: true }),
+                sortable("scheduled", "Scheduled"),
+                sortable("area", "Area"),
+                sortable("project", "Project"),
+                sortable("when", closed ? "Updated" : "Created", { end: true, keep: true }),
+              ]}
+              rows={rows.map((r) => {
+                const t = r.original;
+                return {
+                  id: r.id,
+                  anchor: `task-${r.id}`,
+                  open: r.getIsExpanded(),
+                  onToggle: () => r.toggleExpanded(),
+                  cells: {
+                    title: (
+                      <>
+                        {t.title} <Caption mono>#{t.id}</Caption>
+                      </>
+                    ),
+                    project: t.project ? <Caption>{t.project}</Caption> : null,
+                    area: <Caption>{t.area}</Caption>,
+                    scheduled: t.scheduled ? <Caption mono>{fmtDay(t.scheduled)}</Caption> : null,
+                    when: closed ? (
+                      <Caption>
+                        {STATUS_LABEL[t.status]} <Caption mono>{fmtDay(t.updated)}</Caption>
+                      </Caption>
+                    ) : (
+                      <Caption mono>{fmtDay(t.created)}</Caption>
+                    ),
+                  },
+                  actions: <TaskMenu task={t} onChanged={onChanged} />,
+                  detail: <TaskDetail task={t} onChanged={onChanged} />,
+                };
+              })}
+            />
+          ) : (
+            <EmptyState title="No tasks" description="Try other filters." />
+          )}
+        </Stack>
       </Page>
     </SideColumn>
   );

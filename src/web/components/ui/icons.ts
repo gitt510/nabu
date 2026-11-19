@@ -25,6 +25,7 @@ export {
   IconMoon as MoonIcon,
   IconNotes as NotesIcon,
   IconPencil as PencilIcon,
+  IconPlus as PlusIcon,
   IconSeedling as SeedlingIcon,
   IconSun as SunIcon,
   IconTag as TagIcon,

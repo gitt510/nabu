@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
-import { Group, Text } from "@mantine/core";
+import { Box, Text } from "@mantine/core";
 
 import type { IconComponent } from "./icons";
+
+// icon の下端を文字の baseline からこれだけ下げ、icon の中央を大文字と数字の高さの中央に合わせる。
+// 行の箱で中央に揃えると、上下の余白が非対称な Noto Sans JP ではブラウザごとにずれるので、baseline を基準にする
+const ICON_DROP = "-0.2em";
 
 /** 補足。日付、件数、空の説明。icon を渡すと、何の補足かを文字の前に示す */
 export const Caption = ({
@@ -12,19 +16,19 @@ export const Caption = ({
   children: ReactNode;
   mono?: boolean;
   icon?: IconComponent;
-}) => {
-  // icon と並べるときは行の高さを文字の高さに詰め、icon と上下の中央を揃える
-  const text = (
-    <Text span size="xs" c="dimmed" ff={mono ? "monospace" : undefined} lh={Icon ? 1 : undefined}>
-      {children}
-    </Text>
-  );
-  return Icon ? (
-    <Group component="span" gap={4} wrap="nowrap" align="center" c="dimmed">
-      <Icon size={14} />
-      {text}
-    </Group>
-  ) : (
-    text
-  );
-};
+}) => (
+  <Text
+    span
+    size="xs"
+    c="dimmed"
+    ff={mono ? "monospace" : undefined}
+    style={Icon ? { whiteSpace: "nowrap" } : undefined}
+  >
+    {Icon ? (
+      <Box component="span" display="inline-flex" mr={4} style={{ verticalAlign: ICON_DROP }}>
+        <Icon size={14} />
+      </Box>
+    ) : null}
+    {children}
+  </Text>
+);

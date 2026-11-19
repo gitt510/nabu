@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { type RailItem, Shell } from "./Shell";
 import { HelpDialog } from "../components/HelpDialog";
+import { NewTaskDialog } from "../components/NewTaskDialog";
 import {
   HomeIcon,
   ChecklistIcon,
@@ -33,6 +34,7 @@ export function App() {
   // task を開く・閉じるは履歴に残さない
   const selectTask = (id: string) => go({ page: "tasks", id }, false);
   const [help, setHelp] = useState(false);
+  const [adding, setAdding] = useState(false);
   // logo で origin に戻るたびに数を進め、Home を作り直して今日から見せる
   const [home, setHome] = useState(0);
   const goHome = () => {
@@ -43,7 +45,10 @@ export function App() {
   const scheme = useComputedColorScheme("light");
   const flipTheme = () => setColorScheme(scheme === "dark" ? "light" : "dark");
 
-  useHotkeys([["shift+?", () => setHelp((h) => !h)]]);
+  useHotkeys([
+    ["shift+?", () => setHelp((h) => !h)],
+    ["n", () => setAdding(true)],
+  ]);
 
   return (
     <Shell
@@ -72,10 +77,17 @@ export function App() {
       ) : page === "habits" ? (
         <Habits />
       ) : page === "tasks" ? (
-        <Tasks tasks={tasks} selected={selected} onSelect={selectTask} onChanged={reload} />
+        <Tasks
+          tasks={tasks}
+          selected={selected}
+          onSelect={selectTask}
+          onChanged={reload}
+          onNew={() => setAdding(true)}
+        />
       ) : (
-        <Home key={home} tasks={tasks} onChanged={reload} />
+        <Home key={home} tasks={tasks} onChanged={reload} onNew={() => setAdding(true)} />
       )}
+      <NewTaskDialog opened={adding} onClose={() => setAdding(false)} onAdded={reload} />
       <HelpDialog opened={help} onClose={() => setHelp(false)} />
     </Shell>
   );
