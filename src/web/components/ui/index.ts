@@ -27,6 +27,7 @@ export { CheckMark } from "./CheckMark";
 export { TextButton } from "./TextButton";
 export { LineInput } from "./LineInput";
 export { LinesInput } from "./LinesInput";
+export { Choice } from "./Choice";
 export { DatePickerButton } from "./DatePickerButton";
 export { CheckFacet, Facet } from "./Facet";
 export { FoldRow } from "./FoldRow";
@@ -34,8 +35,10 @@ export { FoldTable } from "./FoldTable";
 export { Pager } from "./Pager";
 
 // 組み立て
+export { PageTitle } from "./PageTitle";
 export { Section } from "./Section";
 export { Passage } from "./Passage";
+export { FoldSections } from "./FoldSections";
 export { Dialog } from "./Dialog";
 export { EmptyState } from "./EmptyState";
 export { KeyTable } from "./KeyTable";

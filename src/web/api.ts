@@ -19,6 +19,18 @@ export async function fetchTasks(): Promise<TaskView[]> {
   return ((await res.json()) as Task[]).map(toTaskView);
 }
 
+/** task を作る。新しい task は todo から始まる。作れたら番号を、断られたら理由を返す */
+export async function addTask(fields: {
+  title: string;
+  area: Task["area"];
+  project?: string;
+  scheduled?: string;
+}): Promise<{ id: number } | string> {
+  const res = await request("POST", "/api/tasks", fields);
+  if (typeof res === "string") return res;
+  return { id: ((await res.json()) as Task).id };
+}
+
 /** task を書き換える。断られたら理由を返す */
 export const patch = (id: number, fields: Partial<Task>) =>
   send("PATCH", `/api/tasks/${id}`, fields);
@@ -58,6 +70,12 @@ export const deleteItem = (id: number) => send("DELETE", `/api/items/${id}`);
 
 /** API に書き込む。断られたら理由を返す */
 async function send(method: string, path: string, body?: unknown): Promise<string | undefined> {
+  const res = await request(method, path, body);
+  if (typeof res === "string") return res;
+}
+
+/** API に書き込み、受け入れられたら答えを、断られたら理由を返す */
+async function request(method: string, path: string, body?: unknown): Promise<Response | string> {
   let res: Response;
   try {
     res = await fetch(path, {
@@ -77,4 +95,5 @@ async function send(method: string, path: string, body?: unknown): Promise<strin
       ((await res.json().catch(() => ({}))) as { error?: string }).error ??
       `Couldn't save (${res.status})`
     );
+  return res;
 }

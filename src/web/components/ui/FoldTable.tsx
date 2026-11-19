@@ -23,6 +23,8 @@ export type FoldTableRow = {
   cells: Record<string, ReactNode>;
   open: boolean;
   onToggle: () => void;
+  /** 開いた行の右端に置く操作。行を押して閉じないよう、ここの click は行に伝えない */
+  actions?: ReactNode;
   /** 開いたときに行の下に、全部の列にまたがって出す中身 */
   detail: ReactNode;
 };
@@ -64,6 +66,7 @@ export function FoldTable({ columns, rows }: { columns: FoldColumn[]; rows: Fold
               )}
             </Table.Th>
           ))}
+          <Table.Th w={1} aria-label="Actions" />
         </Table.Tr>
       </Table.Thead>
       <Table.Tbody>
@@ -86,10 +89,14 @@ export function FoldTable({ columns, rows }: { columns: FoldColumn[]; rows: Fold
                 )}
               </Table.Td>
             ))}
+            {/* menu は portal に開くが、React の event はここを通って伝わるので、ここで止める */}
+            <Table.Td py={0} onClick={(e) => e.stopPropagation()}>
+              {r.open ? r.actions : null}
+            </Table.Td>
           </Table.Tr>,
           r.open ? (
             <Table.Tr key={`${r.id}-detail`}>
-              <Table.Td colSpan={shown.length}>
+              <Table.Td colSpan={shown.length + 1}>
                 <Box
                   ml="lg"
                   my="xs"
