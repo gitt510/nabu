@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { type RailItem, Shell } from "./Shell";
+import { CreditsDialog } from "../components/CreditsDialog";
 import { HelpDialog } from "../components/HelpDialog";
 import { NewTaskDialog } from "../components/NewTaskDialog";
 import {
@@ -10,6 +11,7 @@ import {
   KeyboardIcon,
   MoonIcon,
   SeedlingIcon,
+  Stack2Icon,
   SunIcon,
   useComputedColorScheme,
   useHotkeys,
@@ -34,6 +36,7 @@ export function App() {
   // task を開く・閉じるは履歴に残さない
   const selectTask = (id: string) => go({ page: "tasks", id }, false);
   const [help, setHelp] = useState(false);
+  const [credits, setCredits] = useState(false);
   const [adding, setAdding] = useState(false);
   // logo で origin に戻るたびに数を進め、Home を作り直して今日から見せる
   const [home, setHome] = useState(0);
@@ -68,6 +71,7 @@ export function App() {
           onClick: () => setHelp(true),
           keyboard: true,
         },
+        { label: "Built with", icon: Stack2Icon, onClick: () => setCredits(true) },
       ]}
     >
       {error ? (
@@ -89,6 +93,7 @@ export function App() {
       )}
       <NewTaskDialog opened={adding} onClose={() => setAdding(false)} onAdded={reload} />
       <HelpDialog opened={help} onClose={() => setHelp(false)} />
+      <CreditsDialog opened={credits} onClose={() => setCredits(false)} />
     </Shell>
   );
 }

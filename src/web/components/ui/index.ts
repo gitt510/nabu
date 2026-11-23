@@ -42,6 +42,7 @@ export { FoldSections } from "./FoldSections";
 export { Dialog } from "./Dialog";
 export { EmptyState } from "./EmptyState";
 export { KeyTable } from "./KeyTable";
+export { StackTable } from "./StackTable";
 export { Prose } from "./Prose";
 
 export * from "./icons";

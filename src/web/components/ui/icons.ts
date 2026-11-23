@@ -27,6 +27,7 @@ export {
   IconPencil as PencilIcon,
   IconPlus as PlusIcon,
   IconSeedling as SeedlingIcon,
+  IconStack2 as Stack2Icon,
   IconSun as SunIcon,
   IconTag as TagIcon,
   IconTicket as TicketIcon,
