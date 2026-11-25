@@ -26,6 +26,9 @@ nabu task cancel <id> "<why>"...           # decided against; one line of why_ca
 nabu task reopen <id>                      # back to todo; a canceled task loses its why_canceled
 nabu task rm <id>                          # delete a task, whatever its status
 nabu task item add <id> "<line>"...        # add lines last in a task's checklist, one per argument
+nabu task item ls <id>                     # a task's checklist: number, [x] or [ ], text
+nabu task item check <id> <n>...           # mark lines done, each by its number in item ls
+nabu task item uncheck <id> <n>...         # mark lines not done again
 nabu task ls [status] [--json]             # status, title, created; --json adds id, the frontmatter, and the body
 nabu task read <id>                        # a task's content as markdown, any status
 nabu task schema                             # the rules a write must meet, as JSON Schema
@@ -66,7 +69,9 @@ shell reads an unquoted `#` as a comment. Find a task's id with
    frontmatter and keeps the title.
 5. **Break the work down with `task item add`.** When the user gives the
    steps of a task, add them to its checklist, one argument per step, in
-   order. Checking a line off and editing it happen in the viewer.
+   order. When a step is finished, read the numbers with `task item ls`
+   and run `nabu task item check <id> <n>`; `task item uncheck` undoes it.
+   Editing a line happens in the viewer.
 6. **Mark a wait with `task set --waiting`.** When the user has done their
    part and waits on someone else (a reply, a review), keep the task todo
    and run `nabu task set <id> --waiting "<who or what>"`;

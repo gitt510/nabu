@@ -72,9 +72,31 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			refuse(422, "text: must not be blank")
 			return
 		}
+		it.Id = len(f.items) + 1
 		f.items = append(f.items, it)
 		w.WriteHeader(201)
 		_ = json.NewEncoder(w).Encode(it)
+		return
+	case r.Method == http.MethodGet && r.URL.Path == "/api/items":
+		out := []api.Item{}
+		for _, it := range f.items {
+			if fmt.Sprint(it.TaskId) == r.URL.Query().Get("task_id") {
+				out = append(out, it)
+			}
+		}
+		_ = json.NewEncoder(w).Encode(out)
+		return
+	case r.Method == http.MethodPatch && strings.HasPrefix(r.URL.Path, "/api/items/"):
+		n := 0
+		_, _ = fmt.Sscanf(r.URL.Path, "/api/items/%d", &n)
+		if n < 1 || n > len(f.items) {
+			refuse(404, "no such item")
+			return
+		}
+		if done, ok := f.last["done"].(bool); ok {
+			f.items[n-1].Done = done
+		}
+		_ = json.NewEncoder(w).Encode(f.items[n-1])
 		return
 	case r.Method == http.MethodPost && r.URL.Path == "/api/tasks":
 		t := api.Task{Status: api.Todo, Created: "2026-10-06T09:00:00+09:00", Updated: "2026-10-06T09:00:00+09:00"}
@@ -412,11 +434,44 @@ func TestTaskItemAddViaCLI(t *testing.T) {
 		t.Fatalf("item add: %s", got)
 	}
 	id := f.tasks[1].Id
-	if len(f.items) != 2 || f.items[0] != (api.Item{TaskId: id, Text: "first"}) || f.items[1] != (api.Item{TaskId: id, Text: "second"}) {
+	if len(f.items) != 2 || f.items[0] != (api.Item{Id: 1, TaskId: id, Text: "first"}) || f.items[1] != (api.Item{Id: 2, TaskId: id, Text: "second"}) {
 		t.Fatalf("items: %+v", f.items)
 	}
 	nabu(exitUsage, "", "task", "item", "add", "1", " ")
 	nabu(exitFail, "", "task", "item", "add", "9", "x")
+}
+
+func TestTaskItemCheckViaCLI(t *testing.T) {
+	f, nabu := newAPI(t)
+	nabu(exitOK, content("Other"), "task", "new", "--area", "work")
+	nabu(exitOK, content("Ok"), "task", "new", "--area", "work")
+	nabu(exitOK, "", "task", "item", "add", "1", "theirs")
+	nabu(exitOK, "", "task", "item", "add", "2", "first", "second", "third")
+
+	if got := nabu(exitOK, "", "task", "item", "check", "2", "3", "1"); !strings.Contains(got, `"third"`) || !strings.Contains(got, `"first"`) || strings.Contains(got, `"second"`) {
+		t.Fatalf("item check: %s", got)
+	}
+	if got := nabu(exitOK, "", "task", "item", "ls", "2"); got != "1\t[x]\tfirst\n2\t[ ]\tsecond\n3\t[x]\tthird\n" {
+		t.Fatalf("item ls: %q", got)
+	}
+	// a line is numbered within its own task
+	if f.items[0].Done {
+		t.Fatalf("checked a line of another task: %+v", f.items)
+	}
+	nabu(exitOK, "", "task", "item", "uncheck", "2", "1")
+	if got := nabu(exitOK, "", "task", "item", "ls", "2"); !strings.HasPrefix(got, "1\t[ ]\tfirst\n") {
+		t.Fatalf("item uncheck: %q", got)
+	}
+
+	// one bad number changes no line
+	nabu(exitFail, "", "task", "item", "check", "2", "2", "4")
+	nabu(exitUsage, "", "task", "item", "check", "2", "2", "second")
+	if f.items[2].Done {
+		t.Fatalf("checked a line beside a bad number: %+v", f.items)
+	}
+	nabu(exitUsage, "", "task", "item", "check", "2")
+	nabu(exitFail, "", "task", "item", "check", "9", "1")
+	nabu(exitFail, "", "task", "item", "ls", "9")
 }
 
 func TestTaskLsAndGrepViaCLI(t *testing.T) {

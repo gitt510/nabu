@@ -280,7 +280,7 @@ func taskRmCmd(e *env) *cobra.Command {
 func taskItemCmd(e *env) *cobra.Command {
 	cmd := parentCmd(e, &cobra.Command{
 		Use:     "item",
-		Short:   "change a task's checklist",
+		Short:   "list and change a task's checklist",
 		GroupID: "update",
 	})
 	cmd.AddCommand(&cobra.Command{
@@ -304,8 +304,85 @@ func taskItemCmd(e *env) *cobra.Command {
 			}
 			return emit(e.stdout, result{Action: "task item add", ID: t.Id, Status: t.Status, Items: lines})
 		}),
-	})
+	}, &cobra.Command{
+		Use:   "ls <id>",
+		Short: "list a task's checklist",
+		Long:  "prints each line of a task's checklist in order, tab-separated: its number, [x] when done or [ ] when not, and its text",
+		Args:  cobra.ExactArgs(1),
+		RunE: withTask(e, func(id int, _ []string) int {
+			c, err := client()
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			_, items, err := checklist(c, id)
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			for i, it := range items {
+				mark := " "
+				if it.Done {
+					mark = "x"
+				}
+				fmt.Fprintf(e.stdout, "%d\t[%s]\t%s\n", i+1, mark, it.Text)
+			}
+			return exitOK
+		}),
+	}, taskItemCheckCmd(e, "check", true), taskItemCheckCmd(e, "uncheck", false))
 	return cmd
+}
+
+// checklist returns the task with id and its checklist, in order.
+func checklist(c *api.Client, id int) (api.Task, []api.Item, error) {
+	t, err := c.Get(id)
+	if err != nil {
+		return t, nil, err
+	}
+	items, err := c.Items(id)
+	return t, items, err
+}
+
+// taskItemCheckCmd marks lines of a task's checklist done, or not done; a
+// line is named by its number in task item ls.
+func taskItemCheckCmd(e *env, name string, done bool) *cobra.Command {
+	state := "not done"
+	if done {
+		state = "done"
+	}
+	return &cobra.Command{
+		Use:   name + " <id> <n>...",
+		Short: "mark lines of a task's checklist " + state,
+		Long:  "marks each line <n> of a task's checklist " + state + " and prints their text; <n> is the line's number as task item ls prints it.\nno line is changed unless every <n> names one; a line already " + state + " stays so",
+		Args:  cobra.MinimumNArgs(2),
+		RunE: withTask(e, func(id int, ns []string) int {
+			c, err := client()
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			t, items, err := checklist(c, id)
+			if err != nil {
+				return fail(e.stderr, err, exitFail)
+			}
+			lines := make([]api.Item, len(ns))
+			for i, n := range ns {
+				at, err := strconv.Atoi(n)
+				if err != nil {
+					return fail(e.stderr, fmt.Errorf("not a line number: %s (pass the number task item ls prints)", n), exitUsage)
+				}
+				if at < 1 || at > len(items) {
+					return fail(e.stderr, fmt.Errorf("no line %d in the checklist of #%d: it has %d", at, id, len(items)), exitFail)
+				}
+				lines[i] = items[at-1]
+			}
+			texts := make([]string, len(lines))
+			for i, l := range lines {
+				if _, err := c.CheckItem(l.Id, done); err != nil {
+					return fail(e.stderr, err, exitFail)
+				}
+				texts[i] = l.Text
+			}
+			return emit(e.stdout, result{Action: "task item " + name, ID: t.Id, Status: t.Status, Items: texts})
+		}),
+	}
 }
 
 func taskSchemaCmd(e *env) *cobra.Command {
