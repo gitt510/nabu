@@ -119,6 +119,18 @@ func (c *Client) AddItem(taskID int, text string) (Item, error) {
 	return out, c.do(http.MethodPost, "/api/items", PostApiItemsJSONBody{TaskId: taskID, Text: text}, &out)
 }
 
+// Items returns the checklist of the task with id taskID, in order.
+func (c *Client) Items(taskID int) ([]Item, error) {
+	var out []Item
+	return out, c.do(http.MethodGet, fmt.Sprintf("/api/items?task_id=%d", taskID), nil, &out)
+}
+
+// CheckItem marks the checklist line with id done, or not done.
+func (c *Client) CheckItem(id int, done bool) (Item, error) {
+	var out Item
+	return out, c.do(http.MethodPatch, fmt.Sprintf("/api/items/%d", id), PatchApiItemsIdJSONBody{Done: &done}, &out)
+}
+
 // Schema returns the task contract as JSON Schema, the rules every write must meet.
 func (c *Client) Schema() (json.RawMessage, error) {
 	var out json.RawMessage
